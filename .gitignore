@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+build/
+**/dist/
+**/build/
+
+# Environment
+.env
+.env.local
+.env.*.local
+**/.env
+!**/.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Claude Code local files
+.claude/
+
+# User-uploaded data
+storage/
+!storage/.gitkeep
+
+# Prisma generated client (regenerated on install)
+**/generated/
+
+# Coverage
+coverage/
+*.lcov
+
+# Temp / misc
+*.tmp
+*.bak
+1.png

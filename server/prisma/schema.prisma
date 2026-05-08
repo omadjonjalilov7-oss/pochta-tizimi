@@ -1,0 +1,204 @@
+// Prisma schema — Korporativ pochta tizimi
+// Hujjat: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// BO'LIMLAR
+// ============================================================
+model Department {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  users User[]
+
+  @@map("departments")
+}
+
+// ============================================================
+// LAVOZIMLAR
+// ============================================================
+model Position {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique @db.VarChar(255)
+  rank      Int      @default(100) // kichik = yuqori (1=Direktor)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  users User[]
+
+  @@index([rank])
+  @@map("positions")
+}
+
+// ============================================================
+// FOYDALANUVCHILAR
+// ============================================================
+model User {
+  id               String   @id @default(uuid()) @db.Uuid
+  login            String   @unique @db.VarChar(64)
+  passwordHash    String   @map("password_hash") @db.VarChar(255)
+  fullName        String   @map("full_name") @db.VarChar(255)
+  phone           String?  @db.VarChar(32)
+  email           String?  @unique @db.VarChar(255)
+  avatarPath      String?  @map("avatar_path") @db.VarChar(512)
+
+  departmentId    String?  @map("department_id") @db.Uuid
+  positionId      String?  @map("position_id") @db.Uuid
+
+  canSendExternal Boolean  @default(false) @map("can_send_external")
+  isActive        Boolean  @default(true) @map("is_active")
+  isAdmin         Boolean  @default(false) @map("is_admin")
+
+  failedLoginCount Int      @default(0) @map("failed_login_count")
+  lockedUntil      DateTime? @map("locked_until") @db.Timestamptz(3)
+  lastLoginAt      DateTime? @map("last_login_at") @db.Timestamptz(3)
+
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  department      Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  position        Position?   @relation(fields: [positionId], references: [id], onDelete: SetNull)
+
+  sentMessages    Message[]            @relation("MessageSender")
+  receivedItems   MessageRecipient[]
+  auditLogs       AuditLog[]
+
+  @@index([departmentId])
+  @@index([positionId])
+  @@index([isActive])
+  @@map("users")
+}
+
+// ============================================================
+// XABARLAR (asosiy)
+// ============================================================
+enum Importance {
+  normal
+  important
+  urgent
+}
+
+model Message {
+  id          String     @id @default(uuid()) @db.Uuid
+  fromUserId  String     @map("from_user_id") @db.Uuid
+  subject     String     @db.VarChar(512)
+  body        String     @db.Text
+  importance  Importance @default(normal)
+  isExternal  Boolean    @default(false) @map("is_external")
+  sentAt      DateTime   @default(now()) @map("sent_at") @db.Timestamptz(3)
+
+  fromUser    User                  @relation("MessageSender", fields: [fromUserId], references: [id], onDelete: Cascade)
+  recipients  MessageRecipient[]
+  attachments Attachment[]
+
+  @@index([fromUserId])
+  @@index([sentAt])
+  @@map("messages")
+}
+
+// ============================================================
+// QABUL QILUVCHILAR (har bir xabar uchun har bir qabul qiluvchi alohida yozuv)
+// Bu yondashuv "ko'pdan-ko'p" munosabat va har bir qabul qiluvchining alohida holatini saqlash imkonini beradi
+// ============================================================
+enum MessageFolder {
+  inbox
+  sent
+  trash
+  archive
+}
+
+enum RecipientKind {
+  to
+  cc
+}
+
+model MessageRecipient {
+  id         String        @id @default(uuid()) @db.Uuid
+  messageId  String        @map("message_id") @db.Uuid
+  userId     String        @map("user_id") @db.Uuid
+  folder     MessageFolder @default(inbox)
+  kind       RecipientKind @default(to)
+  isRead     Boolean       @default(false) @map("is_read")
+  readAt     DateTime?     @map("read_at") @db.Timestamptz(3)
+  isStarred  Boolean       @default(false) @map("is_starred")
+  deletedAt  DateTime?     @map("deleted_at") @db.Timestamptz(3)
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  message    Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId, folder])
+  @@index([userId, isRead])
+  @@map("message_recipients")
+}
+
+// ============================================================
+// FAYL BIRIKMALARI
+// ============================================================
+model Attachment {
+  id           String   @id @default(uuid()) @db.Uuid
+  messageId    String?  @map("message_id") @db.Uuid // xabar yuborilgunga qadar null
+  uploadedBy   String   @map("uploaded_by") @db.Uuid
+  filename     String   @db.VarChar(512)
+  storedPath   String   @map("stored_path") @db.VarChar(1024)
+  sizeBytes    BigInt   @map("size_bytes")
+  mimeType     String   @map("mime_type") @db.VarChar(128)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  message      Message? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@index([uploadedBy])
+  @@map("attachments")
+}
+
+// ============================================================
+// AUDIT LOG (kim qachon nima qildi)
+// ============================================================
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  action     String   @db.VarChar(64)
+  ipAddress  String?  @map("ip_address") @db.VarChar(64)
+  details    Json?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user       User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_log")
+}
+
+// ============================================================
+// ARXIV — eski xabarlar (6 oydan keyin shu yerga ko'chiriladi)
+// Sxema messages bilan bir xil, lekin alohida jadval — asosiy jadval kichik qoladi va tezroq ishlaydi
+// ============================================================
+model MessageArchive {
+  id          String     @id @db.Uuid
+  fromUserId  String     @map("from_user_id") @db.Uuid
+  subject     String     @db.VarChar(512)
+  body        String     @db.Text
+  importance  Importance @default(normal)
+  isExternal  Boolean    @default(false) @map("is_external")
+  sentAt      DateTime   @map("sent_at") @db.Timestamptz(3)
+  archivedAt  DateTime   @default(now()) @map("archived_at") @db.Timestamptz(3)
+  recipientsJson Json    @map("recipients_json")
+  attachmentsJson Json   @map("attachments_json")
+
+  @@index([fromUserId])
+  @@index([sentAt])
+  @@map("messages_archive")
+}
