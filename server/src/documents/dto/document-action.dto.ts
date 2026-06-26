@@ -19,6 +19,16 @@ export class ApproveDocumentDto {
   pin!: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  approvalNotes?: string; // Tasdiq xususi izohatlari (ixtiyoriy)
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  approvalMethod?: string; // 'signature', 'qr', 'digital', 'manual'
+
+  @IsOptional()
   @IsArray()
   @ArrayMaxSize(20)
   @IsUUID('all', { each: true })
@@ -37,6 +47,11 @@ export class RejectDto {
   @MinLength(2)
   @MaxLength(2000)
   reason: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  notes?: string; // Qo'shimcha izohlar (ixtiyoriy)
 
   // Rad etish xam tasdiqlash zanjiridagi qaror — shu sabab PIN talab qilinadi
   @IsString()

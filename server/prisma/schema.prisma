@@ -382,6 +382,9 @@ model Document {
   signatureChainPosition Int  @default(0) @map("signature_chain_position")
   isSigned               Boolean @default(false) @map("is_signed")
 
+  // Hujjat chop qilishga tayyormi? (yakunlanmaguncha false)
+  isPrintable            Boolean @default(false) @map("is_printable")
+
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   closedAt    DateTime? @map("closed_at") @db.Timestamptz(3)
@@ -416,7 +419,13 @@ model DocumentParticipant {
   status       ParticipantStatus   @default(pending)
   deadline     DateTime?           @db.Timestamptz(3)
   actedAt      DateTime?           @map("acted_at") @db.Timestamptz(3)
+
+  // Tasdiq izohatlari (tasdiqlasa yozsa bo'ladi)
+  approvalNotes String?            @map("approval_notes") @db.Text
+  // Rad etish izohatlari (rad etsa faqat zarur)
   rejectReason String?             @map("reject_reason") @db.Text
+  // Tasdiq usuli (signature, qr, digital, manual)
+  approvalMethod String?           @map("approval_method") @db.VarChar(20)
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   user     User     @relation(fields: [userId], references: [id])

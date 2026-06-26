@@ -432,7 +432,12 @@ export class DocumentsService {
           role: ParticipantRole.approver,
           status: ParticipantStatus.pending,
         },
-        data: { status: ParticipantStatus.approved, actedAt: new Date() },
+        data: {
+          status: ParticipantStatus.approved,
+          actedAt: new Date(),
+          approvalNotes: dto.approvalNotes || null,
+          approvalMethod: dto.approvalMethod || 'manual',
+        },
       });
 
       if (addIds.length > 0) {
@@ -507,7 +512,7 @@ export class DocumentsService {
         doc.subject,
       );
     } else {
-      // Zanjir tugadi — bajarildi
+      // Zanjir tugadi — bajarildi va chop bo'lish uchun tayyorlanadi
       await this.prisma.$transaction(async (tx) => {
         await tx.document.update({
           where: { id },
@@ -516,6 +521,7 @@ export class DocumentsService {
             currentHolderId: null,
             closedAt: new Date(),
             isSigned: true,
+            isPrintable: true, // Yakunlangan hujjat chop bo'lishi mumkin
           },
         });
         await tx.documentAuditLog.create({
@@ -533,7 +539,11 @@ export class DocumentsService {
     await this.users.verifyApprovalPin(userId, dto.pin);
     const doc = await this.requireActiveApprover(userId, id);
 
+    // Rad etish sababi + qo'shimcha izohlar
+    const fullReason = dto.notes ? `${dto.reason}\n---\n${dto.notes}` : dto.reason;
+
     await this.prisma.$transaction(async (tx) => {
+      // Tasdiqlovchini rad etilgan deb belgilaymiz
       await tx.documentParticipant.updateMany({
         where: {
           documentId: id,
@@ -544,29 +554,36 @@ export class DocumentsService {
         data: {
           status: ParticipantStatus.rejected,
           actedAt: new Date(),
-          rejectReason: dto.reason,
+          rejectReason: fullReason,
         },
       });
+
+      // Hujjat statusini rad etilgan qilamiz — keyingi qadamga o'tmaydi
       await tx.document.update({
         where: { id },
         data: {
           status: DocumentStatus.rejected,
-          currentHolderId: doc.createdById,
+          currentHolderId: doc.createdById, // Yaratuvchiga qaytarish
+          isPrintable: false, // Rad etilgan hujjat chop bo'lmaydi
         },
       });
+
+      // Komment qo'shamiz
       await tx.documentComment.create({
         data: {
           documentId: id,
           authorId: userId,
-          text: `[Rad etildi] ${dto.reason}`,
+          text: `[Rad etildi]\n${fullReason}`,
         },
       });
+
+      // Audit logga yozamiz
       await tx.documentAuditLog.create({
         data: {
           documentId: id,
           actorId: userId,
           action: 'rejected',
-          payload: { reason: dto.reason } as any,
+          payload: { reason: dto.reason, notes: dto.notes } as any,
         },
       });
     });
