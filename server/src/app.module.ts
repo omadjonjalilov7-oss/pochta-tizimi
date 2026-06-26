@@ -13,6 +13,11 @@ import { DepartmentsModule } from './departments/departments.module';
 import { PositionsModule } from './positions/positions.module';
 import { MessagesModule } from './messages/messages.module';
 import { AttachmentsModule } from './attachments/attachments.module';
+import { ExternalMailModule } from './external-mail/external-mail.module';
+import { DocumentsModule } from './documents/documents.module';
+import { TemplatesModule } from './templates/templates.module';
+import { ChatModule } from './chat/chat.module';
+import { ContactGroupsModule } from './contact-groups/contact-groups.module';
 
 const avatarsDir = process.env.AVATARS_DIR || 'C:\\D\\pochta\\storage\\avatars';
 
@@ -48,6 +53,11 @@ const staticImports = [
     PositionsModule,
     MessagesModule,
     AttachmentsModule,
+    ExternalMailModule,
+    DocumentsModule,
+    TemplatesModule,
+    ChatModule,
+    ContactGroupsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

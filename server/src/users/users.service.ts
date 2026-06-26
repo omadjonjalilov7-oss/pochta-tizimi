@@ -51,6 +51,12 @@ export class UsersService {
     const passwordHash = await bcrypt.hash(dto.password, rounds);
     const email = dto.email ?? `${dto.login}@pochta.local`;
 
+    // O'z-o'ziga rahbar bo'lib qola olmaydi — yangi user uchun managerId boshqa userga ishora qilishi shart
+    if (dto.managerId) {
+      const mgr = await this.prisma.user.findUnique({ where: { id: dto.managerId } });
+      if (!mgr) throw new BadRequestException('Tanlangan rahbar topilmadi');
+    }
+
     const user = await this.prisma.user.create({
       data: {
         login: dto.login,
@@ -60,7 +66,9 @@ export class UsersService {
         email,
         departmentId: dto.departmentId,
         positionId: dto.positionId,
+        managerId: dto.managerId,
         canSendExternal: dto.canSendExternal ?? false,
+        canSignExternal: dto.canSignExternal ?? false,
         isAdmin: dto.isAdmin ?? false,
       },
       include: { department: true, position: true },
@@ -76,6 +84,18 @@ export class UsersService {
       const rounds = parseInt(this.config.get('BCRYPT_ROUNDS', '12'), 10);
       data.passwordHash = await bcrypt.hash(dto.password, rounds);
     }
+
+    // O'z-o'ziga rahbar bo'lishni taqiqlaymiz
+    if (dto.managerId !== undefined) {
+      if (dto.managerId === id) {
+        throw new BadRequestException("Xodim o'z-o'ziga rahbar bo'la olmaydi");
+      }
+      if (dto.managerId) {
+        const mgr = await this.prisma.user.findUnique({ where: { id: dto.managerId } });
+        if (!mgr) throw new BadRequestException('Tanlangan rahbar topilmadi');
+      }
+    }
+
     try {
       const updated = await this.prisma.user.update({
         where: { id },
@@ -112,6 +132,62 @@ export class UsersService {
   async setActive(id: string, isActive: boolean) {
     await this.prisma.user.update({ where: { id }, data: { isActive } });
     return { ok: true };
+  }
+
+  // ── EDO tasdiqlash PIN-kodi (faqat hujjat tasdiqlash payti so'raladi) ─────
+
+  async setApprovalPin(userId: string, newPin: string, currentPin?: string) {
+    if (!/^\d{4}$/.test(newPin)) {
+      throw new BadRequestException('PIN faqat 4 raqamdan iborat bo\'lishi shart');
+    }
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { approvalPinHash: true },
+    });
+    if (!user) throw new NotFoundException('Foydalanuvchi topilmadi');
+
+    // Agar foydalanuvchi avval PIN qo'ygan bo'lsa, eski PIN tekshiriladi
+    if (user.approvalPinHash) {
+      if (!currentPin) {
+        throw new BadRequestException('Joriy PIN-kodni kiriting');
+      }
+      const ok = await bcrypt.compare(currentPin, user.approvalPinHash);
+      if (!ok) throw new BadRequestException("Joriy PIN noto'g'ri");
+    }
+
+    const rounds = parseInt(this.config.get('BCRYPT_ROUNDS', '12'), 10);
+    const hash = await bcrypt.hash(newPin, rounds);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { approvalPinHash: hash },
+    });
+    return { ok: true };
+  }
+
+  async clearApprovalPin(userId: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { approvalPinHash: null },
+    });
+    return { ok: true };
+  }
+
+  // Hujjat tasdiqlash service'i tomonidan chaqiriladi
+  async verifyApprovalPin(userId: string, pin: string): Promise<void> {
+    if (!pin || !/^\d{4}$/.test(pin)) {
+      throw new BadRequestException("PIN 4 raqamdan iborat bo'lishi shart");
+    }
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { approvalPinHash: true },
+    });
+    if (!user?.approvalPinHash) {
+      throw new BadRequestException(
+        'Tasdiqlash PIN-kodi o\'rnatilmagan. Profilingiz sozlamalaridan o\'rnating',
+      );
+    }
+    const ok = await bcrypt.compare(pin, user.approvalPinHash);
+    if (!ok) throw new BadRequestException("Noto'g'ri PIN-kod");
   }
 
   private avatarsDir(): string {
@@ -176,7 +252,13 @@ export class UsersService {
   }
 
   private sanitize(user: any) {
-    const { passwordHash, failedLoginCount, lockedUntil, ...safe } = user;
-    return safe;
+    const {
+      passwordHash,
+      failedLoginCount,
+      lockedUntil,
+      approvalPinHash,
+      ...safe
+    } = user;
+    return { ...safe, hasApprovalPin: !!approvalPinHash };
   }
 }

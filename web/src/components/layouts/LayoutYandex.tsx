@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   Inbox,
   Send,
@@ -13,12 +13,16 @@ import {
   Bell,
   Palette,
   LayoutGrid,
+  Languages,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Avatar } from '../Avatar';
 import { Logo } from '../Logo';
+import { AppSwitcher } from '../AppSwitcher';
 import { cn } from '../../lib/utils';
 import { useLayoutData } from './useLayoutData';
 import { useAppearanceModals } from '../AppearanceModals';
+import { FloatingChatWidget } from '../FloatingChatWidget';
 
 function YandexNav({
   to,
@@ -26,43 +30,46 @@ function YandexNav({
   label,
   badge,
   onClick,
+  collapsed,
 }: {
   to: string;
   icon: typeof Inbox;
   label: string;
   badge?: number;
   onClick?: (e: React.MouseEvent) => void;
+  collapsed?: boolean;
 }) {
   return (
     <NavLink
       to={to}
       onClick={onClick}
       end
+      title={collapsed ? label : undefined}
       className={({ isActive }) =>
         cn(
-          'flex items-center gap-2.5 px-3 py-1.5 rounded text-sm transition-colors',
+          'flex items-center rounded text-sm transition-colors relative',
+          collapsed ? 'justify-center p-1.5' : 'gap-2.5 px-3 py-1.5',
           isActive ? 'bg-brand-600 text-white font-semibold' : 'text-slate-800 hover:bg-yellow-50',
         )
       }
     >
       <Icon size={15} />
-      <span className="flex-1">{label}</span>
+      {!collapsed && <span className="flex-1">{label}</span>}
       {badge !== undefined && badge > 0 && (
-        <span
-          className={cn(
-            'text-xs font-bold',
-          )}
-        >
-          {badge}
-        </span>
+        collapsed
+          ? <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">{badge > 9 ? '9+' : badge}</span>
+          : <span className="text-xs font-bold">{badge}</span>
       )}
     </NavLink>
   );
 }
 
 export function LayoutYandex() {
+  const { t } = useTranslation();
   const { user, unread, notification, handleLogout, handleInboxClick } = useLayoutData();
-  const { openTheme, openDesign, modals } = useAppearanceModals();
+  const { openTheme, openDesign, openLanguage, modals } = useAppearanceModals();
+  const location = useLocation();
+  const composing = location.pathname.startsWith('/compose');
 
   return (
     <div className="flex h-full flex-col bg-white">
@@ -72,6 +79,7 @@ export function LayoutYandex() {
           <Logo size={18} className="text-brand-600" />
           Pochta
         </Link>
+        <AppSwitcher />
         <div className="flex-1" />
         {notification && (
           <div className="flex items-center gap-2 bg-yellow-100 text-yellow-900 px-2 py-1 rounded text-xs animate-pulse">
@@ -86,7 +94,7 @@ export function LayoutYandex() {
         <button
           onClick={handleLogout}
           className="text-slate-500 hover:text-slate-900 p-1"
-          title="Chiqish"
+          title={t('common.logout')}
         >
           <LogOut size={15} />
         </button>
@@ -94,48 +102,54 @@ export function LayoutYandex() {
 
       <div className="flex-1 flex overflow-hidden">
         {/* Narrow sidebar */}
-        <aside className="w-48 bg-slate-50 border-r border-slate-200 flex flex-col p-2 gap-0.5 overflow-y-auto">
+        <aside className={cn(
+          'bg-slate-50 border-r border-slate-200 flex flex-col p-2 gap-0.5 overflow-y-auto transition-[width] duration-200',
+          composing ? 'w-12 items-center' : 'w-48',
+        )}>
           <Link
             to="/compose"
-            className="bg-brand-600 hover:bg-brand-700 text-white rounded py-2 px-3 mb-2 flex items-center justify-center gap-2 text-sm font-semibold transition-colors"
+            title={composing ? t('nav.compose_short') : undefined}
+            className={cn(
+              'bg-brand-600 hover:bg-brand-700 text-white rounded mb-2 flex items-center justify-center text-sm font-semibold transition-colors',
+              composing ? 'w-8 h-8 p-0' : 'py-2 px-3 gap-2',
+            )}
           >
             <Pencil size={14} />
-            Yozish
+            {!composing && t('nav.compose_short')}
           </Link>
 
-          <YandexNav to="/inbox" icon={Inbox} label="Kiruvchi" badge={unread} onClick={handleInboxClick} />
-          <YandexNav to="/sent" icon={Send} label="Yuborilgan" />
-          <YandexNav to="/starred" icon={Star} label="Yulduzli" />
-          <YandexNav to="/archive" icon={Archive} label="Arxiv" />
-          <YandexNav to="/trash" icon={Trash2} label="O'chirilgan" />
+          <YandexNav to="/inbox" icon={Inbox} label={t('nav.inbox')} badge={unread} onClick={handleInboxClick} collapsed={composing} />
+          <YandexNav to="/sent" icon={Send} label={t('nav.sent')} collapsed={composing} />
+          <YandexNav to="/starred" icon={Star} label={t('nav.starred')} collapsed={composing} />
+          <YandexNav to="/archive" icon={Archive} label={t('nav.archive')} collapsed={composing} />
+          <YandexNav to="/trash" icon={Trash2} label={t('nav.trash')} collapsed={composing} />
 
           {user.isAdmin && (
             <>
-              <div className="mt-4 mb-1 px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                Boshqaruv
-              </div>
-              <YandexNav to="/admin/users" icon={Users} label="Xodimlar" />
-              <YandexNav to="/admin/departments" icon={Building2} label="Bo'limlar" />
-              <YandexNav to="/admin/positions" icon={Briefcase} label="Lavozimlar" />
+              {!composing && <div className="mt-4 mb-1 px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('nav.admin')}</div>}
+              {composing && <div className="mt-2 border-t border-slate-200 w-full" />}
+              <YandexNav to="/admin/users" icon={Users} label={t('nav.users')} collapsed={composing} />
+              <YandexNav to="/admin/departments" icon={Building2} label={t('nav.departments')} collapsed={composing} />
+              <YandexNav to="/admin/positions" icon={Briefcase} label={t('nav.positions')} collapsed={composing} />
             </>
           )}
 
-          <div className="mt-4 mb-1 px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-            Dizayn
-          </div>
-          <button
-            onClick={openTheme}
-            className="flex items-center gap-2.5 px-3 py-1.5 rounded text-sm text-slate-800 hover:bg-yellow-50 transition-colors text-left"
-          >
-            <Palette size={15} />
-            <span className="flex-1">Rang</span>
+          {!composing && <div className="mt-4 mb-1 px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('common.settings')}</div>}
+          {composing && <div className="mt-2 border-t border-slate-200 w-full" />}
+          <button onClick={openLanguage} title={composing ? t('common.language') : undefined}
+            className={cn('flex items-center rounded text-sm text-slate-800 hover:bg-yellow-50 transition-colors text-left', composing ? 'justify-center p-1.5' : 'gap-2.5 px-3 py-1.5')}>
+            <Languages size={15} />
+            {!composing && <span className="flex-1">{t('common.language')}</span>}
           </button>
-          <button
-            onClick={openDesign}
-            className="flex items-center gap-2.5 px-3 py-1.5 rounded text-sm text-slate-800 hover:bg-yellow-50 transition-colors text-left"
-          >
+          <button onClick={openTheme} title={composing ? t('common.theme') : undefined}
+            className={cn('flex items-center rounded text-sm text-slate-800 hover:bg-yellow-50 transition-colors text-left', composing ? 'justify-center p-1.5' : 'gap-2.5 px-3 py-1.5')}>
+            <Palette size={15} />
+            {!composing && <span className="flex-1">{t('common.theme')}</span>}
+          </button>
+          <button onClick={openDesign} title={composing ? t('common.design') : undefined}
+            className={cn('flex items-center rounded text-sm text-slate-800 hover:bg-yellow-50 transition-colors text-left', composing ? 'justify-center p-1.5' : 'gap-2.5 px-3 py-1.5')}>
             <LayoutGrid size={15} />
-            <span className="flex-1">Ko'rinish</span>
+            {!composing && <span className="flex-1">{t('common.design')}</span>}
           </button>
         </aside>
 
@@ -143,6 +157,7 @@ export function LayoutYandex() {
           <Outlet />
         </main>
       </div>
+      <FloatingChatWidget />
       {modals}
     </div>
   );

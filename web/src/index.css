@@ -164,3 +164,57 @@ input, textarea, select {
 [data-theme="dark"] ::-webkit-scrollbar-track { background: #1e293b; }
 [data-theme="dark"] ::-webkit-scrollbar-thumb { background: #475569; }
 [data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+/* ---------- Tashqi pochta HTML matni ---------- */
+/* Tashqaridan kelgan HTML xabarlar — sanitized lekin original formatting saqlanadi */
+.external-mail-body {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #1e293b;
+}
+.external-mail-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+.external-mail-body a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+.external-mail-body a:hover {
+  color: #1d4ed8;
+}
+.external-mail-body table {
+  border-collapse: collapse;
+  max-width: 100%;
+}
+.external-mail-body table td,
+.external-mail-body table th {
+  padding: 4px 8px;
+  border: 1px solid #e2e8f0;
+}
+.external-mail-body blockquote {
+  border-left: 3px solid #cbd5e1;
+  padding-left: 12px;
+  margin: 8px 0;
+  color: #64748b;
+  font-style: italic;
+}
+.external-mail-body pre {
+  background: #f1f5f9;
+  padding: 8px 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 13px;
+}
+.external-mail-body p {
+  margin: 0.5em 0;
+}
+[data-theme="dark"] .external-mail-body {
+  color: #e2e8f0;
+}
+[data-theme="dark"] .external-mail-body a { color: #60a5fa; }
+[data-theme="dark"] .external-mail-body blockquote { border-color: #475569; color: #94a3b8; }
+[data-theme="dark"] .external-mail-body pre { background: #1e293b; }
+[data-theme="dark"] .external-mail-body table td,
+[data-theme="dark"] .external-mail-body table th { border-color: #334155; }

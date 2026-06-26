@@ -9,7 +9,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { IsString, MaxLength, MinLength } from 'class-validator';
+import { IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
@@ -19,6 +19,13 @@ class DepartmentDto {
   @MinLength(2)
   @MaxLength(255)
   name: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Z0-9-]{1,16}$/, {
+    message: "Kod 1-16 belgi (faqat katta harf, raqam yoki tire) bo'lishi kerak",
+  })
+  code?: string | null;
 }
 
 @Controller('departments')
@@ -34,13 +41,18 @@ export class DepartmentsController {
   @Post()
   @UseGuards(AdminGuard)
   create(@Body() dto: DepartmentDto) {
-    return this.prisma.department.create({ data: { name: dto.name } });
+    return this.prisma.department.create({
+      data: { name: dto.name, code: dto.code || null },
+    });
   }
 
   @Patch(':id')
   @UseGuards(AdminGuard)
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: DepartmentDto) {
-    return this.prisma.department.update({ where: { id }, data: { name: dto.name } });
+    return this.prisma.department.update({
+      where: { id },
+      data: { name: dto.name, code: dto.code || null },
+    });
   }
 
   @Delete(':id')

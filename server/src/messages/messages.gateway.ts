@@ -66,4 +66,13 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
       });
     }
   }
+
+  notifyMessageRecalled(recipientIds: string[], messageId: string, subject: string) {
+    for (const userId of recipientIds) {
+      this.server.to(`user:${userId}`).emit('message_recalled', {
+        type: 'message_recalled',
+        payload: { messageId, subject },
+      });
+    }
+  }
 }

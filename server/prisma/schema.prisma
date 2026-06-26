@@ -16,10 +16,14 @@ datasource db {
 model Department {
   id        String   @id @default(uuid()) @db.Uuid
   name      String   @unique @db.VarChar(255)
+  // Hujjat raqamlash uchun bo'lim kodi (masalan: "001", "002"). Admin tomonidan beriladi.
+  code      String?  @unique @db.VarChar(16)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   users User[]
+  numberedDocuments Document[] @relation("DocNumberDept")
+  targetedDocuments Document[] @relation("DocTargetDept")
 
   @@map("departments")
 }
@@ -55,7 +59,12 @@ model User {
   departmentId    String?  @map("department_id") @db.Uuid
   positionId      String?  @map("position_id") @db.Uuid
 
+  // Bevosita rahbar — EDO uchun imzo zanjirini qurish va vazifa biriktirishda ishlatiladi
+  managerId       String?  @map("manager_id") @db.Uuid
+
   canSendExternal Boolean  @default(false) @map("can_send_external")
+  // EDO: tashqi yuboriladigan hujjatlarni E-IMZO bilan imzolash huquqi (faqat tor doiradagi xodimlar)
+  canSignExternal Boolean  @default(false) @map("can_sign_external")
   isActive        Boolean  @default(true) @map("is_active")
   isAdmin         Boolean  @default(false) @map("is_admin")
 
@@ -63,18 +72,56 @@ model User {
   lockedUntil      DateTime? @map("locked_until") @db.Timestamptz(3)
   lastLoginAt      DateTime? @map("last_login_at") @db.Timestamptz(3)
 
+  // Tashqi pochta (asaka-motors.uz) integratsiyasi
+  externalMailLogin       String?   @map("external_mail_login") @db.VarChar(255)
+  externalMailPasswordEnc String?   @map("external_mail_password_enc") @db.Text
+  externalMailEnabled     Boolean   @default(false) @map("external_mail_enabled")
+  externalMailLastSyncAt  DateTime? @map("external_mail_last_sync_at") @db.Timestamptz(3)
+  externalMailLastUid     Int?      @map("external_mail_last_uid")
+
+  // EDO bildirishnomalari (yangi hujjat, vazifa, deadline) — Pochta xabari ko'rinishida
+  notifyEdo               Boolean   @default(true) @map("notify_edo")
+
+  // EDO tasdiqlash PIN-kodi (4 xona) — faqat hujjatni tasdiqlash/rad etish/yuborish payti so'raladi
+  approvalPinHash         String?   @map("approval_pin_hash") @db.VarChar(255)
+
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   department      Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   position        Position?   @relation(fields: [positionId], references: [id], onDelete: SetNull)
 
+  // Bevosita rahbar (o'zaro munosabat)
+  manager         User?   @relation("UserManager", fields: [managerId], references: [id], onDelete: SetNull)
+  subordinates    User[]  @relation("UserManager")
+
   sentMessages    Message[]            @relation("MessageSender")
   receivedItems   MessageRecipient[]
   auditLogs       AuditLog[]
 
+  // Direkt chat
+  chatSent        ChatMessage[] @relation("ChatSender")
+  chatReceived    ChatMessage[] @relation("ChatReceiver")
+
+  // Kontakt guruhlari (foydalanuvchi o'zi yaratgan guruhlar)
+  ownedContactGroups      ContactGroup[]       @relation("ContactGroupOwner")
+  groupMemberships        ContactGroupMember[] @relation("GroupMember")
+
+  // EDO munosabatlari
+  createdDocuments         Document[]            @relation("DocCreator")
+  heldDocuments            Document[]            @relation("DocHolder")
+  documentParticipations   DocumentParticipant[]
+  authoredResolutions      Resolution[]
+  resolutionTargets        ResolutionTarget[]
+  documentComments         DocumentComment[]
+  documentSignatures       DocumentSignature[]
+  documentTemplatesAuthored DocumentTemplate[]
+  uploadedDocAttachments   DocumentAttachment[]
+  edoAuditLogs             DocumentAuditLog[]
+
   @@index([departmentId])
   @@index([positionId])
+  @@index([managerId])
   @@index([isActive])
   @@map("users")
 }
@@ -90,20 +137,55 @@ enum Importance {
 
 model Message {
   id          String     @id @default(uuid()) @db.Uuid
-  fromUserId  String     @map("from_user_id") @db.Uuid
+  fromUserId  String?    @map("from_user_id") @db.Uuid
   subject     String     @db.VarChar(512)
   body        String     @db.Text
   importance  Importance @default(normal)
   isExternal  Boolean    @default(false) @map("is_external")
   sentAt      DateTime   @default(now()) @map("sent_at") @db.Timestamptz(3)
+  recalledAt  DateTime?  @map("recalled_at") @db.Timestamptz(3)
 
-  fromUser    User                  @relation("MessageSender", fields: [fromUserId], references: [id], onDelete: Cascade)
+  // Tashqi pochta (IMAP orqali kelgan xabarlar uchun)
+  externalFromEmail String? @map("external_from_email") @db.VarChar(255)
+  externalFromName  String? @map("external_from_name") @db.VarChar(255)
+  externalMessageId String? @map("external_message_id") @db.VarChar(512)
+  externalImapUid   Int?    @map("external_imap_uid")
+
+  // Tashqi pochta (SMTP orqali yuborilgan xabarlar uchun — qabul qiluvchilar)
+  externalToEmails  String[] @default([]) @map("external_to_emails")
+  externalCcEmails  String[] @default([]) @map("external_cc_emails")
+
+  fromUser    User?                 @relation("MessageSender", fields: [fromUserId], references: [id], onDelete: Cascade)
   recipients  MessageRecipient[]
   attachments Attachment[]
+  externalReceipts ExternalReadReceipt[]
 
   @@index([fromUserId])
   @@index([sentAt])
+  @@index([externalMessageId])
   @@map("messages")
+}
+
+// ============================================================
+// TASHQI O'QISH KVITANSIYASI — tracking pixel orqali
+// ============================================================
+model ExternalReadReceipt {
+  id            String    @id @default(uuid()) @db.Uuid
+  messageId     String    @map("message_id") @db.Uuid
+  email         String    @db.VarChar(255)
+  trackToken    String    @unique @map("track_token") @db.VarChar(128)
+  readLinkToken String?   @unique @map("read_link_token") @db.VarChar(128)
+  readAt        DateTime? @map("read_at") @db.Timestamptz(3)
+  readMethod    String?   @map("read_method") @db.VarChar(20) // 'pixel', 'header', 'link', 'imap'
+  readIp        String?   @map("read_ip") @db.VarChar(64)
+  readUserAgent String?   @map("read_user_agent") @db.Text
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@index([readLinkToken])
+  @@map("external_read_receipts")
 }
 
 // ============================================================
@@ -201,4 +283,308 @@ model MessageArchive {
   @@index([fromUserId])
   @@index([sentAt])
   @@map("messages_archive")
+}
+
+// ============================================================
+// EDO — HUJJAT AYLANMASI (Electronic Document Workflow)
+// ============================================================
+
+enum DocumentType {
+  internal     // ichki hujjat (Pochta orqali xabar yuboriladi)
+  incoming     // tashqaridan kelgan
+  outgoing     // tashqariga yuboriladi (E-IMZO talab qilinadi)
+}
+
+enum DocumentStatus {
+  draft        // loyiha — yaratuvchi hali yubormagan
+  in_review    // rahbarlar imzo/tasdiqlash zanjirida
+  in_progress  // rezolyutsiya yozildi, ijroda
+  done         // bajarildi va yopildi
+  rejected     // rad etildi
+  overdue      // muddati o'tib ketdi (avtomatik holat)
+}
+
+enum ParticipantRole {
+  creator      // yaratuvchi
+  approver     // tasdiqlovchi — imzo zanjirida (rahbarlar, rais)
+  executor     // ijrochi — rezolyutsiya bo'yicha vazifa beriladi
+  observer     // ma'lumotga
+}
+
+enum ParticipantStatus {
+  pending
+  approved
+  rejected
+  done
+}
+
+enum EdoTaskStatus {
+  pending
+  in_progress
+  done
+  overdue
+}
+
+model Document {
+  id              String          @id @default(uuid()) @db.Uuid
+  number          String          @unique @db.VarChar(64)             // masalan: 2026-IN-001
+  numberCategory  String          @map("number_category") @db.VarChar(16)  // IN / OUT / INT / BUYRUQ
+  year            Int
+  type            DocumentType
+  templateId      String?         @map("template_id") @db.Uuid
+  subject         String          @db.VarChar(500)
+  shortInfo       String?         @map("short_info") @db.VarChar(1000) // shapkada ko'rinadigan qisqa ma'lumot
+  body            String          @db.Text
+  status          DocumentStatus  @default(draft)
+
+  // Tashqi yuborish bilan bog'liq
+  isExternal        Boolean   @default(false) @map("is_external")
+  externalRecipient String?   @map("external_recipient") @db.VarChar(255)
+
+  createdById       String    @map("created_by_id") @db.Uuid
+  currentHolderId   String?   @map("current_holder_id") @db.Uuid    // hozir kimda ko'rib chiqishda turibdi
+  // Raqamlash uchun ishlatilgan bo'lim (odatda yaratuvchining bo'limi)
+  numberDeptId      String?   @map("number_dept_id") @db.Uuid
+  // Hujjat qaysi bo'limga yuborilayotgani (qabul qiluvchi bo'lim)
+  targetDeptId      String?   @map("target_dept_id") @db.Uuid
+  deadline          DateTime? @db.Timestamptz(3)
+
+  // Imzo zanjiri holati
+  signatureChainPosition Int  @default(0) @map("signature_chain_position")
+  isSigned               Boolean @default(false) @map("is_signed")
+
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  closedAt    DateTime? @map("closed_at") @db.Timestamptz(3)
+
+  createdBy     User              @relation("DocCreator", fields: [createdById], references: [id])
+  currentHolder User?             @relation("DocHolder", fields: [currentHolderId], references: [id], onDelete: SetNull)
+  template      DocumentTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  numberDept    Department?       @relation("DocNumberDept", fields: [numberDeptId], references: [id], onDelete: SetNull)
+  targetDept    Department?       @relation("DocTargetDept", fields: [targetDeptId], references: [id], onDelete: SetNull)
+
+  participants DocumentParticipant[]
+  resolutions  Resolution[]
+  comments     DocumentComment[]
+  attachments  DocumentAttachment[]
+  signatures   DocumentSignature[]
+  audit        DocumentAuditLog[]
+
+  @@index([createdById])
+  @@index([currentHolderId])
+  @@index([status])
+  @@index([type])
+  @@index([year, numberCategory])
+  @@map("documents")
+}
+
+model DocumentParticipant {
+  id           String              @id @default(uuid()) @db.Uuid
+  documentId   String              @map("document_id") @db.Uuid
+  userId       String              @map("user_id") @db.Uuid
+  role         ParticipantRole
+  order        Int                 @default(0)
+  status       ParticipantStatus   @default(pending)
+  deadline     DateTime?           @db.Timestamptz(3)
+  actedAt      DateTime?           @map("acted_at") @db.Timestamptz(3)
+  rejectReason String?             @map("reject_reason") @db.Text
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@unique([documentId, userId, role])
+  @@index([userId, status])
+  @@index([documentId, order])
+  @@map("document_participants")
+}
+
+model Resolution {
+  id         String   @id @default(uuid()) @db.Uuid
+  documentId String   @map("document_id") @db.Uuid
+  authorId   String   @map("author_id") @db.Uuid
+  text       String   @db.Text
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  document Document          @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  author   User              @relation(fields: [authorId], references: [id])
+  targets  ResolutionTarget[]
+
+  @@index([documentId])
+  @@map("resolutions")
+}
+
+model ResolutionTarget {
+  id           String        @id @default(uuid()) @db.Uuid
+  resolutionId String        @map("resolution_id") @db.Uuid
+  userId       String        @map("user_id") @db.Uuid
+  deadline     DateTime?     @db.Timestamptz(3)
+  status       EdoTaskStatus @default(pending)
+  doneAt       DateTime?     @map("done_at") @db.Timestamptz(3)
+  doneNote     String?       @map("done_note") @db.Text
+
+  resolution Resolution @relation(fields: [resolutionId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@index([userId, status])
+  @@index([resolutionId])
+  @@map("resolution_targets")
+}
+
+model DocumentComment {
+  id         String   @id @default(uuid()) @db.Uuid
+  documentId String   @map("document_id") @db.Uuid
+  authorId   String   @map("author_id") @db.Uuid
+  text       String   @db.Text
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  author   User     @relation(fields: [authorId], references: [id])
+
+  @@index([documentId])
+  @@map("document_comments")
+}
+
+model DocumentAttachment {
+  id           String   @id @default(uuid()) @db.Uuid
+  documentId   String?  @map("document_id") @db.Uuid   // yuklash paytida null bo'lishi mumkin
+  uploadedById String   @map("uploaded_by_id") @db.Uuid
+  filename     String   @db.VarChar(512)
+  storedPath   String   @map("stored_path") @db.VarChar(1024)
+  sizeBytes    BigInt   @map("size_bytes")
+  mimeType     String   @map("mime_type") @db.VarChar(128)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  uploadedBy User      @relation(fields: [uploadedById], references: [id])
+
+  @@index([documentId])
+  @@map("document_attachments")
+}
+
+// E-IMZO imzosi — faqat tashqi chiquvchi hujjatlarda ishlatiladi
+model DocumentSignature {
+  id            String    @id @default(uuid()) @db.Uuid
+  documentId    String    @map("document_id") @db.Uuid
+  signerId      String    @map("signer_id") @db.Uuid
+  pkcs7Data     Bytes     @map("pkcs7_data")                          // CMS/PKCS#7 imzo blob
+  certSerial    String    @map("cert_serial") @db.VarChar(128)
+  certSubject   String    @map("cert_subject") @db.VarChar(512)
+  certIssuer    String?   @map("cert_issuer") @db.VarChar(512)
+  certValidFrom DateTime? @map("cert_valid_from") @db.Timestamptz(3)
+  certValidTo   DateTime? @map("cert_valid_to") @db.Timestamptz(3)
+  signatureHash String    @map("signature_hash") @db.VarChar(128)     // imzolangan ma'lumot hash'i
+  signedAt      DateTime  @default(now()) @map("signed_at") @db.Timestamptz(3)
+  verified      Boolean   @default(false)
+  verifiedAt    DateTime? @map("verified_at") @db.Timestamptz(3)
+  verifyError   String?   @map("verify_error") @db.Text
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  signer   User     @relation(fields: [signerId], references: [id])
+
+  @@index([documentId])
+  @@map("document_signatures")
+}
+
+// Hujjat audit jurnali — har bir qadam yozib boriladi
+model DocumentAuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  documentId String   @map("document_id") @db.Uuid
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String   @db.VarChar(64)         // created / sent / approved / rejected / forwarded / signed / commented / overdue
+  payload    Json?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  actor    User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([documentId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("document_audit_log")
+}
+
+model DocumentTemplate {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String   @db.VarChar(255)
+  category     String   @db.VarChar(64)
+  bodyTemplate String   @map("body_template") @db.Text   // {{placeholder}} bilan
+  createdById  String   @map("created_by_id") @db.Uuid
+  isShared     Boolean  @default(true) @map("is_shared")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  createdBy User       @relation(fields: [createdById], references: [id])
+  documents Document[]
+
+  @@index([category])
+  @@map("document_templates")
+}
+
+// ============================================================
+// DIREKT CHAT (ichki tarmoq ichida real-vaqt chat)
+// ============================================================
+
+model ChatMessage {
+  id         String    @id @default(uuid()) @db.Uuid
+  fromUserId String    @map("from_user_id") @db.Uuid
+  toUserId   String    @map("to_user_id") @db.Uuid
+  body       String    @db.Text
+  sentAt     DateTime  @default(now()) @map("sent_at") @db.Timestamptz(3)
+  readAt     DateTime? @map("read_at") @db.Timestamptz(3)
+
+  fromUser    User             @relation("ChatSender",   fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser      User             @relation("ChatReceiver", fields: [toUserId],   references: [id], onDelete: Cascade)
+  attachments ChatAttachment[]
+
+  @@index([fromUserId, toUserId, sentAt])
+  @@index([toUserId, readAt])
+  @@map("chat_messages")
+}
+
+model ChatAttachment {
+  id         String   @id @default(uuid()) @db.Uuid
+  messageId  String   @map("message_id") @db.Uuid
+  filename   String   @db.VarChar(512)
+  storedPath String   @map("stored_path") @db.VarChar(512)
+  sizeBytes  BigInt   @map("size_bytes")
+  mimeType   String   @map("mime_type") @db.VarChar(128)
+
+  message ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@map("chat_attachments")
+}
+
+// ============================================================
+// KONTAKT GURUHLARI (foydalanuvchi kontaktlarni guruhlash uchun)
+// ============================================================
+model ContactGroup {
+  id        String               @id @default(uuid()) @db.Uuid
+  ownerId   String               @map("owner_id") @db.Uuid
+  name      String               @db.VarChar(64)
+  color     String?              @db.VarChar(16)  // Tailwind color token yoki hex
+  owner     User                 @relation("ContactGroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members   ContactGroupMember[]
+  createdAt DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@unique([ownerId, name])
+  @@map("contact_groups")
+}
+
+model ContactGroupMember {
+  groupId  String       @map("group_id") @db.Uuid
+  memberId String       @map("member_id") @db.Uuid
+  group    ContactGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  member   User         @relation("GroupMember", fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, memberId])
+  @@map("contact_group_members")
+}
+
+// Avto-raqamlash: bo'lim kodi bo'yicha hisoblagich (001-01, 001-02, ...)
+model DocumentCounter {
+  id         String @id @default(uuid()) @db.Uuid
+  deptCode   String @unique @map("dept_code") @db.VarChar(16)
+  lastNumber Int    @default(0) @map("last_number")
+
+  @@map("document_counters")
 }

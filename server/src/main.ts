@@ -3,6 +3,16 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 
+// Prisma BigInt fields (masalan, fayl o'lchami sizeBytes) JSON.stringify orqali
+// avtomatik serializatsiya qilinmaydi → Express javob qaytarayotganda 500 xatolik
+// chiqarayapdi. Number'ga aylantirish — fayl o'lchami uchun xavfsiz, chunki amaliy
+// fayllar 50 MB-dan oshmaydi (MAX_SAFE_INTEGER bilan solishtirganda juda kichik).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(BigInt.prototype as any).toJSON = function () {
+  const n = Number(this);
+  return Number.isSafeInteger(n) ? n : this.toString();
+};
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log'],

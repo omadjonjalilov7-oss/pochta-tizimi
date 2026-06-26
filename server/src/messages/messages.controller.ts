@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseEnumPipe,
@@ -70,6 +71,26 @@ export class MessagesController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.messages.toggleStar(user.id, id);
+  }
+
+  @Get(':id/read-status')
+  readStatus(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.messages.getReadStatus(user.id, id);
+  }
+
+  @Delete(':id/recall')
+  async recall(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const result = await this.messages.recall(user.id, id);
+    if (result.recalledFrom.length > 0) {
+      this.gateway.notifyMessageRecalled(result.recalledFrom, id, result.subject);
+    }
+    return result;
   }
 
   @Patch(':id/move/:folder')

@@ -1,11 +1,13 @@
 import { type FormEvent, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Plus, Pencil, Trash2, X } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import type { Position } from '../lib/types';
 
 export function AdminPositionsPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Position | null>(null);
@@ -17,16 +19,16 @@ export function AdminPositionsPage() {
   });
 
   if (!user?.isAdmin) {
-    return <div className="p-8 text-slate-400">Faqat administratorlar uchun</div>;
+    return <div className="p-8 text-slate-400">{t('admin.admin_only')}</div>;
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Lavozimni o'chirishni tasdiqlaysizmi?")) return;
+    if (!confirm(t('admin.delete_position_confirm'))) return;
     try {
       await api.delete(`/positions/${id}`);
       queryClient.invalidateQueries({ queryKey: ['positions'] });
     } catch (err: any) {
-      alert(err?.response?.data?.message || "O'chirishda xatolik");
+      alert(err?.response?.data?.message || t('admin.error_delete'));
     }
   };
 
@@ -34,20 +36,20 @@ export function AdminPositionsPage() {
     <div className="max-w-3xl mx-auto p-6">
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center">
-          <h1 className="text-xl font-semibold text-slate-900">Lavozimlar</h1>
+          <h1 className="text-xl font-semibold text-slate-900">{t('admin.positions_title')}</h1>
           <button
             onClick={() => setCreating(true)}
             className="ml-auto flex items-center gap-1.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold px-3 py-2 rounded-lg"
           >
             <Plus size={16} />
-            Yangi lavozim
+            {t('admin.add_position')}
           </button>
         </div>
 
         {isLoading ? (
-          <div className="p-8 text-center text-slate-400">Yuklanmoqda...</div>
+          <div className="p-8 text-center text-slate-400">{t('common.loading')}</div>
         ) : positions.length === 0 ? (
-          <div className="p-8 text-center text-slate-400">Lavozimlar yo'q</div>
+          <div className="p-8 text-center text-slate-400">{t('admin.no_positions')}</div>
         ) : (
           <ul className="divide-y divide-slate-100">
             {positions.map((p) => (
@@ -78,7 +80,7 @@ export function AdminPositionsPage() {
           </ul>
         )}
         <div className="px-6 py-3 text-xs text-slate-400 border-t border-slate-100">
-          Rank kichik bo'lsa, lavozim yuqoriroq turadi (1 = eng yuqori).
+          {t('admin.rank_hint')}
         </div>
       </div>
 
@@ -109,6 +111,7 @@ function PositionModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState(position?.name || '');
   const [rank, setRank] = useState(position?.rank?.toString() || '100');
   const [error, setError] = useState<string | null>(null);
@@ -127,7 +130,7 @@ function PositionModal({
       }
       onSaved();
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Saqlashda xatolik');
+      setError(err?.response?.data?.message || t('admin.error_save'));
     } finally {
       setSaving(false);
     }
@@ -138,7 +141,7 @@ function PositionModal({
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
         <div className="flex items-center px-6 py-4 border-b border-slate-100">
           <h2 className="text-lg font-semibold text-slate-900">
-            {position ? "Lavozimni tahrirlash" : "Yangi lavozim"}
+            {position ? t('admin.edit_position') : t('admin.add_position')}
           </h2>
           <button
             onClick={onClose}
@@ -155,7 +158,7 @@ function PositionModal({
           )}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Nomi
+              {t('admin.form_name')}
             </label>
             <input
               type="text"
@@ -170,7 +173,7 @@ function PositionModal({
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Rank (saralash uchun, 1 = eng yuqori)
+              {t('admin.form_rank_full')}
             </label>
             <input
               type="number"
@@ -186,14 +189,14 @@ function PositionModal({
               onClick={onClose}
               className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium"
             >
-              Bekor qilish
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={saving}
               className="bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white font-semibold px-4 py-2 rounded-lg"
             >
-              {saving ? 'Saqlanmoqda...' : 'Saqlash'}
+              {saving ? t('common.saving') : t('common.save')}
             </button>
           </div>
         </form>

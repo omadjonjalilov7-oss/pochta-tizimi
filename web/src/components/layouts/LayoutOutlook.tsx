@@ -12,16 +12,20 @@ import {
   Briefcase,
   LogOut,
   Bell,
-  Search,
   Palette,
   LayoutGrid,
+  Languages,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Avatar } from '../Avatar';
 import { Logo } from '../Logo';
 import { Resizer } from '../Resizer';
+import { HeaderSearch } from '../HeaderSearch';
+import { AppSwitcher } from '../AppSwitcher';
 import { cn } from '../../lib/utils';
 import { useLayoutData } from './useLayoutData';
 import { useAppearanceModals } from '../AppearanceModals';
+import { FloatingChatWidget } from '../FloatingChatWidget';
 import { MailboxOutlook } from '../../pages/mailbox/MailboxOutlook';
 import type { MessageFolder } from '../../lib/types';
 
@@ -61,25 +65,28 @@ function OutlookNav({
       end
       className={({ isActive }) =>
         cn(
-          'flex items-center gap-3 px-3 py-1.5 rounded text-sm transition-colors',
+          'flex items-center gap-3 px-3 py-2 rounded-lg text-sm border transition-all duration-150',
           isActive
-            ? 'bg-brand-50 text-brand-800 font-semibold border-l-4 border-brand-600 -ml-1 pl-2'
-            : 'text-slate-700 hover:bg-slate-100',
+            ? 'bg-gradient-to-r from-brand-50 to-white text-brand-800 font-semibold border-brand-200 shadow-sm'
+            : 'text-slate-700 bg-white border-slate-200/70 shadow-sm hover:shadow-md hover:border-slate-300 hover:-translate-y-px',
         )
       }
     >
-      <Icon size={16} />
-      <span className="flex-1">{label}</span>
+      <Icon size={16} className="flex-shrink-0" />
+      <span className="flex-1 truncate">{label}</span>
       {badge !== undefined && badge > 0 && (
-        <span className="text-xs font-semibold text-brand-700">{badge}</span>
+        <span className="text-xs font-bold bg-brand-600 text-white rounded-full min-w-[18px] h-[18px] px-1.5 flex items-center justify-center">
+          {badge}
+        </span>
       )}
     </NavLink>
   );
 }
 
 export function LayoutOutlook() {
+  const { t } = useTranslation();
   const { user, unread, notification, handleLogout, handleInboxClick } = useLayoutData();
-  const { openTheme, openDesign, modals } = useAppearanceModals();
+  const { openTheme, openDesign, openLanguage, modals } = useAppearanceModals();
   const location = useLocation();
 
   const isAdminPage = ADMIN_ROUTES.some((p) => location.pathname.startsWith(p));
@@ -124,15 +131,14 @@ export function LayoutOutlook() {
           <Logo size={18} />
           Pochta
         </Link>
+        <AppSwitcher className="bg-brand-600 mr-3" />
         <div className="flex-1 max-w-xl mx-auto">
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-200" />
-            <input
-              type="search"
-              placeholder="Qidirish"
-              className="w-full pl-9 pr-3 py-1.5 text-sm rounded bg-brand-600 placeholder:text-brand-200 text-white focus:bg-white focus:text-slate-900 focus:placeholder:text-slate-400 outline-none transition"
-            />
-          </div>
+          <HeaderSearch
+            iconSize={14}
+            iconClassName="absolute left-3 top-1/2 -translate-y-1/2 text-brand-200 pointer-events-none"
+            inputClassName="w-full pl-9 pr-3 py-1.5 text-sm rounded bg-brand-600 placeholder:text-brand-200 text-white focus:bg-white focus:text-slate-900 focus:placeholder:text-slate-400 outline-none transition"
+            placeholder={t('common.search')}
+          />
         </div>
         <div className="flex items-center gap-3">
           {notification && (
@@ -145,7 +151,7 @@ export function LayoutOutlook() {
             <Avatar fullName={user.fullName} avatarPath={user.avatarPath} size="sm" />
             <span className="text-xs hidden md:inline">{user.fullName}</span>
           </Link>
-          <button onClick={handleLogout} className="text-brand-100 hover:text-white" title="Chiqish">
+          <button onClick={handleLogout} className="text-brand-100 hover:text-white" title={t('common.logout')}>
             <LogOut size={16} />
           </button>
         </div>
@@ -154,52 +160,59 @@ export function LayoutOutlook() {
       <div className="flex-1 flex overflow-hidden">
         <aside
           style={{ width: sidebarWidth }}
-          className="bg-white border-r border-slate-200 flex flex-col p-2 gap-0.5 overflow-y-auto flex-shrink-0"
+          className="bg-slate-50 border-r border-slate-200 flex flex-col p-3 gap-1.5 overflow-y-auto flex-shrink-0"
         >
           <Link
             to="/compose"
-            className="bg-brand-700 hover:bg-brand-800 text-white rounded py-2 px-3 mb-2 flex items-center gap-2 text-sm font-medium transition-colors"
+            className="bg-gradient-to-b from-brand-600 to-brand-700 hover:from-brand-700 hover:to-brand-800 text-white rounded-lg py-2.5 px-3 mb-2 flex items-center gap-2 text-sm font-semibold shadow-md hover:shadow-lg transition-all"
           >
             <Pencil size={14} />
-            Yangi xabar
+            {t('nav.compose')}
           </Link>
 
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide px-3 pt-2 pb-1">
-            Papkalar
+          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider px-2 pt-2 pb-1 border-t border-slate-200 mt-1">
+            {t('nav.folders')}
           </div>
-          <OutlookNav to="/inbox" icon={Inbox} label="Kiruvchi" badge={unread} onClick={handleInboxClick} />
-          <OutlookNav to="/starred" icon={Star} label="Yulduzli" />
-          <OutlookNav to="/sent" icon={Send} label="Yuborilgan" />
-          <OutlookNav to="/archive" icon={Archive} label="Arxiv" />
-          <OutlookNav to="/trash" icon={Trash2} label="Savatcha" />
+          <OutlookNav to="/inbox" icon={Inbox} label={t('nav.inbox')} badge={unread} onClick={handleInboxClick} />
+          <OutlookNav to="/starred" icon={Star} label={t('nav.starred')} />
+          <OutlookNav to="/sent" icon={Send} label={t('nav.sent')} />
+          <OutlookNav to="/archive" icon={Archive} label={t('nav.archive')} />
+          <OutlookNav to="/trash" icon={Trash2} label={t('nav.trash')} />
 
           {user.isAdmin && (
             <>
-              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide px-3 pt-4 pb-1">
-                Boshqaruv
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider px-2 pt-3 pb-1 border-t border-slate-200 mt-2">
+                {t('nav.admin')}
               </div>
-              <OutlookNav to="/admin/users" icon={Users} label="Xodimlar" />
-              <OutlookNav to="/admin/departments" icon={Building2} label="Bo'limlar" />
-              <OutlookNav to="/admin/positions" icon={Briefcase} label="Lavozimlar" />
+              <OutlookNav to="/admin/users" icon={Users} label={t('nav.users')} />
+              <OutlookNav to="/admin/departments" icon={Building2} label={t('nav.departments')} />
+              <OutlookNav to="/admin/positions" icon={Briefcase} label={t('nav.positions')} />
             </>
           )}
 
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide px-3 pt-4 pb-1">
-            Dizayn
+          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider px-2 pt-3 pb-1 border-t border-slate-200 mt-2">
+            {t('common.settings')}
           </div>
           <button
-            onClick={openTheme}
-            className="flex items-center gap-3 px-3 py-1.5 rounded text-sm text-slate-700 hover:bg-slate-100 transition-colors text-left"
+            onClick={openLanguage}
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-700 bg-white border border-slate-200/70 shadow-sm hover:shadow-md hover:border-slate-300 hover:-translate-y-px transition-all duration-150 text-left"
           >
-            <Palette size={16} />
-            <span className="flex-1">Rang</span>
+            <Languages size={16} className="flex-shrink-0" />
+            <span className="flex-1">{t('common.language')}</span>
+          </button>
+          <button
+            onClick={openTheme}
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-700 bg-white border border-slate-200/70 shadow-sm hover:shadow-md hover:border-slate-300 hover:-translate-y-px transition-all duration-150 text-left"
+          >
+            <Palette size={16} className="flex-shrink-0" />
+            <span className="flex-1">{t('common.theme')}</span>
           </button>
           <button
             onClick={openDesign}
-            className="flex items-center gap-3 px-3 py-1.5 rounded text-sm text-slate-700 hover:bg-slate-100 transition-colors text-left"
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-700 bg-white border border-slate-200/70 shadow-sm hover:shadow-md hover:border-slate-300 hover:-translate-y-px transition-all duration-150 text-left"
           >
             <LayoutGrid size={16} />
-            <span className="flex-1">Ko'rinish</span>
+            <span className="flex-1">{t('common.design')}</span>
           </button>
         </aside>
 
@@ -223,12 +236,13 @@ export function LayoutOutlook() {
             <div className="flex-1 flex items-center justify-center text-slate-400 bg-[#faf9f8]">
               <div className="text-center">
                 <Inbox size={64} className="mx-auto mb-3 text-slate-200" />
-                <div className="text-sm">O'qish uchun xabar tanlang</div>
+                <div className="text-sm">{t('mailbox.no_selection')}</div>
               </div>
             </div>
           )}
         </main>
       </div>
+      <FloatingChatWidget />
       {modals}
     </div>
   );

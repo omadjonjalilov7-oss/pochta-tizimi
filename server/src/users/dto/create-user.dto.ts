@@ -42,8 +42,16 @@ export class CreateUserDto {
   positionId?: string;
 
   @IsOptional()
+  @IsUUID()
+  managerId?: string;
+
+  @IsOptional()
   @IsBoolean()
   canSendExternal?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  canSignExternal?: boolean;
 
   @IsOptional()
   @IsBoolean()

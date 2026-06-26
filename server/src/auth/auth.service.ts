@@ -96,8 +96,14 @@ export class AuthService {
   }
 
   private sanitize(user: any) {
-    const { passwordHash, failedLoginCount, lockedUntil, ...safe } = user;
-    return safe;
+    const {
+      passwordHash,
+      failedLoginCount,
+      lockedUntil,
+      approvalPinHash,
+      ...safe
+    } = user;
+    return { ...safe, hasApprovalPin: !!approvalPinHash };
   }
 
   private async audit(userId: string | null, action: string, ip?: string) {

@@ -15,9 +15,16 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { SetApprovalPinDto } from './dto/approval-pin.dto';
+import { IsBoolean } from 'class-validator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { CurrentUser, CurrentUserPayload } from '../auth/decorators/current-user.decorator';
+
+class UpdatePreferencesDto {
+  @IsBoolean()
+  notifyEdo: boolean;
+}
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
@@ -43,6 +50,30 @@ export class UsersController {
   @Delete('me/avatar')
   deleteMyAvatar(@CurrentUser() user: CurrentUserPayload) {
     return this.users.deleteAvatar(user.id);
+  }
+
+  @Patch('me/preferences')
+  updateMyPreferences(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() dto: UpdatePreferencesDto,
+  ) {
+    return this.users.update(user.id, { notifyEdo: dto.notifyEdo });
+  }
+
+  // EDO tasdiqlash PIN-kodini o'rnatish/yangilash — foydalanuvchining o'zi
+  @Post('me/approval-pin')
+  setMyApprovalPin(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() dto: SetApprovalPinDto,
+  ) {
+    return this.users.setApprovalPin(user.id, dto.pin, dto.currentPin);
+  }
+
+  // Admin foydalanuvchining PIN-kodini tozalashi (unutib qo'ygan bo'lsa)
+  @Post(':id/approval-pin/clear')
+  @UseGuards(AdminGuard)
+  clearApprovalPin(@Param('id', ParseUUIDPipe) id: string) {
+    return this.users.clearApprovalPin(id);
   }
 
   @Get(':id')

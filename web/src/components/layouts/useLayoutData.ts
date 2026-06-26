@@ -34,10 +34,26 @@ export function useLayoutData() {
       queryClient.invalidateQueries({ queryKey: ['messages'] });
     };
     socket.on('new_message', handler);
+
+    const recallHandler = (msg: any) => {
+      const subject = msg?.payload?.subject || 'Xabar';
+      const recalledId = msg?.payload?.messageId;
+      setNotification(`Xabar qaytarib olindi: ${subject}`);
+      setTimeout(() => setNotification(null), 5000);
+      queryClient.invalidateQueries({ queryKey: ['unread-count'] });
+      queryClient.invalidateQueries({ queryKey: ['messages'] });
+      // If the recalled message is currently open, push the user back to inbox
+      if (recalledId && window.location.pathname.endsWith(`/messages/${recalledId}`)) {
+        navigate('/inbox');
+      }
+    };
+    socket.on('message_recalled', recallHandler);
+
     return () => {
       socket.off('new_message', handler);
+      socket.off('message_recalled', recallHandler);
     };
-  }, [user, queryClient]);
+  }, [user, queryClient, navigate]);
 
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {

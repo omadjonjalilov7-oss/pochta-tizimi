@@ -1,3 +1,5 @@
+import i18n from '../i18n';
+
 export function formatDateTime(iso: string): string {
   const d = new Date(iso);
   const dd = String(d.getDate()).padStart(2, '0');
@@ -23,10 +25,11 @@ export function formatDateShort(iso: string): string {
 }
 
 export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+  const t = i18n.t.bind(i18n);
+  if (bytes < 1024) return `${bytes} ${t('common.bytes')}`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} ${t('common.kb')}`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} ${t('common.mb')}`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} ${t('common.gb')}`;
 }
 
 export function initials(fullName: string): string {
@@ -36,4 +39,57 @@ export function initials(fullName: string): string {
 
 export function cn(...classes: (string | false | null | undefined)[]): string {
   return classes.filter(Boolean).join(' ');
+}
+
+/**
+ * Xabar yuboruvchisining ko'rsatiluvchi nomi (ichki yoki tashqi).
+ * - Ichki user bo'lsa: u.fullName
+ * - Tashqi pochta bo'lsa: externalFromName yoki externalFromEmail
+ */
+export function senderDisplayName(message: {
+  fromUser?: { fullName?: string | null } | null;
+  externalFromName?: string | null;
+  externalFromEmail?: string | null;
+  isExternal?: boolean;
+}): string {
+  if (message.fromUser?.fullName) return message.fromUser.fullName;
+  if (message.externalFromName) return message.externalFromName;
+  if (message.externalFromEmail) return message.externalFromEmail;
+  return i18n.t('common.unknown');
+}
+
+export function senderSubLine(message: {
+  fromUser?: { position?: { name?: string | null } | null; department?: { name?: string | null } | null } | null;
+  externalFromEmail?: string | null;
+  isExternal?: boolean;
+}): string {
+  if (message.fromUser) {
+    const pos = message.fromUser.position?.name;
+    const dep = message.fromUser.department?.name;
+    return [pos, dep].filter(Boolean).join(' • ');
+  }
+  if (message.isExternal && message.externalFromEmail) return message.externalFromEmail;
+  return '';
+}
+
+/**
+ * HTML tags'ni olib, xabar preview'ni tozalash
+ * HTML o'rniga plain text ko'rsatadi
+ */
+export function stripHtmlForPreview(html: string | undefined | null, maxLength: number = 80): string {
+  if (!html) return '';
+
+  // HTML tags va entities'ni olib tashlash
+  let text = html
+    .replace(/<[^>]*>/g, ' ') // HTML tags
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ') // Multiple spaces to single
+    .trim();
+
+  return text.slice(0, maxLength);
 }

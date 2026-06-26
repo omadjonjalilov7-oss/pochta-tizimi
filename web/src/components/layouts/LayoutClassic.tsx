@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   Inbox,
   Send,
@@ -13,12 +13,17 @@ import {
   Bell,
   Palette,
   LayoutGrid,
+  Languages,
+  Tag,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Avatar } from '../Avatar';
 import { Logo } from '../Logo';
+import { AppSwitcher } from '../AppSwitcher';
 import { cn } from '../../lib/utils';
 import { useLayoutData } from './useLayoutData';
 import { useAppearanceModals } from '../AppearanceModals';
+import { FloatingChatWidget } from '../FloatingChatWidget';
 
 function NavItem({
   to,
@@ -26,20 +31,24 @@ function NavItem({
   label,
   badge,
   onClick,
+  collapsed,
 }: {
   to: string;
   icon: typeof Inbox;
   label: string;
   badge?: number;
   onClick?: (e: React.MouseEvent) => void;
+  collapsed?: boolean;
 }) {
   return (
     <NavLink
       to={to}
       onClick={onClick}
+      title={collapsed ? label : undefined}
       className={({ isActive }) =>
         cn(
-          'flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors',
+          'flex items-center rounded-lg text-sm font-medium transition-colors relative',
+          collapsed ? 'justify-center p-2' : 'gap-3 px-4 py-2.5',
           isActive
             ? 'bg-brand-600 text-white'
             : 'text-slate-700 hover:bg-brand-50 hover:text-brand-700',
@@ -47,19 +56,22 @@ function NavItem({
       }
     >
       <Icon size={18} />
-      <span className="flex-1">{label}</span>
+      {!collapsed && <span className="flex-1">{label}</span>}
       {badge !== undefined && badge > 0 && (
-        <span className="ml-auto bg-white text-brand-700 text-xs font-semibold px-2 py-0.5 rounded-full">
-          {badge}
-        </span>
+        collapsed
+          ? <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{badge > 9 ? '9+' : badge}</span>
+          : <span className="ml-auto bg-white text-brand-700 text-xs font-semibold px-2 py-0.5 rounded-full">{badge}</span>
       )}
     </NavLink>
   );
 }
 
 export function LayoutClassic() {
+  const { t } = useTranslation();
   const { user, unread, notification, handleLogout, handleInboxClick } = useLayoutData();
-  const { openTheme, openDesign, modals } = useAppearanceModals();
+  const { openTheme, openDesign, openLanguage, modals } = useAppearanceModals();
+  const location = useLocation();
+  const composing = location.pathname.startsWith('/compose');
 
   return (
     <div className="flex h-full flex-col bg-slate-50">
@@ -68,6 +80,7 @@ export function LayoutClassic() {
           <Logo size={22} />
           Pochta
         </Link>
+        <AppSwitcher className="bg-brand-600/40" />
         <div className="flex items-center gap-4">
           {notification && (
             <div className="flex items-center gap-2 bg-brand-600 px-3 py-1.5 rounded-lg text-sm animate-pulse">
@@ -90,7 +103,7 @@ export function LayoutClassic() {
           <button
             onClick={handleLogout}
             className="flex items-center gap-1.5 text-sm text-brand-100 hover:text-white"
-            title="Chiqish"
+            title={t('common.logout')}
           >
             <LogOut size={16} />
           </button>
@@ -98,48 +111,81 @@ export function LayoutClassic() {
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        <aside className="w-60 bg-white border-r border-slate-200 flex flex-col p-4 gap-1 overflow-y-auto">
+        <aside className={cn(
+          'bg-white border-r border-slate-200 flex flex-col p-3 gap-1 overflow-y-auto transition-[width] duration-200',
+          composing ? 'w-[56px] items-center' : 'w-60',
+        )}>
           <Link
             to="/compose"
-            className="bg-brand-600 hover:bg-brand-700 text-white rounded-lg py-2.5 px-4 mb-3 flex items-center justify-center gap-2 font-medium shadow-sm transition-colors"
+            title={composing ? t('nav.compose') : undefined}
+            className={cn(
+              'bg-brand-600 hover:bg-brand-700 text-white rounded-lg mb-3 flex items-center justify-center font-medium shadow-sm transition-colors',
+              composing ? 'w-9 h-9 p-0' : 'py-2.5 px-4 gap-2 w-full',
+            )}
           >
             <Pencil size={16} />
-            Yangi xabar
+            {!composing && t('nav.compose')}
           </Link>
 
-          <NavItem to="/inbox" icon={Inbox} label="Kiruvchi" badge={unread} onClick={handleInboxClick} />
-          <NavItem to="/sent" icon={Send} label="Yuborilgan" />
-          <NavItem to="/starred" icon={Star} label="Yulduzli" />
-          <NavItem to="/archive" icon={Archive} label="Arxiv" />
-          <NavItem to="/trash" icon={Trash2} label="Savatcha" />
+          <NavItem to="/inbox" icon={Inbox} label={t('nav.inbox')} badge={unread} onClick={handleInboxClick} collapsed={composing} />
+          <NavItem to="/contact-groups" icon={Tag} label="Guruhlar" collapsed={composing} />
+          <NavItem to="/sent" icon={Send} label={t('nav.sent')} collapsed={composing} />
+          <NavItem to="/starred" icon={Star} label={t('nav.starred')} collapsed={composing} />
+          <NavItem to="/archive" icon={Archive} label={t('nav.archive')} collapsed={composing} />
+          <NavItem to="/trash" icon={Trash2} label={t('nav.trash')} collapsed={composing} />
 
           {user.isAdmin && (
             <>
-              <div className="mt-6 mb-2 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                Administrator
-              </div>
-              <NavItem to="/admin/users" icon={Users} label="Xodimlar" />
-              <NavItem to="/admin/departments" icon={Building2} label="Bo'limlar" />
-              <NavItem to="/admin/positions" icon={Briefcase} label="Lavozimlar" />
+              {!composing && (
+                <div className="mt-6 mb-2 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                  {t('nav.admin')}
+                </div>
+              )}
+              {composing && <div className="mt-3 border-t border-slate-100 w-full" />}
+              <NavItem to="/admin/users" icon={Users} label={t('nav.users')} collapsed={composing} />
+              <NavItem to="/admin/departments" icon={Building2} label={t('nav.departments')} collapsed={composing} />
+              <NavItem to="/admin/positions" icon={Briefcase} label={t('nav.positions')} collapsed={composing} />
             </>
           )}
 
-          <div className="mt-6 mb-2 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wide">
-            Dizayn
-          </div>
+          {!composing && (
+            <div className="mt-6 mb-2 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wide">
+              {t('common.settings')}
+            </div>
+          )}
+          {composing && <div className="mt-3 border-t border-slate-100 w-full" />}
+          <button
+            onClick={openLanguage}
+            title={composing ? t('common.language') : undefined}
+            className={cn(
+              'flex items-center rounded-lg text-sm font-medium text-slate-700 hover:bg-brand-50 hover:text-brand-700 transition-colors text-left',
+              composing ? 'justify-center p-2' : 'gap-3 px-4 py-2.5',
+            )}
+          >
+            <Languages size={18} />
+            {!composing && <span className="flex-1">{t('common.language')}</span>}
+          </button>
           <button
             onClick={openTheme}
-            className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-brand-50 hover:text-brand-700 transition-colors text-left"
+            title={composing ? t('common.theme') : undefined}
+            className={cn(
+              'flex items-center rounded-lg text-sm font-medium text-slate-700 hover:bg-brand-50 hover:text-brand-700 transition-colors text-left',
+              composing ? 'justify-center p-2' : 'gap-3 px-4 py-2.5',
+            )}
           >
             <Palette size={18} />
-            <span className="flex-1">Rang</span>
+            {!composing && <span className="flex-1">{t('common.theme')}</span>}
           </button>
           <button
             onClick={openDesign}
-            className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-brand-50 hover:text-brand-700 transition-colors text-left"
+            title={composing ? t('common.design') : undefined}
+            className={cn(
+              'flex items-center rounded-lg text-sm font-medium text-slate-700 hover:bg-brand-50 hover:text-brand-700 transition-colors text-left',
+              composing ? 'justify-center p-2' : 'gap-3 px-4 py-2.5',
+            )}
           >
             <LayoutGrid size={18} />
-            <span className="flex-1">Ko'rinish</span>
+            {!composing && <span className="flex-1">{t('common.design')}</span>}
           </button>
         </aside>
 
@@ -147,6 +193,7 @@ export function LayoutClassic() {
           <Outlet />
         </main>
       </div>
+      <FloatingChatWidget />
       {modals}
     </div>
   );

@@ -1,6 +1,7 @@
 import {
-  ArrayMinSize,
+  ArrayMaxSize,
   IsArray,
+  IsEmail,
   IsEnum,
   IsOptional,
   IsString,
@@ -11,15 +12,30 @@ import {
 import { Importance } from '@prisma/client';
 
 export class SendMessageDto {
+  @IsOptional()
   @IsArray()
-  @ArrayMinSize(1)
+  @ArrayMaxSize(15)
   @IsUUID('all', { each: true })
-  recipientIds: string[];
+  recipientIds?: string[];
 
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(15)
   @IsUUID('all', { each: true })
   ccRecipientIds?: string[];
+
+  // Tashqi pochta qabul qiluvchilari (boshqa kompaniyalar yoki shaxsiy email'lar)
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(15)
+  @IsEmail({}, { each: true, message: 'Tashqi email manzili noto\'g\'ri formatda' })
+  externalToEmails?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(15)
+  @IsEmail({}, { each: true })
+  externalCcEmails?: string[];
 
   @IsString()
   @MinLength(1)
@@ -29,6 +45,11 @@ export class SendMessageDto {
   @IsString()
   @MinLength(1)
   body: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  signature?: string; // Tahrirlanmaydigan imzo (HTML)
 
   @IsOptional()
   @IsEnum(Importance)

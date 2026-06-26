@@ -6,6 +6,7 @@ import { App } from './App';
 import { AuthProvider } from './context/AuthContext';
 import { applyTheme, getStoredTheme } from './lib/theme';
 import { applyDesign, getStoredDesign } from './lib/design';
+import './i18n';
 import './index.css';
 
 applyTheme(getStoredTheme());
