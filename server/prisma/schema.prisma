@@ -99,6 +99,9 @@ model User {
   receivedItems   MessageRecipient[]
   auditLogs       AuditLog[]
 
+  // Muddati o'tgan hujjatlarning director tasdiqlovchilari
+  overdueApprovals Document[] @relation("DocOverdueApprover")
+
   // Direkt chat
   chatSent        ChatMessage[] @relation("ChatSender")
   chatReceived    ChatMessage[] @relation("ChatReceiver")
@@ -385,12 +388,18 @@ model Document {
   // Hujjat chop qilishga tayyormi? (yakunlanmaguncha false)
   isPrintable            Boolean @default(false) @map("is_printable")
 
+  // Muddati o'tgan hujjatlar uchun director tasdiq
+  isOverdueApprovalRequired Boolean @default(false) @map("is_overdue_approval_required")
+  overdueApprovedById       String? @map("overdue_approved_by_id") @db.Uuid
+  overdueApprovedAt         DateTime? @map("overdue_approved_at") @db.Timestamptz(3)
+
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   closedAt    DateTime? @map("closed_at") @db.Timestamptz(3)
 
   createdBy     User              @relation("DocCreator", fields: [createdById], references: [id])
   currentHolder User?             @relation("DocHolder", fields: [currentHolderId], references: [id], onDelete: SetNull)
+  overdueApprovedBy User?          @relation("DocOverdueApprover", fields: [overdueApprovedById], references: [id], onDelete: SetNull)
   template      DocumentTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   numberDept    Department?       @relation("DocNumberDept", fields: [numberDeptId], references: [id], onDelete: SetNull)
   targetDept    Department?       @relation("DocTargetDept", fields: [targetDeptId], references: [id], onDelete: SetNull)

@@ -21,6 +21,7 @@ import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import {
   ApproveDocumentDto,
+  ApproveOverdueDocumentDto,
   CommentDto,
   ForwardDto,
   RejectDto,
@@ -1709,6 +1710,69 @@ export class DocumentsService {
       // eslint-disable-next-line no-console
       console.error('[EDO] task-done notify failed:', e);
     }
+  }
+
+  /**
+   * Muddati o'tgan hujjatni director tasdiq berish
+   * - Hujjat status: overdue → in_review
+   * - Director ruxsatini qayd etish
+   * - Normal tasdiqlash zanjirini davom ettirish
+   */
+  async approveOverdueDocument(userId: string, id: string, dto: { pin: string; notes?: string }) {
+    await this.users.verifyApprovalPin(userId, dto.pin);
+
+    const doc = await this.prisma.document.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        status: true,
+        deadline: true,
+        isOverdueApprovalRequired: true,
+        createdById: true,
+      },
+    });
+
+    if (!doc) throw new NotFoundException('Hujjat topilmadi');
+    if (!doc.isOverdueApprovalRequired) {
+      throw new BadRequestException('Bu hujjat muddati o\'tgan emas yoki allaqachon tasdiqlanib ketgan');
+    }
+
+    // Director tasdiqini qayd etib, status'ni in_review ga qaytaramiz
+    await this.prisma.$transaction(async (tx) => {
+      await tx.document.update({
+        where: { id },
+        data: {
+          status: DocumentStatus.in_review,
+          isOverdueApprovalRequired: false,
+          overdueApprovedById: userId,
+          overdueApprovedAt: new Date(),
+        },
+      });
+
+      // Komment qo'shamiz
+      await tx.documentComment.create({
+        data: {
+          documentId: id,
+          authorId: userId,
+          text: `[Director tasdiq - Muddati o'tgan] ${dto.notes || 'Ruxsat berildi'}`,
+        },
+      });
+
+      // Audit log
+      await tx.documentAuditLog.create({
+        data: {
+          documentId: id,
+          actorId: userId,
+          action: 'approved_overdue',
+          payload: { notes: dto.notes } as any,
+        },
+      });
+    });
+
+    // Kommentda director qabuli qayd bo'lgan, alohida xabar jo'natmiz
+    // (Overdue tasdiq — normal notifikatsiya emas, ko'rib chiquvchilar davom ettirsa o'zini biladi)
+
+    return this.findOne(userId, id);
   }
 
   private serialize(d: any) {

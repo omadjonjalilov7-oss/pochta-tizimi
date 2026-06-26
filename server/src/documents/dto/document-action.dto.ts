@@ -83,3 +83,16 @@ export class ForwardDto {
   @IsUUID('all', { each: true })
   additionalApproverIds?: string[];
 }
+
+// Muddati o'tgan hujjatlarni director tasdiqlab berish
+// Overdue xujjat — muddati o'tgani sababli director ruxsati kerak
+export class ApproveOverdueDocumentDto {
+  @IsString()
+  @Matches(/^\d{4}$/, { message: "PIN aniq 4 raqamdan iborat bo'lishi shart" })
+  pin!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  notes?: string; // Director nima sababli ruxsat berganini izohla
+}
