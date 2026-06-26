@@ -272,10 +272,29 @@ export class MessagesService {
     if (!r) throw new NotFoundException('Xabar topilmadi');
     if (r.isRead) return r;
 
+    const now = new Date();
     const updated = await this.prisma.messageRecipient.update({
       where: { id: r.id },
-      data: { isRead: true, readAt: new Date() },
+      data: { isRead: true, readAt: now },
     });
+
+    // Xabar o'qish jurnalini yozib qo'yamiz (UI orqali o'qish)
+    this.prisma.messageReadLog
+      .upsert({
+        where: {
+          messageId_userId_readAt: { messageId, userId, readAt: now },
+        },
+        create: {
+          messageId,
+          userId,
+          readAt: now,
+          readMethod: 'opened', // UI orqali o'qildi
+        },
+        update: {
+          readMethod: 'opened',
+        },
+      })
+      .catch(() => undefined); // Jurnal xatosi asosiy operatsiyani to'xtatmasin
 
     // Agar tashqi pochta xabari bo'lsa — IMAP serverda ham \Seen flagini qo'yamiz
     if (r.message.isExternal && r.message.externalImapUid) {
@@ -455,5 +474,58 @@ export class MessagesService {
       where: { userId, folder: MessageFolder.inbox, isRead: false, deletedAt: null },
     });
     return { count };
+  }
+
+  /**
+   * Xabar o'qish jurnalini olish — kim va soat nechchida o'qili?
+   * Faqat xabar yuboruvchi (sender) ko'ra oladi
+   */
+  async getReadLogs(userId: string, messageId: string) {
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+      select: { id: true, fromUserId: true },
+    });
+    if (!message) throw new NotFoundException('Xabar topilmadi');
+    if (message.fromUserId !== userId) {
+      throw new ForbiddenException('Faqat yuboruvchi jurnalni ko\'ra oladi');
+    }
+
+    // Barcha read log yozuvlari
+    const logs = await this.prisma.messageReadLog.findMany({
+      where: { messageId },
+      select: {
+        id: true,
+        userId: true,
+        readAt: true,
+        readMethod: true,
+        readIp: true,
+        readUserAgent: true,
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            login: true,
+            email: true,
+            avatarPath: true,
+            position: { select: { name: true } },
+            department: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { readAt: 'desc' },
+    });
+
+    return {
+      messageId,
+      totalReads: logs.length,
+      logs: logs.map((log) => ({
+        id: log.id,
+        user: log.user,
+        readAt: log.readAt,
+        readMethod: log.readMethod,
+        ip: log.readIp,
+        userAgent: log.readUserAgent,
+      })),
+    };
   }
 }

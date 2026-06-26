@@ -81,6 +81,14 @@ export class MessagesController {
     return this.messages.getReadStatus(user.id, id);
   }
 
+  @Get(':id/read-logs')
+  readLogs(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.messages.getReadLogs(user.id, id);
+  }
+
   @Delete(':id/recall')
   async recall(
     @CurrentUser() user: CurrentUserPayload,

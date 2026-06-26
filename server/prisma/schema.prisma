@@ -119,6 +119,9 @@ model User {
   uploadedDocAttachments   DocumentAttachment[]
   edoAuditLogs             DocumentAuditLog[]
 
+  // Xabar o'qish jurnali
+  messageReadLogs          MessageReadLog[] @relation("ReadLogs")
+
   @@index([departmentId])
   @@index([positionId])
   @@index([managerId])
@@ -159,6 +162,7 @@ model Message {
   recipients  MessageRecipient[]
   attachments Attachment[]
   externalReceipts ExternalReadReceipt[]
+  readLogs    MessageReadLog[]
 
   @@index([fromUserId])
   @@index([sentAt])
@@ -283,6 +287,31 @@ model MessageArchive {
   @@index([fromUserId])
   @@index([sentAt])
   @@map("messages_archive")
+}
+
+// ============================================================
+// XABAR O'QISH JURNALI — Ichki foydalanuvchilarning xabar o'qish tarixi
+// O'qish surtasatini kuzatish uchun. Tarqalgan/kopirlangan xabarlar uchun.
+// ============================================================
+model MessageReadLog {
+  id            String    @id @default(uuid()) @db.Uuid
+  messageId     String    @map("message_id") @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  readAt        DateTime  @map("read_at") @db.Timestamptz(3)
+  readMethod    String?   @map("read_method") @db.VarChar(20)  // 'opened', 'auto_marked', 'manual'
+  readIp        String?   @map("read_ip") @db.VarChar(45)      // IPv4 yoki IPv6
+  readUserAgent String?   @map("read_user_agent") @db.VarChar(500)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation("ReadLogs", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, readAt]) // Bir xil vaqtda bir xil message'ni bir xil user ikki marta o'qimasin
+  @@index([messageId])
+  @@index([userId])
+  @@index([readAt])
+  @@index([messageId, readAt]) // Tez xisobot olish uchun
+  @@map("message_read_logs")
 }
 
 // ============================================================
