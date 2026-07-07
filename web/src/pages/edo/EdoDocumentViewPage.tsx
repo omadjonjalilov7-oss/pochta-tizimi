@@ -1,4 +1,4 @@
-import { type FormEvent, useMemo, useState } from 'react';
+import { type FormEvent, useMemo, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -20,6 +20,7 @@ import {
   KeyRound,
   Download,
   Paperclip,
+  FileDown,
 } from 'lucide-react';
 import { EimzoSignModal } from '../../components/edo/EimzoSignModal';
 import { api } from '../../lib/api';
@@ -59,7 +60,7 @@ export function EdoDocumentViewPage() {
     onSuccess: invalidate,
   });
   const approve = useMutation({
-    mutationFn: async (vars: { pin: string; addApproverIds?: string[] }) =>
+    mutationFn: async (vars: { pin: string; addApproverIds?: string[]; approvalNotes?: string }) =>
       (await api.post<EdoDocument>(`/documents/${id}/approve`, vars)).data,
     onSuccess: invalidate,
   });
@@ -97,9 +98,30 @@ export function EdoDocumentViewPage() {
       ).data,
     onSuccess: invalidate,
   });
+  const uploadAttachment = useMutation({
+    mutationFn: async (vars: { file: File }) => {
+      const form = new FormData();
+      form.append('file', vars.file);
+      return (
+        await api.post(`/documents/${id}/attachments`, form, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        })
+      ).data;
+    },
+    onSuccess: invalidate,
+  });
+  const extendDeadline = useMutation({
+    mutationFn: async (vars: { newDeadline: string; reason?: string }) =>
+      (await api.patch<EdoDocument>(`/documents/${id}/extend-deadline`, vars)).data,
+    onSuccess: invalidate,
+  });
 
   // ⚠️ Hook'lar har doim bir xil tartibda chaqilishi kerak — shu sabab erta return'lardan oldin
   const [showSignModal, setShowSignModal] = useState(false);
+  const [showExtendModal, setShowExtendModal] = useState(false);
+  const [extendDeadlineValue, setExtendDeadlineValue] = useState('');
+  const [extendReasonValue, setExtendReasonValue] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (isLoading) {
     return <div className="p-8 text-slate-400">{t('common.loading')}</div>;
@@ -114,6 +136,8 @@ export function EdoDocumentViewPage() {
 
   const isCreator = doc.createdById === user?.id;
   const isCurrentApprover = doc.currentHolderId === user?.id && doc.status === 'in_review';
+  const isParticipant = !!user && doc.participants.some((p) => p.userId === user.id);
+  const canUploadAttachment = (isCreator || isParticipant) && ['draft', 'in_review', 'in_progress'].includes(doc.status);
   const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
 
   // PDF generatsiya mumkin: creator bo'lsa, rais imzolagan bo'lsin
@@ -161,14 +185,20 @@ export function EdoDocumentViewPage() {
             </div>
             <div className="flex items-start gap-2">
               <h1 className="text-xl font-semibold text-slate-900 flex-1">{doc.subject}</h1>
-              {doc.status !== 'draft' && (
-                <PdfDownloadButton
-                  docId={doc.id}
-                  docNumber={doc.number}
-                  disabled={!canCreatePdf}
-                  isCreator={isCreator}
+              <div className="flex gap-2">
+                {doc.status !== 'draft' && (
+                  <PdfDownloadButton
+                    docId={doc.id}
+                    docNumber={doc.number}
+                    disabled={!canCreatePdf}
+                    isCreator={isCreator}
+                  />
+                )}
+                <WordExportButton
+                  doc={doc}
+                  disabled={doc.status === 'draft'}
                 />
-              )}
+              </div>
             </div>
             {doc.shortInfo && (
               <p className="text-sm text-slate-600 mt-1">{doc.shortInfo}</p>
@@ -211,42 +241,69 @@ export function EdoDocumentViewPage() {
               {doc.body}
             </div>
 
-            {(doc.attachments?.length ?? 0) > 0 && (
+            {((doc.attachments?.length ?? 0) > 0 || canUploadAttachment) && (
               <div className="mt-5 pt-4 border-t border-slate-100">
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                  <Paperclip size={14} />
-                  {t('edo.view.attachments', { count: doc.attachments!.length })}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    <Paperclip size={14} />
+                    {t('edo.view.attachments', { count: doc.attachments!.length })}
+                  </div>
+                  {canUploadAttachment && (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadAttachment.isPending}
+                      className="inline-flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium disabled:opacity-50"
+                    >
+                      <Paperclip size={12} />
+                      {uploadAttachment.isPending ? t('common.saving') : t('edo.compose.add_file')}
+                    </button>
+                  )}
                 </div>
-                <ul className="space-y-1.5">
-                  {doc.attachments!.map((a) => (
-                    <li key={a.id}>
-                      <a
-                        href={`/api/documents/${doc.id}/attachments/${a.id}/download`}
-                        onClick={async (e) => {
-                          e.preventDefault();
-                          try {
-                            const res = await api.get(
-                              `/documents/${doc.id}/attachments/${a.id}/download`,
-                              { responseType: 'blob' },
-                            );
-                            const url = URL.createObjectURL(res.data);
-                            const link = document.createElement('a');
-                            link.href = url;
-                            link.download = a.filename;
-                            link.click();
-                            URL.revokeObjectURL(url);
-                          } catch {}
-                        }}
-                        className="group flex items-center gap-2 text-sm text-slate-700 hover:text-brand-700 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
-                      >
-                        <Paperclip size={14} className="text-slate-400 group-hover:text-brand-600 shrink-0" />
-                        <span className="truncate flex-1">{a.filename}</span>
-                        <span className="text-xs text-slate-400 shrink-0">{formatBytes(a.sizeBytes)}</span>
-                        <Download size={14} className="text-slate-400 group-hover:text-brand-600 shrink-0" />
-                      </a>
-                    </li>
-                  ))}
-                </ul>
+                {(doc.attachments?.length ?? 0) > 0 && (
+                  <ul className="space-y-1.5">
+                    {doc.attachments!.map((a) => (
+                      <li key={a.id}>
+                        <a
+                          href={`/api/documents/${doc.id}/attachments/${a.id}/download`}
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            try {
+                              const res = await api.get(
+                                `/documents/${doc.id}/attachments/${a.id}/download`,
+                                { responseType: 'blob' },
+                              );
+                              const url = URL.createObjectURL(res.data);
+                              const link = document.createElement('a');
+                              link.href = url;
+                              link.download = a.filename;
+                              link.click();
+                              URL.revokeObjectURL(url);
+                            } catch {}
+                          }}
+                          className="group flex items-center gap-2 text-sm text-slate-700 hover:text-brand-700 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
+                        >
+                          <Paperclip size={14} className="text-slate-400 group-hover:text-brand-600 shrink-0" />
+                          <span className="truncate flex-1">{a.filename}</span>
+                          <span className="text-xs text-slate-400 shrink-0">{formatBytes(a.sizeBytes)}</span>
+                          <Download size={14} className="text-slate-400 group-hover:text-brand-600 shrink-0" />
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      uploadAttachment.mutate({ file });
+                      e.target.value = '';
+                    }
+                  }}
+                />
               </div>
             )}
           </section>
@@ -277,11 +334,41 @@ export function EdoDocumentViewPage() {
             </div>
           )}
 
+          {/* Muddati o'tgan hujjatni uzaytirish */}
+          {isCreator && doc.status === 'overdue' && (
+            <div className="bg-white border border-rose-200 rounded-2xl p-4">
+              <div className="flex items-start gap-3 mb-4">
+                <AlertTriangle size={20} className="text-rose-600 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-rose-900 mb-1">
+                    {t('edo.view.overdue_warning') || 'Muddati o\'tgan hujjat'}
+                  </h3>
+                  <p className="text-sm text-rose-700">
+                    {t('edo.view.overdue_hint') || 'Muddatni uzaytirish orqali tasdiqlashni davom ettira olasiz'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowExtendModal(true);
+                  const tomorrow = new Date();
+                  tomorrow.setDate(tomorrow.getDate() + 1);
+                  setExtendDeadlineValue(tomorrow.toISOString().slice(0, 16));
+                }}
+                className="inline-flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white font-medium px-4 py-2 rounded-lg"
+              >
+                <Clock size={16} />
+                {t('edo.view.extend_deadline') || 'Muddatini o\'zgartirish'}
+              </button>
+            </div>
+          )}
+
           {isCurrentApprover && (
             <ApproverActions
               docCreatorId={doc.createdById}
-              onApprove={(pin, addApproverIds) =>
-                approve.mutate({ pin, addApproverIds })
+              onApprove={(pin, addApproverIds, approvalNotes) =>
+                approve.mutate({ pin, addApproverIds, approvalNotes })
               }
               onReject={(reason, pin) => reject.mutate({ reason, pin })}
               onForward={(toUserId, note, pin, additionalApproverIds) =>
@@ -341,6 +428,78 @@ export function EdoDocumentViewPage() {
           }}
         />
       )}
+
+      {/* Muddatni uzaytirish modal */}
+      {showExtendModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <h2 className="text-lg font-semibold text-slate-900 mb-4">
+              {t('edo.view.extend_deadline') || 'Muddatni uzaytirish'}
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  {t('edo.view.new_deadline') || 'Yangi muddati'}
+                </label>
+                <input
+                  type="datetime-local"
+                  value={extendDeadlineValue}
+                  onChange={(e) => setExtendDeadlineValue(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  {t('edo.view.reason') || 'Sabab (ixtiyoriy)'}
+                </label>
+                <textarea
+                  value={extendReasonValue}
+                  onChange={(e) => setExtendReasonValue(e.target.value)}
+                  placeholder={t('edo.view.reason_ph') || 'Muddatni nima sababli uzaytirilgani...'}
+                  maxLength={1000}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none resize-none"
+                  rows={3}
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowExtendModal(false);
+                    setExtendDeadlineValue('');
+                    setExtendReasonValue('');
+                  }}
+                  className="flex-1 px-4 py-2 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg font-medium"
+                >
+                  {t('common.cancel') || 'Bekor qilish'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!extendDeadlineValue) return;
+                    extendDeadline.mutate({
+                      newDeadline: new Date(extendDeadlineValue).toISOString(),
+                      reason: extendReasonValue || undefined,
+                    });
+                    setShowExtendModal(false);
+                    setExtendDeadlineValue('');
+                    setExtendReasonValue('');
+                  }}
+                  disabled={!extendDeadlineValue || extendDeadline.isPending}
+                  className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded-lg font-medium"
+                >
+                  {extendDeadline.isPending ? t('common.saving') : t('common.save') || 'Saqlash'}
+                </button>
+              </div>
+              {extendDeadline.error && (
+                <div className="text-sm text-red-600 mt-2">
+                  {extractError(extendDeadline.error)}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -391,6 +550,221 @@ function PdfDownloadButton({
     >
       <Download size={14} />
       <span>PDF</span>
+    </button>
+  );
+}
+
+function WordExportButton({
+  doc,
+  disabled,
+}: {
+  doc: EdoDocument;
+  disabled?: boolean;
+}) {
+  const { t } = useTranslation();
+
+  const handleClick = () => {
+    try {
+      // PDF'ga mutlaqo mos HTML jadval bilan yaratamiz
+      const formatDate = (d: string) => {
+        const dt = new Date(d);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        return `${pad(dt.getDate())}.${pad(dt.getMonth() + 1)}.${dt.getFullYear()}`;
+      };
+
+      const approvers = doc.participants?.filter(p => p.role === 'approver').sort((a, b) => a.order - b.order) || [];
+
+      const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${doc.number} - ${doc.subject}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: "Calibri", "Arial", sans-serif;
+      margin: 1cm 1.5cm;
+      line-height: 1.3;
+      color: #000;
+      font-size: 10px;
+      max-width: 19cm;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 0.3cm;
+    }
+    td, th {
+      border: 1px solid #000;
+      padding: 5px 6px;
+      text-align: left;
+      vertical-align: top;
+      font-size: 10px;
+    }
+    th {
+      background-color: #f0f0f0;
+      font-weight: bold;
+      text-align: center;
+    }
+    .header-table td {
+      border: 1px solid #000;
+      padding: 5px 6px;
+      font-size: 10px;
+    }
+    .title-cell {
+      font-weight: bold;
+      font-size: 11px;
+    }
+    .subheader {
+      font-weight: bold;
+      background-color: #f9f9f9;
+      font-size: 10px;
+    }
+    .body-text {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      line-height: 1.4;
+      font-size: 10px;
+    }
+    .footer-table {
+      margin-top: 0.5cm;
+    }
+  </style>
+</head>
+<body>
+  <!-- ASOSIY JADVAL -->
+  <table class="header-table">
+    <tr>
+      <td colspan="2" style="font-weight: bold;">Xizmat xati</td>
+      <td style="font-weight: bold;">Ijrochi</td>
+      <td style="font-weight: bold;">Mas'ul</td>
+    </tr>
+    <tr>
+      <td colspan="2">${doc.createdBy?.fullName || 'Director'}</td>
+      <td>${approvers[0]?.user?.fullName || ''}</td>
+      <td>${approvers[approvers.length - 1]?.user?.fullName || ''}</td>
+    </tr>
+    <tr>
+      <td style="width: 40%;">Hujjat raqami: ${doc.number}</td>
+      <td style="width: 10%;"></td>
+      <td colspan="2" style="text-align: right;">Sana: ${formatDate(doc.createdAt)}</td>
+    </tr>
+    <tr>
+      <td>Bo'lim: ${doc.numberDept?.name || '-'}</td>
+      <td>Lavozim: ${doc.createdBy?.position?.name || '-'}</td>
+      <td colspan="2">Xodim: ${doc.createdBy?.fullName || '-'}</td>
+    </tr>
+    <tr>
+      <td>Bo'lim: -</td>
+      <td>Lavozim: -</td>
+      <td colspan="2">Xodim: -</td>
+    </tr>
+    <tr>
+      <td colspan="4">Bosh direktor _______________________ Imzo: ____________ Sana: ${formatDate(new Date().toISOString())}</td>
+    </tr>
+  </table>
+
+  <!-- MAVZU VA MATNI -->
+  <table>
+    <tr>
+      <td class="subheader">Mavzu:</td>
+      <td colspan="3">${doc.subject}</td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top; min-height: 2cm;" colspan="4">
+        <div style="font-weight: bold; margin-bottom: 0.3cm;">Hujjat matni:</div>
+        <div class="body-text">${doc.body}</div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- TASDIQLASH ZANJIRI (SIGNATURES) -->
+  ${doc.participants && doc.participants.length > 0 ? `
+  <table style="margin-top: 0.5cm;">
+    <tr>
+      <td colspan="4" style="font-weight: bold; background-color: #f0f0f0;">TASDIQLASH ZANJIRI</td>
+    </tr>
+    <tr>
+      <td style="font-weight: bold;">Tartib</td>
+      <td style="font-weight: bold;">Xodim</td>
+      <td style="font-weight: bold;">Lavozim</td>
+      <td style="font-weight: bold;">Tasdiqlash vaqti</td>
+    </tr>
+    ${doc.participants
+      .filter((p) => p.role === 'approver')
+      .sort((a, b) => a.order - b.order)
+      .map(
+        (p, idx) => `
+    <tr>
+      <td style="text-align: center;">${idx + 1}</td>
+      <td>${p.user?.fullName || '-'}</td>
+      <td>${p.user?.position?.name || '-'}</td>
+      <td>${p.status === 'approved' ? formatDate(p.actedAt || new Date().toISOString()) : 'Kutilmoqda'}</td>
+    </tr>
+    `
+      )
+      .join('')}
+  </table>
+  ` : ''}
+
+  <!-- IMZOLANGAN HUJJATLAR -->
+  ${doc.signatures && doc.signatures.length > 0 ? `
+  <table style="margin-top: 0.5cm;">
+    <tr>
+      <td colspan="4" style="font-weight: bold; background-color: #f0f0f0;">E-IMZOLAR</td>
+    </tr>
+    <tr>
+      <td style="font-weight: bold;">Imzolovchi</td>
+      <td style="font-weight: bold;">Imzo sanasi</td>
+      <td style="font-weight: bold;">Sertifikat</td>
+      <td style="font-weight: bold;">Holati</td>
+    </tr>
+    ${doc.signatures
+      .map(
+        (sig) => `
+    <tr>
+      <td>${sig.signer?.fullName || '-'}</td>
+      <td>${formatDate(sig.signedAt)}</td>
+      <td>${sig.certSubject || '-'}</td>
+      <td>${sig.verified ? '✓ Tasdiqlandi' : 'Tasdiqlanmadi'}</td>
+    </tr>
+    `
+      )
+      .join('')}
+  </table>
+  ` : ''}
+
+  <!-- FOOTER JADVAL -->
+  <table class="footer-table">
+    <tr>
+      <td style="width: 33%;">Ijrochi: ${approvers[0]?.user?.fullName || '-'}</td>
+      <td style="width: 33%;">Telefon: -</td>
+      <td style="width: 34%; text-align: right;">Ijro sanasi: ${formatDate(doc.deadline || new Date().toISOString())}</td>
+    </tr>
+  </table>
+</body>
+</html>
+`;
+
+      const blob = new Blob([html], { type: 'text/html;charset=UTF-8' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch {
+      // ignore
+    }
+  };
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={disabled}
+      title={t('edo.view.preview_word')}
+      className="inline-flex items-center justify-center text-slate-600 hover:text-slate-700 hover:bg-slate-50 p-1.5 rounded-md disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+    >
+      <FileDown size={16} />
     </button>
   );
 }
@@ -508,7 +882,7 @@ function ApproverActions({
   onSignWithEimzo,
 }: {
   docCreatorId: string;
-  onApprove: (pin: string, addApproverIds?: string[]) => void;
+  onApprove: (pin: string, addApproverIds?: string[], approvalNotes?: string) => void;
   onReject: (reason: string, pin: string) => void;
   onForward: (
     toUserId: string,
@@ -528,6 +902,7 @@ function ApproverActions({
   const [rejectPin, setRejectPin] = useState('');
   const [approvePinModalOpen, setApprovePinModalOpen] = useState(false);
   const [approvePin, setApprovePin] = useState('');
+  const [approvalNotes, setApprovalNotes] = useState('');
   const [pinLocalErr, setPinLocalErr] = useState<string | null>(null);
   const [approveAddIds, setApproveAddIds] = useState<string[]>([]);
   const [showAddApprovers, setShowAddApprovers] = useState(false);
@@ -542,6 +917,7 @@ function ApproverActions({
   const startApprove = () => {
     setPinLocalErr(null);
     setApprovePin('');
+    setApprovalNotes('');
     setApproveAddIds([]);
     setShowAddApprovers(false);
     if (!hasPin) {
@@ -559,9 +935,10 @@ function ApproverActions({
       setPinLocalErr(t('edo.view.pin_err_format'));
       return;
     }
-    onApprove(approvePin, approveAddIds.length > 0 ? approveAddIds : undefined);
+    onApprove(approvePin, approveAddIds.length > 0 ? approveAddIds : undefined, approvalNotes || undefined);
     setApprovePinModalOpen(false);
     setApprovePin('');
+    setApprovalNotes('');
     setApproveAddIds([]);
     setShowAddApprovers(false);
   };
@@ -735,6 +1112,24 @@ function ApproverActions({
                     maxLength={4}
                     className="w-full px-3 py-3 rounded-lg border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none text-2xl font-mono tracking-[0.8em] text-center"
                   />
+                </div>
+
+                {/* Tasdiqlash izohatlari — ixtiyoriy */}
+                <div className="border-t border-slate-100 pt-3">
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                    {t('edo.view.approval_notes_label') || 'Izohlar (ixtiyoriy)'}
+                  </label>
+                  <textarea
+                    value={approvalNotes}
+                    onChange={(e) => setApprovalNotes(e.target.value)}
+                    placeholder={t('edo.view.approval_notes_ph') || 'O\'z izohingizni yozing...'}
+                    maxLength={2000}
+                    rows={2}
+                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none resize-none"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    {approvalNotes.length}/2000
+                  </p>
                 </div>
 
                 {/* Qo'shimcha tasdiqlovchi qo'shish — ixtiyoriy */}

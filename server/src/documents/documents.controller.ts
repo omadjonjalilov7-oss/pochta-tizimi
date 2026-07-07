@@ -20,7 +20,7 @@ import type { Response } from 'express';
 import { DocumentsService } from './documents.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
-import { ApproveDocumentDto, ApproveOverdueDocumentDto, CommentDto, ForwardDto, RejectDto } from './dto/document-action.dto';
+import { ApproveDocumentDto, ApproveOverdueDocumentDto, CommentDto, ExtendDeadlineDto, ForwardDto, RejectDto } from './dto/document-action.dto';
 import { CompleteTargetDto, CreateResolutionDto } from './dto/resolution.dto';
 import { SignDocumentDto } from './dto/sign.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -187,6 +187,15 @@ export class DocumentsController {
     @Body() dto: ApproveOverdueDocumentDto,
   ) {
     return this.docs.approveOverdueDocument(user.id, id, dto);
+  }
+
+  @Patch(':id/extend-deadline')
+  extendDeadline(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: ExtendDeadlineDto,
+  ) {
+    return this.docs.extendDeadline(user.id, id, dto);
   }
 
   @Post(':id/comment')

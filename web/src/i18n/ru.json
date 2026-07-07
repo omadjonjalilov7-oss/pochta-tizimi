@@ -612,7 +612,8 @@
       "verified": "Проверено",
       "unverified": "Не проверено",
       "download_pdf": "Скачать PDF",
-      "pdf_disabled_creator": "PDF можно скачать только после подписи руководителя"
+      "pdf_disabled_creator": "PDF можно скачать только после подписи руководителя",
+      "preview_word": "Черновик документа"
     },
     "sign": {
       "title": "Подписание через E-IMZO",

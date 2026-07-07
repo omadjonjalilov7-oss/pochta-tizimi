@@ -3,12 +3,14 @@ import {
   UnauthorizedException,
   ForbiddenException,
   Logger,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
 
 @Injectable()
 export class AuthService {
@@ -84,6 +86,56 @@ export class AuthService {
       token,
       user: this.sanitize(user),
     };
+  }
+
+  async register(dto: RegisterDto) {
+    // Login'ni tekshirish
+    const existingByLogin = await this.prisma.user.findUnique({
+      where: { login: dto.login },
+    });
+    if (existingByLogin) {
+      throw new BadRequestException('Bu login allaqachon mavjud');
+    }
+
+    // Email'ni tekshirish
+    const existingByEmail = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+    if (existingByEmail) {
+      throw new BadRequestException('Bu email allaqachon ro\'yxatdan o\'tgan');
+    }
+
+    // Parolni xeshlash
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+
+    // Yangi foydalanuvchi yaratish
+    try {
+      const user = await this.prisma.user.create({
+        data: {
+          fullName: dto.fullName,
+          email: dto.email,
+          login: dto.login,
+          passwordHash,
+          isActive: true,
+          isAdmin: false,
+          externalMailLogin: dto.externalMailLogin,
+          externalMailPasswordEnc: dto.externalMailPassword, // TODO: encrypt this
+          externalMailEnabled: true,
+        },
+        include: { department: true, position: true },
+      });
+
+      // Audit log
+      await this.audit(user.id, 'register_success');
+
+      return {
+        message: 'Akkaunt muvaffaqiyatli yaratildi. Iltimos, kirish sahifasida login qiling.',
+        user: this.sanitize(user),
+      };
+    } catch (e: any) {
+      this.logger.error(`Register xatosi: ${e.message}`);
+      throw new BadRequestException('Ro\'yxatdan o\'tishda xatolik yuz berdi');
+    }
   }
 
   async getProfile(userId: string) {

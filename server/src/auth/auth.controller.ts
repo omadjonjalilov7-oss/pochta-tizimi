@@ -2,6 +2,7 @@ import { Body, Controller, Get, Ip, Post, UseGuards, HttpCode } from '@nestjs/co
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserPayload } from './decorators/current-user.decorator';
 
@@ -14,6 +15,13 @@ export class AuthController {
   @Throttle({ default: { ttl: 60_000, limit: 10 } }) // login uchun qattiqroq cheklov
   async login(@Body() dto: LoginDto, @Ip() ip: string) {
     return this.auth.login(dto, ip);
+  }
+
+  @Post('register')
+  @HttpCode(201)
+  @Throttle({ default: { ttl: 60_000, limit: 5 } }) // register uchun cheklov
+  async register(@Body() dto: RegisterDto) {
+    return this.auth.register(dto);
   }
 
   @Get('me')

@@ -1,6 +1,7 @@
 import {
   ArrayMaxSize,
   IsArray,
+  IsISO8601,
   IsOptional,
   IsString,
   IsUUID,
@@ -95,4 +96,16 @@ export class ApproveOverdueDocumentDto {
   @IsString()
   @MaxLength(2000)
   notes?: string; // Director nima sababli ruxsat berganini izohla
+}
+
+// Hujjat muddatini uzaytirish
+// Yaratuvchi yoki rahbar muddatni uzaytira oladi — overdue statusni o'chiradi
+export class ExtendDeadlineDto {
+  @IsISO8601()
+  newDeadline: string; // ISO 8601 format: 2026-06-30T23:59:59Z
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  reason?: string; // Nima sababli muddatni uzaytirilgani
 }

@@ -23,6 +23,7 @@ import {
   ApproveDocumentDto,
   ApproveOverdueDocumentDto,
   CommentDto,
+  ExtendDeadlineDto,
   ForwardDto,
   RejectDto,
 } from './dto/document-action.dto';
@@ -1350,11 +1351,10 @@ export class DocumentsService {
     const doc = await this.prisma.document.findUnique({ where: { id: docId } });
     if (!doc) throw new NotFoundException('Hujjat topilmadi');
     await this.requireAccess(userId, doc);
-    if (doc.createdById !== userId) {
-      throw new ForbiddenException("Fayllarni faqat hujjat yaratuvchi yuklay oladi");
-    }
-    if (doc.status !== 'draft') {
-      throw new BadRequestException('Fayllar faqat qoralama bosqichida yuklanadi');
+    // Hujjatda qatnashayotgan xar bir foydalanuvchi fayl briktira oladi
+    // (lekin faqat draft, in_review, in_progress statuslarida)
+    if (!['draft', 'in_review', 'in_progress'].includes(doc.status)) {
+      throw new BadRequestException('Fayllar bajarilgan yoki rad etilgan hujjatlarga yuklanmaydi');
     }
     if (file.size > this.attMaxBytes) {
       throw new BadRequestException(
@@ -1425,8 +1425,9 @@ export class DocumentsService {
     if (!att || !att.document || att.documentId !== docId) {
       throw new NotFoundException('Fayl topilmadi');
     }
-    if (att.document.createdById !== userId) {
-      throw new ForbiddenException("Fayllarni faqat yaratuvchi o'chira oladi");
+    // Faylni o'chirish: yaratuvchi yoki fayl yuklaydigan foydalanuvchi
+    if (att.document.createdById !== userId && att.uploadedById !== userId) {
+      throw new ForbiddenException("Fayl faqat yaratuvchi yoki fayl yuklaydigan foydalanuvchi tomonidan o'chirilib oladi");
     }
     if (att.document.status !== 'draft') {
       throw new BadRequestException("Faqat qoralamadan o'chirish mumkin");
@@ -1710,6 +1711,83 @@ export class DocumentsService {
       // eslint-disable-next-line no-console
       console.error('[EDO] task-done notify failed:', e);
     }
+  }
+
+  /**
+   * Hujjat muddatini uzaytirish
+   * - Overdue statusni o'chirish (agar overdue bo'lsa)
+   * - Deadline yangilash
+   * - Approval chain davom etish
+   * - Audit log yozish
+   */
+  async extendDeadline(userId: string, id: string, dto: { newDeadline: string; reason?: string }) {
+    const doc = await this.prisma.document.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        deadline: true,
+        status: true,
+        createdById: true,
+        currentHolderId: true,
+      },
+    });
+
+    if (!doc) throw new NotFoundException('Hujjat topilmadi');
+
+    // Muddatni uzaytirish imkoni: yaratuvchi yoki rahbar
+    const isCreator = doc.createdById === userId;
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { isAdmin: true },
+    });
+    const isAdmin = user?.isAdmin || false;
+
+    if (!isCreator && !isAdmin) {
+      throw new ForbiddenException('Faqat yaratuvchi yoki rahbar muddatni uzayta oladi');
+    }
+
+    const newDeadline = new Date(dto.newDeadline);
+    const now = new Date();
+
+    if (newDeadline < now) {
+      throw new BadRequestException('Yangi muddati hozirgi vaqtdan keyin bo\'lishi shart');
+    }
+
+    // Muddatni yangilash va overdue statusini o'chirish
+    await this.prisma.$transaction(async (tx) => {
+      // Status overdue bo'lsa → in_review ga qaytarish
+      const newStatus = doc.status === 'overdue' ? DocumentStatus.in_review : doc.status;
+
+      await tx.document.update({
+        where: { id },
+        data: {
+          deadline: newDeadline,
+          status: newStatus,
+          isOverdueApprovalRequired: false,
+        },
+      });
+
+      // Komment qo'shamiz
+      await tx.documentComment.create({
+        data: {
+          documentId: id,
+          authorId: userId,
+          text: `[Muddat uzaytirildi]\nYangi muddat: ${newDeadline.toLocaleString('uz-UZ')}\n${dto.reason ? `Sabab: ${dto.reason}` : ''}`,
+        },
+      });
+
+      // Audit log
+      await tx.documentAuditLog.create({
+        data: {
+          documentId: id,
+          actorId: userId,
+          action: 'extended_deadline',
+          payload: { newDeadline, reason: dto.reason } as any,
+        },
+      });
+    });
+
+    return this.findOne(userId, id);
   }
 
   /**

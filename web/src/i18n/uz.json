@@ -612,7 +612,8 @@
       "verified": "Tasdiqlandi",
       "unverified": "Tekshirilmagan",
       "download_pdf": "PDF yuklab olish",
-      "pdf_disabled_creator": "PDF'ni faqat rais imzoladi keyin yuklab olish mumkin"
+      "pdf_disabled_creator": "PDF'ni faqat rais imzoladi keyin yuklab olish mumkin",
+      "preview_word": "Xonaki xujjat"
     },
     "sign": {
       "title": "E-IMZO bilan imzolash",
