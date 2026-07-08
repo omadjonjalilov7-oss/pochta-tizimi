@@ -218,8 +218,8 @@ function DocumentApprovalCard({ doc, onApprove, isLoading = false }: DocumentApp
           {/* Creator Info */}
           <div className="flex items-center gap-2 text-sm text-slate-600">
             <Avatar
-              src={doc.createdBy.avatarPath}
-              fallback={doc.createdBy.fullName[0]}
+              fullName={doc.createdBy.fullName}
+              avatarPath={doc.createdBy.avatarPath}
               size="sm"
             />
             <span>

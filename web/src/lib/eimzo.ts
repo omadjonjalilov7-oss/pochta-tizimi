@@ -35,9 +35,12 @@ interface CapiwsResponse {
 }
 
 export class EimzoError extends Error {
-  constructor(message: string, public readonly cause?: string) {
+  readonly cause?: string;
+
+  constructor(message: string, cause?: string) {
     super(message);
     this.name = 'EimzoError';
+    this.cause = cause;
   }
 }
 
