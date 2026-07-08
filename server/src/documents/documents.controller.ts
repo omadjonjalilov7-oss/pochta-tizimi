@@ -275,6 +275,11 @@ export class DocumentsController {
 
   // ── QR TASDIQQA VA APPROVAL STATUS ──────────────────────────────
 
+  @Get('approval-status')
+  getApprovalStats(@CurrentUser() user: CurrentUserPayload) {
+    return this.qrApproval.getAggregateApprovalStats(user.id);
+  }
+
   @Get('approval-status/filter')
   filterByApprovalStatus(
     @CurrentUser() user: CurrentUserPayload,

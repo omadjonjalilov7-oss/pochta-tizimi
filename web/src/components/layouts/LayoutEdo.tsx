@@ -119,7 +119,7 @@ export function LayoutEdo() {
           </Link>
 
           <EdoNav to="/edo" end icon={FileText} label={t('edo.nav.my_documents')} collapsed={collapsed} />
-          <EdoNav to="/edo/approval" icon={CheckCircle2} label={t('edo.nav.approval') || 'Tasdiqlash'} collapsed={collapsed} />
+          <EdoNav to="/edo/approval" icon={CheckCircle2} label="Xujjatlar" collapsed={collapsed} />
           <EdoNav to="/edo/tasks" icon={ListTodo} label={t('edo.nav.tasks')} collapsed={collapsed} />
           <EdoNav to="/edo/incoming" icon={Inbox} label={t('edo.nav.incoming')} collapsed={collapsed} />
           <EdoNav to="/edo/outgoing" icon={Send} label={t('edo.nav.outgoing')} collapsed={collapsed} />

@@ -72,6 +72,45 @@ export class QrApprovalService {
   }
 
   /**
+   * Foydalanuvchining barcha approval stats'ini olish
+   */
+  async getAggregateApprovalStats(userId: string) {
+    // Foydalanuvchi ishtirok etayotgan barcha hujjatlarni olish
+    const userDocuments = await this.prisma.documentParticipant.findMany({
+      where: {
+        userId,
+        role: 'approver',
+      },
+      include: {
+        document: true,
+      },
+    });
+
+    // Har bir hujjat uchun status'ni hisoblash
+    const stats = {
+      total: 0,
+      approved: 0,
+      rejected: 0,
+      pending: 0,
+    };
+
+    for (const docPart of userDocuments) {
+      const approvalStatus = await this.getApprovalStatus(docPart.documentId);
+      stats.total += 1;
+
+      if (approvalStatus.status === 'approved') {
+        stats.approved += 1;
+      } else if (approvalStatus.status === 'rejected') {
+        stats.rejected += 1;
+      } else if (approvalStatus.status === 'pending') {
+        stats.pending += 1;
+      }
+    }
+
+    return stats;
+  }
+
+  /**
    * Document'larni status bo'yicha filter qiling
    */
   async filterDocumentsByApprovalStatus(
