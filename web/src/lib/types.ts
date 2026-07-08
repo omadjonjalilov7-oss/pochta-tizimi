@@ -58,6 +58,7 @@ export interface Message {
   recalledAt?: string | null;
   externalFromEmail?: string | null;
   externalFromName?: string | null;
+  externalToEmails?: string[] | null;
   externalMessageId?: string | null;
   externalImapUid?: number | null;
   fromUser?: (Pick<User, 'id' | 'fullName' | 'login' | 'avatarPath'> & {

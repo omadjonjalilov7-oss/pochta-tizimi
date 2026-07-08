@@ -18,6 +18,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { createReadStream } from 'fs';
 import type { Response } from 'express';
 import { DocumentsService } from './documents.service';
+import { QrApprovalService } from './qr-approval.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { ApproveDocumentDto, ApproveOverdueDocumentDto, CommentDto, ExtendDeadlineDto, ForwardDto, RejectDto } from './dto/document-action.dto';
@@ -29,7 +30,10 @@ import { CurrentUser, CurrentUserPayload } from '../auth/decorators/current-user
 @Controller('documents')
 @UseGuards(JwtAuthGuard)
 export class DocumentsController {
-  constructor(private readonly docs: DocumentsService) {}
+  constructor(
+    private readonly docs: DocumentsService,
+    private readonly qrApproval: QrApprovalService,
+  ) {}
 
   @Post()
   create(@CurrentUser() user: CurrentUserPayload, @Body() dto: CreateDocumentDto) {
@@ -267,5 +271,48 @@ export class DocumentsController {
     @Param('attId', new ParseUUIDPipe()) attId: string,
   ) {
     return this.docs.deleteAttachment(user.id, id, attId);
+  }
+
+  // ── QR TASDIQQA VA APPROVAL STATUS ──────────────────────────────
+
+  @Get('approval-status/filter')
+  filterByApprovalStatus(
+    @CurrentUser() user: CurrentUserPayload,
+    @Query('status') status: 'approved' | 'pending' | 'rejected' | 'partially_approved' = 'pending',
+    @Query('limit') limit: string = '50',
+    @Query('offset') offset: string = '0',
+  ) {
+    return this.qrApproval.filterDocumentsByApprovalStatus(
+      user.id,
+      status,
+      parseInt(limit),
+      parseInt(offset),
+    );
+  }
+
+  @Get(':id/approval-status')
+  getApprovalStatus(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.qrApproval.getApprovalStatus(id);
+  }
+
+  @Patch(':id/approve-with-qr')
+  approveWithQr(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: { qrCode: string; participantId: string },
+  ) {
+    return this.docs.approveDocumentWithQr(user.id, id, dto.participantId, dto.qrCode);
+  }
+
+  @Patch(':id/reject-with-qr')
+  rejectWithQr(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: { qrCode: string; participantId: string; reason: string },
+  ) {
+    return this.docs.rejectDocumentWithQr(user.id, id, dto.participantId, dto.qrCode, dto.reason);
   }
 }

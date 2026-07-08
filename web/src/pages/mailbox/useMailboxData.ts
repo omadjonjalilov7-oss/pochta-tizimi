@@ -66,26 +66,6 @@ export function useMailboxData(folder: MessageFolder, starredOnly?: boolean) {
     },
   });
 
-  // Kontakt guruh teglari: { userId → ['Rahbarlar', 'Do\'stlarim'] }
-  const { data: groupTags = {} } = useQuery<Record<string, string[]>>({
-    queryKey: ['contact-group-tags'],
-    queryFn: async () => (await api.get('/contact-groups/tags')).data,
-    staleTime: 60_000,
-  });
-
-  // Guruh ranglari: { groupName → color }
-  const { data: groupsRaw = [] } = useQuery<{ name: string; color: string | null }[]>({
-    queryKey: ['contact-groups'],
-    queryFn: async () => (await api.get('/contact-groups')).data,
-    staleTime: 60_000,
-  });
-
-  const groupColorMap = useMemo(() => {
-    const m: Record<string, string | null> = {};
-    for (const g of groupsRaw) m[g.name] = g.color ?? null;
-    return m;
-  }, [groupsRaw]);
-
   const filtered = starredOnly ? (data ?? []).filter((it) => it.isStarred) : data ?? [];
 
   // Unique sender/recipient bo'yicha grupalash (har bir foydalanuvchi 1 marta)

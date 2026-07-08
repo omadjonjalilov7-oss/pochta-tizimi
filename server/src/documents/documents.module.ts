@@ -4,6 +4,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DocumentsController } from './documents.controller';
 import { DocumentsService } from './documents.service';
 import { DocumentsCron } from './documents.cron';
+import { QrApprovalService } from './qr-approval.service';
+import { PdfGeneratorService } from './pdf-generator.service';
 import { MessagesModule } from '../messages/messages.module';
 import { UsersModule } from '../users/users.module';
 
@@ -20,7 +22,7 @@ import { UsersModule } from '../users/users.module';
     UsersModule,
   ],
   controllers: [DocumentsController],
-  providers: [DocumentsService, DocumentsCron],
-  exports: [DocumentsService],
+  providers: [DocumentsService, DocumentsCron, QrApprovalService, PdfGeneratorService],
+  exports: [DocumentsService, QrApprovalService, PdfGeneratorService],
 })
 export class DocumentsModule {}

@@ -19,6 +19,7 @@ import { EdoComposePage } from './pages/edo/EdoComposePage';
 import { EdoDocumentViewPage } from './pages/edo/EdoDocumentViewPage';
 import { EdoTemplatesPage } from './pages/edo/EdoTemplatesPage';
 import { EdoReportsPage } from './pages/edo/EdoReportsPage';
+import { EdoApprovalPage } from './pages/edo/EdoApprovalPage';
 import {
   EdoMyDocsPage,
   EdoDraftsPage,
@@ -63,6 +64,7 @@ export function App() {
         <Route path="/edo" element={<LayoutEdo />}>
           <Route index element={<EdoMyDocsPage />} />
           <Route path="home" element={<EdoHomePage />} />
+          <Route path="approval" element={<EdoApprovalPage />} />
           <Route path="compose" element={<EdoComposePage />} />
           <Route path="tasks" element={<EdoTasksPage />} />
           <Route path="drafts" element={<EdoDraftsPage />} />

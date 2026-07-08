@@ -436,6 +436,9 @@ model DocumentParticipant {
   // Tasdiq usuli (signature, qr, digital, manual)
   approvalMethod String?           @map("approval_method") @db.VarChar(20)
 
+  // QR kod tasdiqqa uchun (noyob har bir tasdiqlashuvchi uchun)
+  qrCode       String?             @unique @map("qr_code") @db.VarChar(512)
+
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   user     User     @relation(fields: [userId], references: [id])
 

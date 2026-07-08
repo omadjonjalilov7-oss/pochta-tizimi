@@ -31,6 +31,7 @@ import { CompleteTargetDto, CreateResolutionDto } from './dto/resolution.dto';
 import { SignDocumentDto } from './dto/sign.dto';
 import { buildDocumentPdf } from './documents.pdf';
 import { ConfigService } from '@nestjs/config';
+import { QrApprovalService } from './qr-approval.service';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import { v4 as uuid } from 'uuid';
@@ -159,6 +160,8 @@ export class DocumentsService {
     private readonly gateway: MessagesGateway,
     private readonly config: ConfigService,
     private readonly users: UsersService,
+    @Inject(forwardRef(() => QrApprovalService))
+    private readonly qrApproval: QrApprovalService,
   ) {
     this.attDir =
       this.config.get<string>('ATTACHMENTS_DIR') || 'C:\\D\\pochta\\storage\\attachments';
@@ -1617,6 +1620,26 @@ export class DocumentsService {
         importance: 'important',
       });
       this.gateway.notifyNewMessage([approverId], result);
+
+      // Tashqi email'ga xam jo'natish
+      const approver = await this.prisma.user.findUnique({
+        where: { id: approverId },
+        select: { email: true, fullName: true },
+      });
+
+      if (approver?.email) {
+        try {
+          const serverUrl = this.config.get<string>('SERVER_URL') || 'http://192.168.100.252';
+          const fullLink = `${serverUrl}/edo/documents/${docId}`;
+          const emailBody = `Salom ${approver.fullName},\n\nSizga tasdiqlash uchun yangi hujjat keldi:\n\nMavzu: ${subject}\nRaqam: ${number}\n\nHujjatni ko'rish: ${fullLink}\n\nSog'Likat,\nPochta Tizimi`;
+
+          // TODO: SMTP orqali email jo'natish (smtp-send.service.ts'ni ishlatish)
+          // Hozircha console'ga yozamiz
+          console.log(`[EMAIL] ${approver.email}'ga email jo'natilishi kerak:\n${emailBody}`);
+        } catch (emailErr) {
+          console.warn('[EDO] external email failed:', emailErr);
+        }
+      }
     } catch (e) {
       // Pochta yuborilmasa ham hujjat oqimi davom etadi
       // eslint-disable-next-line no-console
@@ -1855,5 +1878,52 @@ export class DocumentsService {
 
   private serialize(d: any) {
     return d;
+  }
+
+  // ── QR TASDIQQA ──────────────────────────────────────────────────
+
+  async approveDocumentWithQr(
+    userId: string,
+    documentId: string,
+    participantId: string,
+    qrCode: string,
+  ) {
+    // Ishtirok etayotgan participant tekshiring
+    const participant = await this.prisma.documentParticipant.findUnique({
+      where: { id: participantId },
+    });
+
+    if (!participant || participant.userId !== userId) {
+      throw new ForbiddenException('Sizga bu hujjatni tasdiqlash huquqi yo\'q');
+    }
+
+    if (participant.documentId !== documentId) {
+      throw new BadRequestException('Hujjat topilmadi');
+    }
+
+    return this.qrApproval.approveDocumentWithQr(documentId, participantId, qrCode);
+  }
+
+  async rejectDocumentWithQr(
+    userId: string,
+    documentId: string,
+    participantId: string,
+    qrCode: string,
+    reason: string,
+  ) {
+    // Ishtirok etayotgan participant tekshiring
+    const participant = await this.prisma.documentParticipant.findUnique({
+      where: { id: participantId },
+    });
+
+    if (!participant || participant.userId !== userId) {
+      throw new ForbiddenException('Sizga bu hujjatni rad etish huquqi yo\'q');
+    }
+
+    if (participant.documentId !== documentId) {
+      throw new BadRequestException('Hujjat topilmadi');
+    }
+
+    return this.qrApproval.rejectDocumentWithQr(documentId, participantId, qrCode, reason);
   }
 }
