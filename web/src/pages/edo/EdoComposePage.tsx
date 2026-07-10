@@ -64,6 +64,20 @@ export function EdoComposePage() {
     enabled: !!currentDocId,
   });
 
+  // Bo'lim tanlanganda keyingi hujjat raqamini oldindan olib kelamiz (faqat qoralama/yangi uchun)
+  const isDraftDoc = !doc || doc.status === 'draft';
+  const { data: nextNumberData } = useQuery({
+    queryKey: ['next-number', numberDeptId],
+    queryFn: async () =>
+      (
+        await api.get<{ number: string | null }>('/documents/next-number', {
+          params: { deptId: numberDeptId },
+        })
+      ).data,
+    enabled: !!numberDeptId && isDraftDoc,
+    staleTime: 10_000,
+  });
+
   useEffect(() => {
     if (!doc) return;
     setType(doc.type);
@@ -266,9 +280,11 @@ export function EdoComposePage() {
   const numberPreview =
     doc?.number && doc.status !== 'draft'
       ? doc.number
-      : numberDept?.code
-        ? `${numberDept.code}-NN`
-        : null;
+      : nextNumberData?.number
+        ? nextNumberData.number
+        : numberDept?.code
+          ? `${numberDept.code}-NN`
+          : null;
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-6">

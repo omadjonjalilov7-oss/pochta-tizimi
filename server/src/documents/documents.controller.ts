@@ -80,6 +80,13 @@ export class DocumentsController {
     return this.docs.listToSign(user.id);
   }
 
+  // Bo'lim bo'yicha keyingi hujjat raqamini oldindan ko'rsatish (counter'ni oshirmaydi)
+  @Get('next-number')
+  previewNextNumber(@Query('deptId') deptId: string) {
+    if (!deptId) return { number: null };
+    return this.docs.previewNextNumber(deptId);
+  }
+
   @Get('stats/mine')
   myStats(
     @CurrentUser() user: CurrentUserPayload,

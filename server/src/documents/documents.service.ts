@@ -1227,6 +1227,24 @@ export class DocumentsService {
     return `${deptCode}-${padded}`;
   }
 
+  // Keyingi hujjat raqamini oldindan ko'rsatish — counter'ni OSHIRMAYDI (faqat preview).
+  // Xodim hujjat yaratayotganda nechchinchi tartib raqamli hujjat ekanini ko'rishi uchun.
+  async previewNextNumber(deptId: string): Promise<{ number: string | null }> {
+    const dept = await this.prisma.department.findUnique({
+      where: { id: deptId },
+      select: { code: true },
+    });
+    if (!dept?.code) return { number: null };
+
+    const counter = await this.prisma.documentCounter.findUnique({
+      where: { deptCode: dept.code },
+    });
+    // allocateNumber bilan bir xil mantiq: counter yo'q bo'lsa 1, aks holda lastNumber+1
+    const next = (counter?.lastNumber ?? 0) + 1;
+    const padded = String(next).padStart(2, '0');
+    return { number: `${dept.code}-${padded}` };
+  }
+
   // ── PDF eksport ────────────────────────────────────────────────────────
   async exportPdf(
     userId: string,
