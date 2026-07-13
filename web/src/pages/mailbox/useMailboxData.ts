@@ -6,9 +6,12 @@ import { api } from '../../lib/api';
 import type { MessageRecipientItem, MessageFolder } from '../../lib/types';
 
 export interface MailGroup {
+  key: string;
   name: string;
   color: string | null;
   items: MessageRecipientItem[];
+  unreadCount: number;
+  latestSentAt: string;
 }
 
 const FOLDER_TITLE_KEYS: Record<string, string> = {
@@ -110,12 +113,32 @@ export function useMailboxData(folder: MessageFolder, starredOnly?: boolean) {
 
       // Har bir foydalanuvchi FAQAT 1 marta ro'yxatda tursin
       if (!map.has(contactKey)) {
-        map.set(contactKey, { name: contactName, color: null, items: [] });
+        map.set(contactKey, {
+          key: contactKey,
+          name: contactName,
+          color: null,
+          items: [],
+          unreadCount: 0,
+          latestSentAt: item.message.sentAt,
+        });
       }
-      map.get(contactKey)!.items.push(item);
+      const group = map.get(contactKey)!;
+      group.items.push(item);
+      if (!item.isRead) group.unreadCount += 1;
+      if (item.message.sentAt > group.latestSentAt) {
+        group.latestSentAt = item.message.sentAt;
+      }
     }
 
     const result: MailGroup[] = Array.from(map.values());
+    // O'qilmagan (yangi) xabari bor foydalanuvchilar eng tepada; ular orasida va
+    // qolganlar orasida — eng so'nggi xabar vaqti bo'yicha kamayish tartibida.
+    result.sort((a, b) => {
+      const aHasUnread = a.unreadCount > 0 ? 1 : 0;
+      const bHasUnread = b.unreadCount > 0 ? 1 : 0;
+      if (aHasUnread !== bHasUnread) return bHasUnread - aHasUnread;
+      return b.latestSentAt.localeCompare(a.latestSentAt);
+    });
     return result.length > 0 ? result : null;
   }, [filtered, folder, debouncedSearch]);
 

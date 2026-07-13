@@ -42,7 +42,7 @@ export function MailboxGmail({ folder, starredOnly }: Props) {
         ) : groupedItems ? (
           <div>
             {groupedItems.map((group) => (
-              <div key={group.name}>
+              <div key={group.key}>
                 {/* Group header */}
                 <div className="sticky top-0 bg-slate-100/50 border-y border-slate-200 px-4 py-1.5 flex items-center gap-2">
                   {group.color && (
@@ -54,7 +54,11 @@ export function MailboxGmail({ folder, starredOnly }: Props) {
                   <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
                     {group.name}
                   </span>
-                  <span className="ml-auto text-xs text-slate-400">
+                  <span
+                    className={`ml-auto text-xs font-semibold ${
+                      group.unreadCount > 0 ? 'text-green-600' : 'text-slate-400'
+                    }`}
+                  >
                     {group.items.length}
                   </span>
                 </div>

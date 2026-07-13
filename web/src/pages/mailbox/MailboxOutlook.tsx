@@ -66,12 +66,12 @@ export function MailboxOutlook({ folder, starredOnly, width }: Props) {
           ) : groupedItems ? (
             <div>
               {groupedItems.map((group) => {
-                const isExpanded = expandedGroups.has(group.name);
+                const isExpanded = expandedGroups.has(group.key);
                 return (
-                  <div key={group.name}>
+                  <div key={group.key}>
                     {/* Group header - clickable */}
                     <button
-                      onClick={() => toggleGroupExpanded(group.name)}
+                      onClick={() => toggleGroupExpanded(group.key)}
                       className="w-full sticky top-0 bg-slate-100/50 border-y border-slate-200 px-3 py-1.5 flex items-center gap-2 hover:bg-slate-100 transition-colors text-left"
                     >
                       <ChevronDown
@@ -90,7 +90,12 @@ export function MailboxOutlook({ folder, starredOnly, width }: Props) {
                       <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider flex-1">
                         {group.name}
                       </span>
-                      <span className="text-xs text-slate-400 flex-shrink-0">
+                      <span
+                        className={cn(
+                          'text-xs font-semibold flex-shrink-0',
+                          group.unreadCount > 0 ? 'text-green-600' : 'text-slate-400',
+                        )}
+                      >
                         {group.items.length}
                       </span>
                     </button>
