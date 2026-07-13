@@ -220,7 +220,13 @@ function UserModal({
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState(user?.fullName || '');
   const [phone, setPhone] = useState(user?.phone || '');
-  const [email, setEmail] = useState(user?.email || '');
+  const [mailType, setMailType] = useState<'internal' | 'external'>(
+    user?.externalMailEnabled ? 'external' : 'internal',
+  );
+  const [email, setEmail] = useState(
+    user?.externalMailEnabled ? user?.externalMailLogin || '' : user?.email || '',
+  );
+  const [externalMailPassword, setExternalMailPassword] = useState('');
   const [departmentId, setDepartmentId] = useState(user?.departmentId || '');
   const [positionId, setPositionId] = useState(user?.positionId || '');
   const [managerId, setManagerId] = useState(user?.managerId || '');
@@ -254,6 +260,7 @@ function UserModal({
         fullName: fullName.trim(),
         phone: phone.trim() || undefined,
         email: email.trim() || undefined,
+        mailType,
         departmentId: departmentId || undefined,
         positionId: positionId || undefined,
         managerId: managerId || undefined,
@@ -261,6 +268,20 @@ function UserModal({
         canSignExternal,
         isAdmin,
       };
+      if (mailType === 'external') {
+        // Yangi xodim yoki parol kiritilgan bo'lsa yuboramiz (tahrirda bo'sh qoldirilsa — eski saqlanadi)
+        body.externalMailPassword = externalMailPassword || undefined;
+        if (!email.trim()) {
+          setError(t('admin.external_email_required'));
+          setSaving(false);
+          return;
+        }
+        if (!user && !externalMailPassword) {
+          setError(t('admin.external_password_required'));
+          setSaving(false);
+          return;
+        }
+      }
       if (user) {
         await api.patch(`/users/${user.id}`, body);
       } else {
@@ -350,14 +371,44 @@ function UserModal({
               />
             </Field>
 
-            <Field label={t('admin.form_email_label')}>
+            <Field label={t('admin.form_mail_type_label')}>
+              <select
+                value={mailType}
+                onChange={(e) => setMailType(e.target.value as 'internal' | 'external')}
+                className="input"
+              >
+                <option value="internal">{t('admin.mail_type_internal')}</option>
+                <option value="external">{t('admin.mail_type_external')}</option>
+              </select>
+            </Field>
+
+            <Field
+              label={
+                mailType === 'external'
+                  ? t('admin.form_external_email_label')
+                  : t('admin.form_email_label')
+              }
+            >
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                placeholder={mailType === 'external' ? 'ism@asaka-motors.uz' : ''}
                 className="input"
               />
             </Field>
+
+            {mailType === 'external' && (
+              <Field label={t('admin.form_external_password_label')}>
+                <SecretInput
+                  name="admin-external-mail-password"
+                  value={externalMailPassword}
+                  onChange={(e) => setExternalMailPassword(e.target.value)}
+                  placeholder={user ? t('admin.external_password_keep_hint') : ''}
+                  className="input w-full"
+                />
+              </Field>
+            )}
 
             <Field label={t('admin.form_department_label')}>
               <select

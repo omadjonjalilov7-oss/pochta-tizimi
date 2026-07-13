@@ -1,5 +1,6 @@
 import {
   IsBoolean,
+  IsIn,
   IsOptional,
   IsString,
   IsUUID,
@@ -56,4 +57,15 @@ export class CreateUserDto {
   @IsOptional()
   @IsBoolean()
   isAdmin?: boolean;
+
+  // Pochta turi: 'internal' (ichki @pochta.local) yoki 'external' (tashqi @asaka-motors.uz)
+  @IsOptional()
+  @IsIn(['internal', 'external'])
+  mailType?: 'internal' | 'external';
+
+  // Tashqi pochta paroli — faqat mailType 'external' bo'lganda kerak (admin qo'lda kiritadi)
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  externalMailPassword?: string;
 }

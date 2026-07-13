@@ -59,33 +59,43 @@ export class ExternalMailService {
     };
   }
 
-  async connect(userId: string, dto: ConnectExternalMailDto) {
-    const email = dto.email.trim().toLowerCase();
-    if (!email.endsWith('@' + ALLOWED_DOMAIN)) {
+  /**
+   * Tashqi pochtaga ulanish ma'lumotlarini tayyorlaydi:
+   * domenni tekshiradi, IMAP ulanishini sinaydi, parolni shifrlaydi.
+   * Prisma user.update/create uchun tayyor data qaytaradi (bazaga o'zi yozmaydi).
+   * Admin foydalanuvchi yaratish/tahrirlashda ham, profil "connect"da ham ishlatiladi.
+   */
+  async prepareConnectionData(email: string, password: string) {
+    const em = email.trim().toLowerCase();
+    if (!em.endsWith('@' + ALLOWED_DOMAIN)) {
       throw new ForbiddenException(`Faqat @${ALLOWED_DOMAIN} pochta manzili qo\'shilishi mumkin`);
     }
 
     // Avval ulanishni sinab ko'ramiz
-    const test = await this.testConnection(email, dto.password);
+    const test = await this.testConnection(em, password);
     if (!test.ok) {
       throw new BadRequestException(
         `Pochta serveriga ulanib bo\'lmadi: ${test.error || 'parol noto\'g\'ri'}`,
       );
     }
 
-    const enc = encryptSecret(dto.password);
+    return {
+      externalMailLogin: em,
+      externalMailPasswordEnc: encryptSecret(password),
+      externalMailEnabled: true,
+      externalMailLastUid: null as number | null, // yangi ulanishda UID ni resetlaymiz
+    };
+  }
+
+  async connect(userId: string, dto: ConnectExternalMailDto) {
+    const data = await this.prepareConnectionData(dto.email, dto.password);
 
     await this.prisma.user.update({
       where: { id: userId },
-      data: {
-        externalMailLogin: email,
-        externalMailPasswordEnc: enc,
-        externalMailEnabled: true,
-        externalMailLastUid: null, // yangi ulanishda UID ni resetlaymiz
-      },
+      data,
     });
 
-    return { ok: true, email };
+    return { ok: true, email: data.externalMailLogin };
   }
 
   /**

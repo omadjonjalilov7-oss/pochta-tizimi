@@ -12,6 +12,7 @@ import { v4 as uuid } from 'uuid';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { ExternalMailService } from '../external-mail/external-mail.service';
 
 const ALLOWED_AVATAR_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -21,6 +22,7 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly externalMail: ExternalMailService,
   ) {}
 
   async findAll() {
@@ -49,7 +51,27 @@ export class UsersService {
 
     const rounds = parseInt(this.config.get('BCRYPT_ROUNDS', '12'), 10);
     const passwordHash = await bcrypt.hash(dto.password, rounds);
-    const email = dto.email ?? `${dto.login}@pochta.local`;
+
+    // Pochta turi: ichki (@pochta.local) yoki tashqi (@asaka-motors.uz)
+    const mailType = dto.mailType ?? 'internal';
+    let email: string;
+    let externalData: Record<string, any> = {};
+    if (mailType === 'external') {
+      if (!dto.email) {
+        throw new BadRequestException('Tashqi pochta uchun email manzili kiritilishi shart');
+      }
+      if (!dto.externalMailPassword) {
+        throw new BadRequestException('Tashqi pochta uchun parol kiritilishi shart');
+      }
+      // Domen tekshiriladi, IMAP ulanishi sinaladi, parol shifrlanadi
+      externalData = await this.externalMail.prepareConnectionData(
+        dto.email,
+        dto.externalMailPassword,
+      );
+      email = externalData.externalMailLogin;
+    } else {
+      email = dto.email ?? `${dto.login}@pochta.local`;
+    }
 
     // O'z-o'ziga rahbar bo'lib qola olmaydi — yangi user uchun managerId boshqa userga ishora qilishi shart
     if (dto.managerId) {
@@ -67,9 +89,11 @@ export class UsersService {
         departmentId: dto.departmentId,
         positionId: dto.positionId,
         managerId: dto.managerId,
-        canSendExternal: dto.canSendExternal ?? false,
+        // Tashqi pochtali xodim avtomat tashqiga yubora oladi
+        canSendExternal: mailType === 'external' ? true : (dto.canSendExternal ?? false),
         canSignExternal: dto.canSignExternal ?? false,
         isAdmin: dto.isAdmin ?? false,
+        ...externalData,
       },
       include: { department: true, position: true },
     });
@@ -80,9 +104,46 @@ export class UsersService {
   async update(id: string, dto: UpdateUserDto) {
     const data: any = { ...dto };
     delete data.password;
+    delete data.mailType;
+    delete data.externalMailPassword;
     if (dto.password) {
       const rounds = parseInt(this.config.get('BCRYPT_ROUNDS', '12'), 10);
       data.passwordHash = await bcrypt.hash(dto.password, rounds);
+    }
+
+    // Pochta turi bo'yicha tashqi pochtani sozlash
+    if (dto.mailType === 'external') {
+      if (!dto.email) {
+        throw new BadRequestException('Tashqi pochta uchun email manzili kiritilishi shart');
+      }
+      if (dto.externalMailPassword) {
+        // Yangi parol kiritildi — qayta ulanamiz (tekshirib, shifrlab)
+        const ext = await this.externalMail.prepareConnectionData(
+          dto.email,
+          dto.externalMailPassword,
+        );
+        Object.assign(data, ext);
+        data.email = ext.externalMailLogin;
+        data.canSendExternal = true;
+      } else {
+        // Parol kiritilmagan — faqat allaqachon ulangan bo'lsa ruxsat beramiz
+        // (boshqa maydonlarni tahrirlashda tashqi parolni qayta kiritish shart emas)
+        const current = await this.prisma.user.findUnique({
+          where: { id },
+          select: { externalMailEnabled: true, externalMailPasswordEnc: true },
+        });
+        if (!current?.externalMailEnabled || !current.externalMailPasswordEnc) {
+          throw new BadRequestException('Tashqi pochtaga ulash uchun parol kiritilishi shart');
+        }
+        const em = dto.email.trim().toLowerCase();
+        data.email = em;
+        data.externalMailLogin = em;
+      }
+    } else if (dto.mailType === 'internal') {
+      // Ichkiga o'tkazamiz — tashqi ulanishni uzamiz
+      data.externalMailLogin = null;
+      data.externalMailPasswordEnc = null;
+      data.externalMailEnabled = false;
     }
 
     // O'z-o'ziga rahbar bo'lishni taqiqlaymiz
@@ -257,6 +318,7 @@ export class UsersService {
       failedLoginCount,
       lockedUntil,
       approvalPinHash,
+      externalMailPasswordEnc,
       ...safe
     } = user;
     return { ...safe, hasApprovalPin: !!approvalPinHash };

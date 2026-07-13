@@ -29,6 +29,8 @@ export interface User {
   managerId?: string | null;
   canSendExternal: boolean;
   canSignExternal: boolean;
+  externalMailEnabled?: boolean;
+  externalMailLogin?: string | null;
   isActive: boolean;
   isAdmin: boolean;
   notifyEdo?: boolean;
