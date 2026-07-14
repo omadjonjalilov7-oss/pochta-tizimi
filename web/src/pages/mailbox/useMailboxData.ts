@@ -67,7 +67,26 @@ export function useMailboxData(folder: MessageFolder, starredOnly?: boolean) {
       const res = await api.get<MessageRecipientItem[]>('/messages', { params });
       return res.data;
     },
+    // Pochta ochiq turganda tashqi pochta xabarlarini avtomatik yangilab turadi
+    // (backend IMAP polling har 15 sekundda import qiladi).
+    refetchInterval: 15_000,
   });
+
+  // Pochtaga kirilganda darhol tashqi pochtani sinxronlaymiz — 15 sekundlik
+  // tsiklni kutmasdan yangi xabarlar ko'rinadi. Faqat bir marta (mount'da).
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .post('/external-mail/sync-now')
+      .then(() => {
+        if (!cancelled) queryClient.invalidateQueries({ queryKey: ['messages'] });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const filtered = starredOnly ? (data ?? []).filter((it) => it.isStarred) : data ?? [];
 

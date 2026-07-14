@@ -96,6 +96,16 @@ export class ExternalMailController {
     return this.service.resync(user.id);
   }
 
+  /**
+   * Pochtaga kirganda darhol sinxronlash — 15 sekundlik tsiklni kutmasdan
+   * tashqi pochtadagi yangi xabarlarni olib keladi.
+   */
+  @Post('sync-now')
+  @UseGuards(JwtAuthGuard)
+  syncNow(@CurrentUser() user: CurrentUserPayload) {
+    return this.imapPoll.syncNow(user.id);
+  }
+
   @Delete('disconnect')
   @UseGuards(JwtAuthGuard)
   disconnect(@CurrentUser() user: CurrentUserPayload) {

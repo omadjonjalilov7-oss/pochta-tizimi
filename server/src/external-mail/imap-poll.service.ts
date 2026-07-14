@@ -56,6 +56,15 @@ export class ImapPollService implements OnModuleInit {
     }
   }
 
+  /**
+   * Foydalanuvchi pochtaga kirganda — darhol bitta poll ishga tushiriladi
+   * (15 sekundlik tsiklni kutmasdan). Mutex bilan himoyalangan.
+   */
+  async syncNow(userId: string): Promise<{ ok: boolean }> {
+    await this.pollUserSafely(userId);
+    return { ok: true };
+  }
+
   private async pollUserSafely(userId: string) {
     if (this.inFlight.has(userId)) return; // o'tgan tsikl hali tugamagan
     this.inFlight.add(userId);
