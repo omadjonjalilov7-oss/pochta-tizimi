@@ -345,6 +345,7 @@
     "mail_type_internal": "Ichki pochta (@pochta.local)",
     "mail_type_external": "Tashqi pochta (@asaka-motors.uz)",
     "form_external_email_label": "Tashqi email manzili",
+    "internal_mail_hint": "Ichki manzil avtomatik yaratiladi: {{email}}",
     "form_external_password_label": "Tashqi pochta paroli",
     "external_password_keep_hint": "O'zgartirmasangiz bo'sh qoldiring",
     "external_email_required": "Tashqi pochta uchun email manzili kiritilishi shart",

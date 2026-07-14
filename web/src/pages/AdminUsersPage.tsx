@@ -259,7 +259,8 @@ function UserModal({
         login: login.trim(),
         fullName: fullName.trim(),
         phone: phone.trim() || undefined,
-        email: email.trim() || undefined,
+        // Ichki pochta uchun email yubormaymiz — backend `login@pochta.local` yaratadi
+        email: mailType === 'external' ? email.trim() || undefined : undefined,
         mailType,
         departmentId: departmentId || undefined,
         positionId: positionId || undefined,
@@ -382,32 +383,34 @@ function UserModal({
               </select>
             </Field>
 
-            <Field
-              label={
-                mailType === 'external'
-                  ? t('admin.form_external_email_label')
-                  : t('admin.form_email_label')
-              }
-            >
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder={mailType === 'external' ? 'ism@asaka-motors.uz' : ''}
-                className="input"
-              />
-            </Field>
+            {mailType === 'external' ? (
+              <>
+                <Field label={t('admin.form_external_email_label')}>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="ism@asaka-motors.uz"
+                    className="input"
+                  />
+                </Field>
 
-            {mailType === 'external' && (
-              <Field label={t('admin.form_external_password_label')}>
-                <SecretInput
-                  name="admin-external-mail-password"
-                  value={externalMailPassword}
-                  onChange={(e) => setExternalMailPassword(e.target.value)}
-                  placeholder={user ? t('admin.external_password_keep_hint') : ''}
-                  className="input w-full"
-                />
-              </Field>
+                <Field label={t('admin.form_external_password_label')}>
+                  <SecretInput
+                    name="admin-external-mail-password"
+                    value={externalMailPassword}
+                    onChange={(e) => setExternalMailPassword(e.target.value)}
+                    placeholder={user ? t('admin.external_password_keep_hint') : ''}
+                    className="input w-full"
+                  />
+                </Field>
+              </>
+            ) : (
+              <p className="text-xs text-slate-500">
+                {t('admin.internal_mail_hint', {
+                  email: `${login.trim() || 'login'}@pochta.local`,
+                })}
+              </p>
             )}
 
             <Field label={t('admin.form_department_label')}>

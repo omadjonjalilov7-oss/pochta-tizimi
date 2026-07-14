@@ -345,6 +345,7 @@
     "mail_type_internal": "Внутренняя почта (@pochta.local)",
     "mail_type_external": "Внешняя почта (@asaka-motors.uz)",
     "form_external_email_label": "Внешний email адрес",
+    "internal_mail_hint": "Внутренний адрес создаётся автоматически: {{email}}",
     "form_external_password_label": "Пароль внешней почты",
     "external_password_keep_hint": "Оставьте пустым, чтобы не менять",
     "external_email_required": "Для внешней почты необходимо указать email адрес",
