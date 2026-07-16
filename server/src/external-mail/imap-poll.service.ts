@@ -169,10 +169,14 @@ export class ImapPollService implements OnModuleInit {
           }
         }
 
+        // MUHIM: bu yerda `source` (xabar to'liq mazmuni + biriktirmalar) YUKLANMAYDI.
+        // Faqat envelope + flags olinadi (kichik). To'liq mazmun pastda faqat YANGI
+        // xabar uchun alohida yuklab olinadi. Aks holda har poll'da 100 ta Sent xabar
+        // qayta yuklanib, kuniga gigabaytlab trafik ketardi.
         const fetched: FetchMessageObject[] = [];
         for await (const msg of client.fetch(
           searchRange,
-          { uid: true, envelope: true, flags: true, source: true },
+          { uid: true, envelope: true, flags: true },
           { uid: lastUid > 0 },
         )) {
           fetched.push(msg);
@@ -235,8 +239,11 @@ export class ImapPollService implements OnModuleInit {
           }
 
           if (!existing) {
-            // Yangi xabar — parselash
-            const parsed = await simpleParser(m.source as Buffer);
+            // Yangi xabar — to'liq mazmunini (source) FAQAT shu payt yuklab olamiz
+            const full = await client.fetchOne(String(uid), { source: true }, { uid: true });
+            const source = full && (full as any).source;
+            if (!source) continue;
+            const parsed = await simpleParser(source as Buffer);
             const fromEmail =
               parsed.from?.value?.[0]?.address ||
               m.envelope?.from?.[0]?.address ||
