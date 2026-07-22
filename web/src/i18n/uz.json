@@ -605,6 +605,9 @@
     },
     "view": {
       "not_found": "Hujjat topilmadi yoki sizda kirish huquqi yo'q",
+      "overdue_warning": "Hujjat muddati o'tib ketgan",
+      "overdue_hint": "Muddatni uzaytirsangiz, tasdiqlash jarayonini davom ettirish mumkin",
+      "extend_deadline": "Muddatni uzaytirish",
       "body": "Hujjat matni",
       "attachments": "Biriktirilgan fayllar ({{count}})",
       "holder": "Hozir kimda",
