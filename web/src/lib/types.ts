@@ -206,6 +206,7 @@ export interface EdoAttachment {
 export interface EdoDocument {
   id: string;
   number: string;
+  docUid?: string | null;
   numberCategory: string;
   year: number;
   type: DocumentType;

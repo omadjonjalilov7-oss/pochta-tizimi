@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -7,8 +8,11 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { TemplatesService } from './templates.service';
 import { CreateTemplateDto, UpdateTemplateDto } from './dto/template.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -41,6 +45,19 @@ export class TemplatesController {
     @Body() dto: CreateTemplateDto,
   ) {
     return this.templates.create(user.id, dto);
+  }
+
+  @Post('import-docx')
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }),
+  )
+  importDocx(@UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('Fayl yuborilmadi');
+    const name = (file.originalname || '').toLowerCase();
+    if (!name.endsWith('.docx')) {
+      throw new BadRequestException('Faqat .docx fayl qabul qilinadi');
+    }
+    return this.templates.importDocx(file.buffer);
   }
 
   @Patch(':id')

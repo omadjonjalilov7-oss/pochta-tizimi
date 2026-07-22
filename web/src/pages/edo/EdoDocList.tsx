@@ -67,6 +67,11 @@ function DocList({ queryKey, endpoint, titleKey, emptyKey, showHolder }: DocList
                     <span className="font-mono text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
                       {d.number}
                     </span>
+                    {d.docUid && (
+                      <span className="font-mono text-xs bg-asaka-50 text-asaka-700 px-1.5 py-0.5 rounded">
+                        {d.docUid}
+                      </span>
+                    )}
                     <StatusPill status={d.status} />
                     <span className="text-xs text-slate-400">{t(`edo.doc_type.${d.type}`)}</span>
                   </div>

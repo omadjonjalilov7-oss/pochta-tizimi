@@ -56,8 +56,13 @@ export function EdoDocumentViewPage() {
   };
 
   const send = useMutation({
-    mutationFn: async () => (await api.post<EdoDocument>(`/documents/${id}/send`)).data,
+    mutationFn: async (approverIds: string[]) =>
+      (await api.post<EdoDocument>(`/documents/${id}/send`, { approverIds })).data,
     onSuccess: invalidate,
+  });
+  const { data: allUsers = [] } = useQuery({
+    queryKey: ['users'],
+    queryFn: async () => (await api.get<User[]>('/users')).data,
   });
   const approve = useMutation({
     mutationFn: async (vars: { pin: string; addApproverIds?: string[]; approvalNotes?: string }) =>
@@ -121,6 +126,7 @@ export function EdoDocumentViewPage() {
   const [showExtendModal, setShowExtendModal] = useState(false);
   const [extendDeadlineValue, setExtendDeadlineValue] = useState('');
   const [extendReasonValue, setExtendReasonValue] = useState('');
+  const [sendApproverIds, setSendApproverIds] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (isLoading) {
@@ -180,6 +186,14 @@ export function EdoDocumentViewPage() {
               <span className="font-mono text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
                 {doc.number}
               </span>
+              {doc.docUid && (
+                <span
+                  className="font-mono text-xs bg-asaka-50 text-asaka-700 px-2 py-0.5 rounded"
+                  title={t('edo.view.doc_uid')}
+                >
+                  {doc.docUid}
+                </span>
+              )}
               <StatusBadge status={doc.status} />
               <span className="text-xs text-slate-400">{t(`edo.doc_type.${doc.type}`)}</span>
             </div>
@@ -310,27 +324,37 @@ export function EdoDocumentViewPage() {
 
           {/* Amallar */}
           {isCreator && doc.status === 'draft' && (
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-wrap gap-2">
-              <button
-                onClick={() => navigate(`/edo/compose?id=${doc.id}`)}
-                className="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-4 py-2 rounded-lg"
-              >
-                <Pencil size={16} />
-                {t('edo.view.edit')}
-              </button>
-              <button
-                onClick={() => send.mutate()}
-                disabled={send.isPending}
-                className="inline-flex items-center gap-2 bg-asaka-600 hover:bg-asaka-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg"
-              >
-                <Send size={16} />
-                {send.isPending ? t('common.sending') : t('edo.view.send_for_approval')}
-              </button>
-              {send.error && (
-                <div className="basis-full text-sm text-red-600 mt-1">
-                  {extractError(send.error)}
-                </div>
-              )}
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-4">
+              <ApproverChainPicker
+                users={allUsers}
+                value={sendApproverIds}
+                onChange={setSendApproverIds}
+                excludeUserIds={[doc.createdById]}
+                label={t('edo.view.approvers_label')}
+                hint={t('edo.view.approvers_hint')}
+              />
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => navigate(`/edo/compose?id=${doc.id}`)}
+                  className="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-4 py-2 rounded-lg"
+                >
+                  <Pencil size={16} />
+                  {t('edo.view.edit')}
+                </button>
+                <button
+                  onClick={() => send.mutate(sendApproverIds)}
+                  disabled={send.isPending || sendApproverIds.length === 0}
+                  className="inline-flex items-center gap-2 bg-asaka-600 hover:bg-asaka-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg"
+                >
+                  <Send size={16} />
+                  {send.isPending ? t('common.sending') : t('edo.view.send_for_approval')}
+                </button>
+                {send.error && (
+                  <div className="basis-full text-sm text-red-600 mt-1">
+                    {extractError(send.error)}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

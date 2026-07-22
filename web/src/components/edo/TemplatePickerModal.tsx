@@ -8,8 +8,28 @@ import { cn } from '../../lib/utils';
 
 const PLACEHOLDER_RE = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g;
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// Joylarni to'ldirib, HTML shablonni qaytaradi (ko'rinish uchun)
 function applyTemplate(body: string, values: Record<string, string>): string {
-  return body.replace(PLACEHOLDER_RE, (_m, key) => values[key] ?? '');
+  return body.replace(PLACEHOLDER_RE, (_m, key) => escapeHtml(values[key] ?? ''));
+}
+
+// HTML'ni oddiy matnga aylantiradi — xujjat matni oddiy matn bo'lgani uchun
+function htmlToText(html: string): string {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  div.querySelectorAll('br').forEach((br) => br.replaceWith('\n'));
+  div
+    .querySelectorAll('p, div, li, tr, h1, h2, h3, h4, h5, h6, blockquote')
+    .forEach((el) => el.append('\n'));
+  return (div.textContent ?? '').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 export function TemplatePickerModal({
@@ -58,7 +78,7 @@ export function TemplatePickerModal({
 
   const handleApply = () => {
     if (!selected) return;
-    onPick(applyTemplate(selected.bodyTemplate, values));
+    onPick(htmlToText(applyTemplate(selected.bodyTemplate, values)));
     onClose();
   };
 
@@ -179,10 +199,16 @@ export function TemplatePickerModal({
                 <div className="text-sm font-medium text-slate-700 mb-2">
                   {t('edo.template_picker.preview')}
                 </div>
-                <pre className={cn(
-                  'whitespace-pre-wrap text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2',
-                  'font-sans text-slate-800 max-h-72 overflow-auto',
-                )}>{preview}</pre>
+                <div
+                  className={cn(
+                    'prose prose-sm max-w-none text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2',
+                    'text-slate-800 max-h-72 overflow-auto',
+                  )}
+                  dangerouslySetInnerHTML={{ __html: preview }}
+                />
+                <p className="mt-1.5 text-xs text-slate-400">
+                  {t('edo.template_picker.plain_note')}
+                </p>
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-200">

@@ -22,6 +22,7 @@ import { QrApprovalService } from './qr-approval.service';
 import { ReportService } from './report.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
+import { SendDocumentDto } from './dto/send-document.dto';
 import { ApproveDocumentDto, ApproveOverdueDocumentDto, CommentDto, ExtendDeadlineDto, ForwardDto, RejectDto } from './dto/document-action.dto';
 import { CompleteTargetDto, CreateResolutionDto } from './dto/resolution.dto';
 import { SignDocumentDto } from './dto/sign.dto';
@@ -106,6 +107,12 @@ export class DocumentsController {
   previewNextNumber(@Query('deptId') deptId: string) {
     if (!deptId) return { number: null };
     return this.docs.previewNextNumber(deptId);
+  }
+
+  // Yagona ID (asaka-...), tartib raqami yoki mavzu bo'yicha qidiruv — rolga qarab
+  @Get('search')
+  search(@CurrentUser() user: CurrentUserPayload, @Query('q') q?: string) {
+    return this.docs.search(user.id, q ?? '');
   }
 
   @Get('stats/mine')
@@ -223,8 +230,9 @@ export class DocumentsController {
   send(
     @CurrentUser() user: CurrentUserPayload,
     @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: SendDocumentDto,
   ) {
-    return this.docs.sendForApproval(user.id, id);
+    return this.docs.sendForApproval(user.id, id, dto);
   }
 
   @Post(':id/approve')

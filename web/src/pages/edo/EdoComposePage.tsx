@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
-  Send,
   Save,
   X,
   Paperclip,
@@ -16,13 +15,14 @@ import {
   FilePlus2,
   Users,
   Link2,
+  Files,
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { cn } from '../../lib/utils';
-import type { Department, DocumentType, EdoDocument, User } from '../../lib/types';
+import type { Department, DocumentType, EdoDocument } from '../../lib/types';
 import { useAuth } from '../../context/AuthContext';
 import { Avatar } from '../../components/Avatar';
-import { ApproverChainPicker } from '../../components/edo/ApproverChainPicker';
+import { TemplatePickerModal } from '../../components/edo/TemplatePickerModal';
 
 const FILE_ACCEPT =
   '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.7z,.txt,.csv,image/*,video/*';
@@ -44,13 +44,11 @@ export function EdoComposePage() {
   const [targetDeptId, setTargetDeptId] = useState<string>('');
   const [externalRecipient, setExternalRecipient] = useState('');
   const [deadline, setDeadline] = useState('');
-  const [approverIds, setApproverIds] = useState<string[]>([]);
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [currentDocId, setCurrentDocId] = useState<string | null>(draftId);
   const [commentText, setCommentText] = useState('');
-  const [showSendConfirm, setShowSendConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reference dizaynidagi qo'shimcha maydonlar (hozircha UI holati)
@@ -62,17 +60,12 @@ export function EdoComposePage() {
   const [replyRequired, setReplyRequired] = useState(false);
   const [formApproversAfterSign, setFormApproversAfterSign] = useState(false);
   const [showRecipients, setShowRecipients] = useState(false);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [showRelated, setShowRelated] = useState(false);
 
   const { data: departments = [] } = useQuery({
     queryKey: ['departments'],
     queryFn: async () => (await api.get<Department[]>('/departments')).data,
-    staleTime: 60_000,
-  });
-
-  const { data: allUsers = [] } = useQuery({
-    queryKey: ['users-short'],
-    queryFn: async () => (await api.get<User[]>('/users')).data,
     staleTime: 60_000,
   });
 
@@ -113,12 +106,6 @@ export function EdoComposePage() {
     setAsAppeal(!!doc.deliverAsAppeal);
     setReplyRequired(!!doc.replyRequired);
     setFormApproversAfterSign(!!doc.formApproversAfterSign);
-    // Qoralamada saqlangan tasdiqlovchilar zanjirini yuklaymiz
-    const persistedApprovers = (doc.participants || [])
-      .filter((p) => p.role === 'approver')
-      .sort((a, b) => a.order - b.order)
-      .map((p) => p.userId);
-    setApproverIds(persistedApprovers);
   }, [doc]);
 
   // Yangi hujjatda (qoralama emas) — URL'dagi ?type bo'yicha turini o'rnatamiz
@@ -135,32 +122,9 @@ export function EdoComposePage() {
     }
   }, [user, currentDocId, numberDeptId]);
 
-  const findHead = useMemo(() => {
-    return (deptId: string | null | undefined, excludeUserId?: string | null) => {
-      if (!deptId) return null;
-      const candidates = allUsers
-        .filter(
-          (u) =>
-            u.departmentId === deptId &&
-            u.isActive &&
-            (!excludeUserId || u.id !== excludeUserId),
-        )
-        .sort((a, b) => (a.position?.rank ?? 99999) - (b.position?.rank ?? 99999));
-      return candidates[0] ?? null;
-    };
-  }, [allUsers]);
-
   const numberDept = useMemo(
     () => departments.find((d) => d.id === numberDeptId) || null,
     [departments, numberDeptId],
-  );
-  const creatorDeptHead = useMemo(
-    () => findHead(numberDeptId, user?.id),
-    [findHead, numberDeptId, user?.id],
-  );
-  const targetDeptHead = useMemo(
-    () => findHead(targetDeptId, user?.id),
-    [findHead, targetDeptId, user?.id],
   );
 
   const isDraft = !doc || doc.status === 'draft';
@@ -177,8 +141,6 @@ export function EdoComposePage() {
         externalRecipient:
           type === 'outgoing' ? externalRecipient.trim() || undefined : undefined,
         deadline: deadline ? new Date(deadline).toISOString() : undefined,
-        // Tasdiqlovchilar zanjiri: yaratuvchi tanlagan ketma-ketlik
-        approverIds,
         // Yaratish formasidagi qo'shimcha maydonlar
         issueGroup: issueGroup.trim() || undefined,
         issues: issues.trim() || undefined,
@@ -199,20 +161,6 @@ export function EdoComposePage() {
       queryClient.invalidateQueries({ queryKey: ['edo-doc', saved.id] });
       queryClient.invalidateQueries({ queryKey: ['edo-drafts'] });
       queryClient.invalidateQueries({ queryKey: ['edo-mine'] });
-    },
-    onError: (e: any) => setError(extractError(e)),
-  });
-
-  const sendDoc = useMutation({
-    mutationFn: async (id: string) => {
-      return (await api.post<EdoDocument>(`/documents/${id}/send`, {})).data;
-    },
-    onSuccess: (doc) => {
-      queryClient.setQueryData(['edo-doc', doc.id], doc);
-      queryClient.invalidateQueries({ queryKey: ['edo-doc', doc.id] });
-      queryClient.invalidateQueries({ queryKey: ['edo-drafts'] });
-      queryClient.invalidateQueries({ queryKey: ['edo-mine'] });
-      navigate(`/edo/documents/${doc.id}`);
     },
     onError: (e: any) => setError(extractError(e)),
   });
@@ -249,14 +197,20 @@ export function EdoComposePage() {
     onError: (e: any) => setError(extractError(e)),
   });
 
-  function handleSave(e?: FormEvent) {
+  async function handleSave(e?: FormEvent) {
     e?.preventDefault();
     setError(null);
     if (!subject.trim() || subject.trim().length < 2) {
       setError(t('edo.compose.err_subject'));
       return;
     }
-    saveDraft.mutate();
+    try {
+      const saved = await saveDraft.mutateAsync();
+      // Saqlangach hujjat ko'rish sahifasiga — u yerda xodimlar tanlanib yuboriladi
+      navigate(`/edo/documents/${saved.id}`);
+    } catch {
+      // saveDraft onError already handled
+    }
   }
 
   // Fayl biriktirish — agar draft hali saqlanmagan bo'lsa, avval avto-saqlaymiz
@@ -293,35 +247,6 @@ export function EdoComposePage() {
     setTagInput('');
   }
 
-  function openSendConfirm() {
-    setError(null);
-    if (!subject.trim() || subject.trim().length < 2) {
-      setError(t('edo.compose.err_subject'));
-      return;
-    }
-    setShowSendConfirm(true);
-  }
-
-  async function confirmSend() {
-    setShowSendConfirm(false);
-    try {
-      const saved = await saveDraft.mutateAsync();
-      sendDoc.mutate(saved.id);
-    } catch {
-      // saveDraft onError already handled
-    }
-  }
-
-  async function declineSend() {
-    setShowSendConfirm(false);
-    try {
-      await saveDraft.mutateAsync();
-      navigate('/edo/drafts');
-    } catch {
-      // saveDraft onError already handled
-    }
-  }
-
   const showOutgoingWarning =
     type === 'outgoing' && !user?.canSignExternal && !user?.canSendExternal;
 
@@ -331,7 +256,7 @@ export function EdoComposePage() {
       : nextNumberData?.number
         ? nextNumberData.number
         : numberDept?.code
-          ? `${numberDept.code}-NN`
+          ? `NN-${numberDept.code}`
           : null;
 
   const headerTitle =
@@ -418,6 +343,16 @@ export function EdoComposePage() {
               <Link2 size={16} />
               {t('edo.compose.btn_related')}
             </button>
+            {type === 'internal' && (
+              <button
+                type="button"
+                onClick={() => setShowTemplatePicker(true)}
+                className={secondaryBtnCls}
+              >
+                <Files size={16} />
+                {t('edo.compose.pick_template')}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => handleSave()}
@@ -577,6 +512,19 @@ export function EdoComposePage() {
                 className={`${fieldCls} resize-y pl-10`}
               />
             </div>
+          </div>
+
+          {/* Hujjat matni */}
+          <div>
+            <label className={labelCls}>{t('edo.compose.label_body')}</label>
+            <textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder={t('edo.compose.ph_body')}
+              rows={10}
+              disabled={!isDraft}
+              className={`${fieldCls} resize-y`}
+            />
           </div>
 
           {/* Hujjat heshteglari */}
@@ -791,50 +739,7 @@ export function EdoComposePage() {
                   />
                 </div>
               </div>
-              <ApproverChainPicker
-                users={allUsers}
-                value={approverIds}
-                onChange={setApproverIds}
-                excludeUserIds={user ? [user.id] : []}
-                disabled={!isDraft}
-                label={t('edo.compose.section_approvers')}
-                hint={t('edo.compose.approvers_hint')}
-              />
-              {isDraft && (
-                <div className="flex flex-wrap gap-2">
-                  {creatorDeptHead && !approverIds.includes(creatorDeptHead.id) && (
-                    <button
-                      type="button"
-                      onClick={() => setApproverIds((prev) => [...prev, creatorDeptHead.id])}
-                      className="inline-flex items-center gap-1 text-xs bg-slate-100 hover:bg-asaka-50 text-slate-700 hover:text-asaka-700 px-2 py-1 rounded-md"
-                    >
-                      + {t('edo.compose.quick_add_creator_head')}: {creatorDeptHead.fullName}
-                    </button>
-                  )}
-                  {targetDeptHead && !approverIds.includes(targetDeptHead.id) && (
-                    <button
-                      type="button"
-                      onClick={() => setApproverIds((prev) => [...prev, targetDeptHead.id])}
-                      className="inline-flex items-center gap-1 text-xs bg-slate-100 hover:bg-asaka-50 text-slate-700 hover:text-asaka-700 px-2 py-1 rounded-md"
-                    >
-                      + {t('edo.compose.quick_add_target_head')}: {targetDeptHead.fullName}
-                    </button>
-                  )}
-                </div>
-              )}
-              {isDraft && (
-                <div className="flex justify-end pt-1">
-                  <button
-                    type="button"
-                    onClick={openSendConfirm}
-                    disabled={sendDoc.isPending || saveDraft.isPending}
-                    className="inline-flex items-center gap-2 bg-asaka-600 hover:bg-asaka-700 text-white font-semibold px-4 py-2 rounded-lg text-sm disabled:opacity-50"
-                  >
-                    <Send size={15} />
-                    {sendDoc.isPending ? t('common.sending') : t('edo.compose.send')}
-                  </button>
-                </div>
-              )}
+              <p className="text-xs text-slate-500">{t('edo.compose.approvers_moved_hint')}</p>
             </div>
           )}
 
@@ -874,41 +779,13 @@ export function EdoComposePage() {
         />
       </div>
 
-      {showSendConfirm && (
-        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-            <div className="flex items-start gap-3 mb-4">
-              <div className="bg-asaka-50 text-asaka-700 rounded-lg p-2 shrink-0">
-                <Send size={20} />
-              </div>
-              <div className="flex-1">
-                <h2 className="text-lg font-semibold text-slate-900 mb-1">
-                  {t('edo.compose.confirm_send_title')}
-                </h2>
-                <p className="text-sm text-slate-600">{t('edo.compose.confirm_send_text')}</p>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={declineSend}
-                disabled={saveDraft.isPending || sendDoc.isPending}
-                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg disabled:opacity-50"
-              >
-                {t('edo.compose.confirm_send_no')}
-              </button>
-              <button
-                type="button"
-                onClick={confirmSend}
-                disabled={saveDraft.isPending || sendDoc.isPending}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-asaka-600 hover:bg-asaka-700 rounded-lg disabled:opacity-50"
-              >
-                <Send size={14} />
-                {t('edo.compose.confirm_send_yes')}
-              </button>
-            </div>
-          </div>
-        </div>
+      {showTemplatePicker && (
+        <TemplatePickerModal
+          onClose={() => setShowTemplatePicker(false)}
+          onPick={(picked) =>
+            setBody((prev) => (prev.trim() ? prev + '\n' + picked : picked))
+          }
+        />
       )}
     </div>
   );

@@ -1,7 +1,21 @@
-import { useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { FileText, Plus, Pencil, Trash2, X, Globe, User as UserIcon, Search } from 'lucide-react';
+import {
+  FileText,
+  Plus,
+  Pencil,
+  Trash2,
+  X,
+  Globe,
+  User as UserIcon,
+  Search,
+  Bold,
+  Italic,
+  List,
+  Braces,
+  Upload,
+} from 'lucide-react';
 import { api } from '../../lib/api';
 import type { EdoTemplate } from '../../lib/types';
 import { useAuth } from '../../context/AuthContext';
@@ -243,6 +257,22 @@ function TemplateFormModal({
 }) {
   const { t } = useTranslation();
   const placeholders = extractPlaceholders(form.bodyTemplate);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const importDocx = useMutation({
+    mutationFn: async (file: File) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      return (
+        await api.post<{ html: string; placeholders: string[] }>(
+          '/templates/import-docx',
+          fd,
+          { headers: { 'Content-Type': 'multipart/form-data' } },
+        )
+      ).data;
+    },
+    onSuccess: (data) => onChange({ ...form, bodyTemplate: data.html }),
+  });
 
   return (
     <div
@@ -291,16 +321,39 @@ function TemplateFormModal({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              {t('edo.templates.f_body')}
-              <span className="ml-2 text-xs text-slate-400">{t('edo.templates.body_hint')}</span>
-            </label>
-            <textarea
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-sm font-medium text-slate-700">
+                {t('edo.templates.f_body')}
+                <span className="ml-2 text-xs text-slate-400">{t('edo.templates.body_hint')}</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importDocx.isPending}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-asaka-700 bg-asaka-50 hover:bg-asaka-100 border border-asaka-200 px-2.5 py-1.5 rounded-lg disabled:opacity-50"
+              >
+                <Upload size={14} />
+                {importDocx.isPending ? t('common.loading') : t('edo.templates.import_word')}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".docx"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) importDocx.mutate(file);
+                  e.target.value = '';
+                }}
+              />
+            </div>
+            <RichTemplateEditor
               value={form.bodyTemplate}
-              onChange={(e) => onChange({ ...form, bodyTemplate: e.target.value })}
-              rows={12}
-              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none font-sans"
+              onChange={(html) => onChange({ ...form, bodyTemplate: html })}
             />
+            {importDocx.error && (
+              <div className="mt-1.5 text-xs text-red-600">{extractErr(importDocx.error)}</div>
+            )}
             {placeholders.length > 0 && (
               <div className="mt-1.5 flex flex-wrap gap-1">
                 {placeholders.map((p) => (
@@ -345,6 +398,121 @@ function TemplateFormModal({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ToolBtn({
+  onClick,
+  title,
+  children,
+}: {
+  onClick: () => void;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onClick}
+      title={title}
+      className="p-1.5 rounded text-slate-600 hover:bg-slate-200"
+    >
+      {children}
+    </button>
+  );
+}
+
+function RichTemplateEditor({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (html: string) => void;
+}) {
+  const { t } = useTranslation();
+  const ref = useRef<HTMLDivElement>(null);
+  const savedRange = useRef<Range | null>(null);
+
+  // Tashqi qiymat (Word import yoki tahrirlashni ochish) o'zgarganda muharrirga yozamiz
+  useEffect(() => {
+    const el = ref.current;
+    if (el && el.innerHTML !== value) {
+      el.innerHTML = value || '';
+    }
+  }, [value]);
+
+  const emit = () => {
+    if (ref.current) onChange(ref.current.innerHTML);
+  };
+
+  const saveSelection = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && ref.current?.contains(sel.anchorNode)) {
+      savedRange.current = sel.getRangeAt(0).cloneRange();
+    }
+  };
+
+  const exec = (cmd: string) => {
+    ref.current?.focus();
+    document.execCommand(cmd, false);
+    emit();
+  };
+
+  const insertPlaceholder = () => {
+    const raw = window.prompt(t('edo.templates.placeholder_prompt') ?? '');
+    if (!raw) return;
+    const key = raw
+      .trim()
+      .replace(/[^a-zA-Z0-9_]/g, '_')
+      .replace(/^([0-9])/, '_$1');
+    if (!key) return;
+    const el = ref.current;
+    if (!el) return;
+    el.focus();
+    const sel = window.getSelection();
+    if (savedRange.current && sel) {
+      sel.removeAllRanges();
+      sel.addRange(savedRange.current);
+    }
+    document.execCommand('insertText', false, `{{${key}}}`);
+    emit();
+  };
+
+  return (
+    <div className="border border-slate-300 rounded-lg overflow-hidden focus-within:border-asaka-500 focus-within:ring-2 focus-within:ring-asaka-100">
+      <div className="flex items-center gap-1 border-b border-slate-200 bg-slate-50 px-2 py-1.5">
+        <ToolBtn onClick={() => exec('bold')} title={t('edo.templates.tb_bold')}>
+          <Bold size={15} />
+        </ToolBtn>
+        <ToolBtn onClick={() => exec('italic')} title={t('edo.templates.tb_italic')}>
+          <Italic size={15} />
+        </ToolBtn>
+        <ToolBtn onClick={() => exec('insertUnorderedList')} title={t('edo.templates.tb_list')}>
+          <List size={15} />
+        </ToolBtn>
+        <div className="w-px h-5 bg-slate-300 mx-1" />
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={insertPlaceholder}
+          className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2 py-1 rounded"
+        >
+          <Braces size={14} />
+          {t('edo.templates.insert_placeholder')}
+        </button>
+      </div>
+      <div
+        ref={ref}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={emit}
+        onKeyUp={saveSelection}
+        onMouseUp={saveSelection}
+        onBlur={saveSelection}
+        className="prose prose-sm max-w-none min-h-[220px] max-h-[420px] overflow-y-auto px-3 py-2 text-sm text-slate-800 outline-none"
+      />
     </div>
   );
 }

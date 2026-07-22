@@ -372,7 +372,8 @@ enum EdoTaskStatus {
 
 model Document {
   id              String          @id @default(uuid()) @db.Uuid
-  number          String          @unique @db.VarChar(64)             // masalan: 2026-IN-001
+  number          String          @unique @db.VarChar(64)             // xodimlar uchun tartib raqami: tartib-bo'lim (masalan 01-05)
+  docUid          String?         @unique @map("doc_uid") @db.VarChar(32) // tizim uchun yagona ID: asaka-YYYYMMDDNN
   numberCategory  String          @map("number_category") @db.VarChar(16)  // IN / OUT / INT / BUYRUQ
   year            Int
   type            DocumentType
@@ -653,11 +654,19 @@ model ContactGroupMember {
   @@map("contact_group_members")
 }
 
-// Avto-raqamlash: bo'lim kodi bo'yicha hisoblagich (001-01, 001-02, ...)
+// Avto-raqamlash: bo'lim kodi bo'yicha hisoblagich — tartib raqami (01-05, 02-05, ...)
 model DocumentCounter {
   id         String @id @default(uuid()) @db.Uuid
   deptCode   String @unique @map("dept_code") @db.VarChar(16)
   lastNumber Int    @default(0) @map("last_number")
 
   @@map("document_counters")
+}
+
+// Yagona ID uchun kunlik hisoblagich — asaka-YYYYMMDDNN
+model DocUidCounter {
+  day        String @id @db.VarChar(8) // YYYYMMDD
+  lastNumber Int    @default(0) @map("last_number")
+
+  @@map("doc_uid_counters")
 }

@@ -22,6 +22,7 @@ import { EdoHisobotlarPage } from './pages/edo/EdoHisobotlarPage';
 import { EdoChatPage } from './pages/edo/EdoChatPage';
 import { EdoApprovalPage } from './pages/edo/EdoApprovalPage';
 import { EdoCalendarPage } from './pages/edo/EdoCalendarPage';
+import { EdoSearchPage } from './pages/edo/EdoSearchPage';
 import {
   EdoMyDocsPage,
   EdoDraftsPage,
@@ -71,6 +72,7 @@ export function App() {
           <Route path="calendar" element={<EdoCalendarPage />} />
           <Route path="chat" element={<EdoChatPage />} />
           <Route path="mine" element={<EdoMyDocsPage />} />
+          <Route path="search" element={<EdoSearchPage />} />
           <Route path="control" element={<EdoControlPage />} />
           <Route path="department" element={<EdoDepartmentPage />} />
           <Route path="approval" element={<EdoApprovalPage />} />

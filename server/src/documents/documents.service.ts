@@ -19,6 +19,7 @@ import { MessagesGateway } from '../messages/messages.gateway';
 import { UsersService } from '../users/users.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
+import { SendDocumentDto } from './dto/send-document.dto';
 import {
   ApproveDocumentDto,
   ApproveOverdueDocumentDto,
@@ -200,9 +201,11 @@ export class DocumentsService {
     const numberDeptId = dto.numberDeptId ?? creator?.departmentId ?? null;
 
     const doc = await this.prisma.$transaction(async (tx) => {
+      const docUid = await this.allocateDocUid(tx);
       const d = await tx.document.create({
         data: {
           number: draftNumber,
+          docUid,
           numberCategory: category,
           year,
           type: dto.type,
@@ -330,7 +333,7 @@ export class DocumentsService {
 
   // ── YUBORISH ──────────────────────────────────────────────────────────
 
-  async sendForApproval(userId: string, id: string) {
+  async sendForApproval(userId: string, id: string, dto?: SendDocumentDto) {
     const doc = await this.prisma.document.findUnique({
       where: { id },
       include: { participants: true, numberDept: true, targetDept: true },
@@ -351,15 +354,20 @@ export class DocumentsService {
       throw new BadRequestException("Hujjat yuboriladigan bo'lim tanlanmagan");
     }
 
-    // Yaratuvchi yuborishdan oldin qoralamaga biriktirilgan tasdiqlash zanjirini ishlatamiz.
-    // Agar zanjir bo'sh bo'lsa — eski mantiq: o'z bo'lim raxbari → maqsadli bo'lim raxbari
+    // Yuborish paytida tanlangan tasdiqlovchilar ustuvor. Bo'lmasa — qoralamaga
+    // biriktirilgan zanjir; u ham bo'lmasa eski mantiq: o'z + maqsadli bo'lim raxbari.
+    const selectedApprovers = (dto?.approverIds ?? []).filter(
+      (uid, i, arr) => uid !== userId && arr.indexOf(uid) === i,
+    );
     const persistedApprovers = doc.participants
       .filter((p) => p.role === ParticipantRole.approver)
       .sort((a, b) => a.order - b.order)
       .map((p) => p.userId);
 
     let chain: string[];
-    if (persistedApprovers.length > 0) {
+    if (selectedApprovers.length > 0) {
+      chain = selectedApprovers;
+    } else if (persistedApprovers.length > 0) {
       chain = persistedApprovers;
     } else {
       chain = [];
@@ -1124,6 +1132,32 @@ export class DocumentsService {
     return docs.map((d) => this.serialize(d));
   }
 
+  // Qidiruv — yagona ID (asaka-...), tartib raqami yoki mavzu bo'yicha.
+  // Rol bo'yicha ko'rish doirasi: oddiy user faqat o'zi qatnashgan, admin/konselyariya hammasi.
+  async search(userId: string, query: string) {
+    const q = (query ?? '').trim();
+    if (!q) return [];
+    const scope = await this.participantScope(userId);
+    const docs = await this.prisma.document.findMany({
+      where: {
+        AND: [
+          scope,
+          {
+            OR: [
+              { docUid: { contains: q, mode: 'insensitive' } },
+              { number: { contains: q, mode: 'insensitive' } },
+              { subject: { contains: q, mode: 'insensitive' } },
+            ],
+          },
+        ],
+      },
+      include: FULL_INCLUDE,
+      orderBy: { updatedAt: 'desc' },
+      take: 50,
+    });
+    return docs.map((d) => this.serialize(d));
+  }
+
   // Alohida nazorat — faol hujjatlar (oddiy user: o'zi yaratganlar; admin/konselyariya: hammasi)
   async listControl(userId: string) {
     const seeAll = await this.canSeeAllDocs(userId);
@@ -1289,7 +1323,23 @@ export class DocumentsService {
       update: { lastNumber: { increment: 1 } },
     });
     const padded = String(counter.lastNumber).padStart(2, '0');
-    return `${deptCode}-${padded}`;
+    // Xodimlar uchun tartib raqami: avval tartib, keyin bo'lim kodi (01-05)
+    return `${padded}-${deptCode}`;
+  }
+
+  // Tizim uchun yagona ID: asaka-YYYYMMDDNN (kunlik tartib bilan). Yaratishda beriladi.
+  private async allocateDocUid(tx: Prisma.TransactionClient): Promise<string> {
+    const now = new Date();
+    const day = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(
+      now.getDate(),
+    ).padStart(2, '0')}`;
+    const counter = await tx.docUidCounter.upsert({
+      where: { day },
+      create: { day, lastNumber: 1 },
+      update: { lastNumber: { increment: 1 } },
+    });
+    const seq = String(counter.lastNumber).padStart(2, '0');
+    return `asaka-${day}${seq}`;
   }
 
   // Keyingi hujjat raqamini oldindan ko'rsatish — counter'ni OSHIRMAYDI (faqat preview).
@@ -1307,7 +1357,7 @@ export class DocumentsService {
     // allocateNumber bilan bir xil mantiq: counter yo'q bo'lsa 1, aks holda lastNumber+1
     const next = (counter?.lastNumber ?? 0) + 1;
     const padded = String(next).padStart(2, '0');
-    return { number: `${dept.code}-${padded}` };
+    return { number: `${padded}-${dept.code}` };
   }
 
   // ── PDF eksport ────────────────────────────────────────────────────────
