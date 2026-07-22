@@ -208,13 +208,14 @@ export class ImapPollService implements OnModuleInit {
 
           // INBOX uchun: Message-ID orqali qidirish
           if (targetFolder === MessageFolder.inbox && messageIdHeader) {
-            existing = await this.prisma.messageRecipient.findFirst({
+            const found = await this.prisma.messageRecipient.findFirst({
               where: {
                 userId,
                 message: { externalMessageId: messageIdHeader, isExternal: true }
               },
-              select: { id: true, isRead: true },
+              select: { messageId: true, isRead: true },
             });
+            if (found) existing = { id: found.messageId, isRead: found.isRead };
           }
 
           // Sent folder uchun: O'z mesajlarni topish uchun subject + date bo'yicha
@@ -223,7 +224,7 @@ export class ImapPollService implements OnModuleInit {
             const sentDate = m.envelope?.date || new Date();
             const dateRange = { gte: new Date(sentDate.getTime() - 5 * 60000), lte: new Date(sentDate.getTime() + 5 * 60000) };
 
-            existing = await this.prisma.messageRecipient.findFirst({
+            const found = await this.prisma.messageRecipient.findFirst({
               where: {
                 userId,
                 message: {
@@ -234,8 +235,9 @@ export class ImapPollService implements OnModuleInit {
                   ]
                 }
               },
-              select: { id: true, isRead: true },
+              select: { messageId: true, isRead: true },
             });
+            if (found) existing = { id: found.messageId, isRead: found.isRead };
           }
 
           if (!existing) {
