@@ -54,9 +54,10 @@ export class CreateUserDto {
   @IsBoolean()
   canSignExternal?: boolean;
 
+  // EDO roli: admin | chancellery (konselyariya) | user
   @IsOptional()
-  @IsBoolean()
-  isAdmin?: boolean;
+  @IsIn(['admin', 'chancellery', 'user'])
+  role?: 'admin' | 'chancellery' | 'user';
 
   // Pochta turi: 'internal' (ichki @pochta.local) yoki 'external' (tashqi @asaka-motors.uz)
   @IsOptional()

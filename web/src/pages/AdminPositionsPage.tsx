@@ -18,7 +18,7 @@ export function AdminPositionsPage() {
     queryFn: async () => (await api.get<Position[]>('/positions')).data,
   });
 
-  if (!user?.isAdmin) {
+  if (user?.role !== 'admin') {
     return <div className="p-8 text-slate-400">{t('admin.admin_only')}</div>;
   }
 

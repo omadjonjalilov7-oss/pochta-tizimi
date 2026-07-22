@@ -135,12 +135,12 @@ export function ProfilePage() {
             label={t('profile.department')}
             value={user.department?.name || '—'}
           />
-          {user.isAdmin && (
+          {user.role !== 'user' && (
             <Field
               label={t('profile.role')}
               value={
                 <span className="inline-block bg-brand-100 text-brand-700 text-xs font-semibold px-2 py-0.5 rounded">
-                  {t('profile.role_admin')}
+                  {user.role === 'admin' ? t('profile.role_admin') : t('admin.role_chancellery')}
                 </span>
               }
             />

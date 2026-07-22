@@ -92,7 +92,8 @@ export class UsersService {
         // Tashqi pochtali xodim avtomat tashqiga yubora oladi
         canSendExternal: mailType === 'external' ? true : (dto.canSendExternal ?? false),
         canSignExternal: dto.canSignExternal ?? false,
-        isAdmin: dto.isAdmin ?? false,
+        role: dto.role ?? 'user',
+        isAdmin: (dto.role ?? 'user') === 'admin', // legacy ustunni sinxron saqlaymiz
         ...externalData,
       },
       include: { department: true, position: true },
@@ -106,6 +107,10 @@ export class UsersService {
     delete data.password;
     delete data.mailType;
     delete data.externalMailPassword;
+    // Rol o'zgarsa — legacy isAdmin ustunini sinxron saqlaymiz
+    if (data.role !== undefined) {
+      data.isAdmin = data.role === 'admin';
+    }
     if (dto.password) {
       const rounds = parseInt(this.config.get('BCRYPT_ROUNDS', '12'), 10);
       data.passwordHash = await bcrypt.hash(dto.password, rounds);

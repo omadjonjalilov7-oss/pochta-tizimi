@@ -49,7 +49,7 @@ export class TemplatesController {
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateTemplateDto,
   ) {
-    return this.templates.update(user.id, id, dto, !!user.isAdmin);
+    return this.templates.update(user.id, id, dto, user.role === 'admin');
   }
 
   @Delete(':id')
@@ -57,6 +57,6 @@ export class TemplatesController {
     @CurrentUser() user: CurrentUserPayload,
     @Param('id', new ParseUUIDPipe()) id: string,
   ) {
-    return this.templates.remove(user.id, id, !!user.isAdmin);
+    return this.templates.remove(user.id, id, user.role === 'admin');
   }
 }

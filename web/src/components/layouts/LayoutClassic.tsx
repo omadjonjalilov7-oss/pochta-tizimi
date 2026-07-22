@@ -134,7 +134,7 @@ export function LayoutClassic() {
           <NavItem to="/archive" icon={Archive} label={t('nav.archive')} collapsed={composing} />
           <NavItem to="/trash" icon={Trash2} label={t('nav.trash')} collapsed={composing} />
 
-          {user.isAdmin && (
+          {user.role === 'admin' && (
             <>
               {!composing && (
                 <div className="mt-6 mb-2 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wide">

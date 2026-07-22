@@ -124,7 +124,7 @@ export function LayoutYandex() {
           <YandexNav to="/archive" icon={Archive} label={t('nav.archive')} collapsed={composing} />
           <YandexNav to="/trash" icon={Trash2} label={t('nav.trash')} collapsed={composing} />
 
-          {user.isAdmin && (
+          {user.role === 'admin' && (
             <>
               {!composing && <div className="mt-4 mb-1 px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('nav.admin')}</div>}
               {composing && <div className="mt-2 border-t border-slate-200 w-full" />}

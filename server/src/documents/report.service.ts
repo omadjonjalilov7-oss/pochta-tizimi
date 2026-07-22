@@ -79,7 +79,7 @@ export class ReportService {
 
   private async fetchRows(
     userId: string,
-    isAdmin: boolean,
+    canSeeAll: boolean,
     from: Date,
     to: Date,
   ): Promise<ReportRow[]> {
@@ -87,7 +87,7 @@ export class ReportService {
       createdAt: { gte: from, lte: to },
       status: { not: 'draft' },
     };
-    if (!isAdmin) {
+    if (!canSeeAll) {
       where.OR = [
         { createdById: userId },
         { participants: { some: { userId } } },
@@ -266,7 +266,7 @@ export class ReportService {
   // ── JSON ko'rish (jadval preview) ──────────────────────────────────────────
   async preview(
     userId: string,
-    isAdmin: boolean,
+    canSeeAll: boolean,
     fromIso?: string,
     toIso?: string,
   ): Promise<ReportPreviewResult> {
@@ -274,7 +274,7 @@ export class ReportService {
     const to = toIso ? new Date(toIso) : new Date();
     from.setHours(0, 0, 0, 0);
     to.setHours(23, 59, 59, 999);
-    const rows = await this.fetchRows(userId, isAdmin, from, to);
+    const rows = await this.fetchRows(userId, canSeeAll, from, to);
     return {
       from: from.toISOString(),
       to: to.toISOString(),
@@ -290,7 +290,7 @@ export class ReportService {
   // ── Umumiy kirish nuqtasi ──────────────────────────────────────────────────
   async generate(
     userId: string,
-    isAdmin: boolean,
+    canSeeAll: boolean,
     format: 'excel' | 'pdf',
     fromIso?: string,
     toIso?: string,
@@ -300,7 +300,7 @@ export class ReportService {
     from.setHours(0, 0, 0, 0);
     to.setHours(23, 59, 59, 999);
 
-    const rows = await this.fetchRows(userId, isAdmin, from, to);
+    const rows = await this.fetchRows(userId, canSeeAll, from, to);
     const stamp = `${fmtDate(from)}_${fmtDate(to)}`.replace(/\./g, '-');
 
     if (format === 'excel') {

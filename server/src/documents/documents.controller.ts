@@ -123,8 +123,9 @@ export class DocumentsController {
     @Query('from') from?: string,
     @Query('to') to?: string,
   ) {
-    if (!user.isAdmin) {
-      throw new ForbiddenException("Global statistika faqat administrator uchun");
+    const canSeeAll = user.role === 'admin' || user.role === 'chancellery';
+    if (!canSeeAll) {
+      throw new ForbiddenException("Global statistika faqat administrator yoki konselyariya uchun");
     }
     return this.docs.getGlobalStats(from, to);
   }
@@ -135,7 +136,8 @@ export class DocumentsController {
     @Query('from') from?: string,
     @Query('to') to?: string,
   ) {
-    return this.reports.preview(user.id, !!user.isAdmin, from, to);
+    const canSeeAll = user.role === 'admin' || user.role === 'chancellery';
+    return this.reports.preview(user.id, canSeeAll, from, to);
   }
 
   @Get('report')
@@ -147,9 +149,10 @@ export class DocumentsController {
     @Query('to') to?: string,
   ) {
     const fmt = format === 'pdf' ? 'pdf' : 'excel';
+    const canSeeAll = user.role === 'admin' || user.role === 'chancellery';
     const { filename, mime, buffer } = await this.reports.generate(
       user.id,
-      !!user.isAdmin,
+      canSeeAll,
       fmt,
       from,
       to,

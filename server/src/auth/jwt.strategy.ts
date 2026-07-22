@@ -7,7 +7,6 @@ import { PrismaService } from '../prisma/prisma.service';
 export interface JwtPayload {
   sub: string;
   login: string;
-  isAdmin: boolean;
 }
 
 @Injectable()
@@ -28,6 +27,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user || !user.isActive) {
       throw new UnauthorizedException();
     }
-    return { id: user.id, login: user.login, isAdmin: user.isAdmin };
+    return { id: user.id, login: user.login, role: user.role };
   }
 }

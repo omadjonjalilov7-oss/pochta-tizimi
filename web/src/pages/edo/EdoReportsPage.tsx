@@ -50,6 +50,7 @@ function defaultRange() {
 export function EdoReportsPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const canSeeAll = user?.role === 'admin' || user?.role === 'chancellery';
   const [{ from, to }, setRange] = useState(defaultRange);
 
   const params = useMemo(() => {
@@ -73,7 +74,7 @@ export function EdoReportsPage() {
     queryKey: ['edo-stats-global', params],
     queryFn: async () =>
       (await api.get<GlobalStats>(`/documents/stats/global?${params}`)).data,
-    enabled: !!user?.isAdmin,
+    enabled: canSeeAll,
   });
 
   return (
@@ -158,8 +159,8 @@ export function EdoReportsPage() {
         )}
       </section>
 
-      {/* Global (admin) statistika */}
-      {user?.isAdmin && (
+      {/* Global (admin/konselyariya) statistika */}
+      {canSeeAll && (
         <section className="bg-white border border-slate-200 rounded-2xl p-5">
           <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4 flex items-center gap-2">
             <BarChart3 size={14} />

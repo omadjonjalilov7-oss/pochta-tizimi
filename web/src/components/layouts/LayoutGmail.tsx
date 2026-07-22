@@ -142,7 +142,7 @@ export function LayoutGmail() {
             <GmailNav to="/trash" icon={Trash2} label={t('nav.trash')} collapsed={composing} />
           </nav>
 
-          {user.isAdmin && (
+          {user.role === 'admin' && (
             <>
               {!composing && (
                 <div className="mt-6 mb-2 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wide">

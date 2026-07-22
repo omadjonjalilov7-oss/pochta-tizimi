@@ -78,7 +78,7 @@ export class AuthService {
       : this.config.get<string>('JWT_EXPIRES_IN', '12h');
 
     const token = await this.jwt.signAsync(
-      { sub: user.id, login: user.login, isAdmin: user.isAdmin },
+      { sub: user.id, login: user.login },
       { expiresIn },
     );
 

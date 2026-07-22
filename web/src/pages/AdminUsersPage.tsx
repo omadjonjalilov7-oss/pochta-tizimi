@@ -21,7 +21,7 @@ export function AdminUsersPage() {
     queryFn: async () => (await api.get<User[]>('/users')).data,
   });
 
-  if (!currentUser?.isAdmin) {
+  if (currentUser?.role !== 'admin') {
     return <div className="p-8 text-slate-400">{t('admin.admin_only')}</div>;
   }
 
@@ -118,9 +118,14 @@ export function AdminUsersPage() {
                             {t('common.blocked')}
                           </span>
                         )}
-                        {u.isAdmin && (
-                          <span title={t('admin.tooltip_admin')} className="text-brand-600">
+                        {u.role === 'admin' && (
+                          <span title={t('admin.role_admin')} className="text-brand-600">
                             <ShieldCheck size={14} />
+                          </span>
+                        )}
+                        {u.role === 'chancellery' && (
+                          <span className="inline-block bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded">
+                            {t('admin.role_chancellery')}
                           </span>
                         )}
                         {u.canSendExternal && (
@@ -232,7 +237,7 @@ function UserModal({
   const [managerId, setManagerId] = useState(user?.managerId || '');
   const [canSendExternal, setCanSendExternal] = useState(user?.canSendExternal || false);
   const [canSignExternal, setCanSignExternal] = useState(user?.canSignExternal || false);
-  const [isAdmin, setIsAdmin] = useState(user?.isAdmin || false);
+  const [role, setRole] = useState<'admin' | 'chancellery' | 'user'>(user?.role || 'user');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -267,7 +272,7 @@ function UserModal({
         managerId: managerId || undefined,
         canSendExternal,
         canSignExternal,
-        isAdmin,
+        role,
       };
       if (mailType === 'external') {
         // Yangi xodim yoki parol kiritilgan bo'lsa yuboramiz (tahrirda bo'sh qoldirilsa — eski saqlanadi)
@@ -479,15 +484,21 @@ function UserModal({
               />
               {t('admin.can_sign_external')}
             </label>
-            <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isAdmin}
-                onChange={(e) => setIsAdmin(e.target.checked)}
-                className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-              />
-              {t('admin.is_admin_perms')}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              {t('admin.role_label')}
             </label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value as 'admin' | 'chancellery' | 'user')}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+            >
+              <option value="user">{t('admin.role_user')}</option>
+              <option value="chancellery">{t('admin.role_chancellery')}</option>
+              <option value="admin">{t('admin.role_admin')}</option>
+            </select>
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

@@ -179,7 +179,7 @@ export function LayoutOutlook() {
           <OutlookNav to="/archive" icon={Archive} label={t('nav.archive')} />
           <OutlookNav to="/trash" icon={Trash2} label={t('nav.trash')} />
 
-          {user.isAdmin && (
+          {user.role === 'admin' && (
             <>
               <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider px-2 pt-3 pb-1 border-t border-slate-200 mt-2">
                 {t('nav.admin')}

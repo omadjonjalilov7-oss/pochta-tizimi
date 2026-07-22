@@ -93,7 +93,7 @@ export function EdoTemplatesPage() {
   });
 
   const canEdit = (tpl: EdoTemplate) =>
-    !!user && (user.isAdmin || tpl.createdById === user.id);
+    !!user && (user.role === 'admin' || tpl.createdById === user.id);
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-6">

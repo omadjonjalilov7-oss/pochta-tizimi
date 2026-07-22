@@ -18,7 +18,7 @@ export function AdminDepartmentsPage() {
     queryFn: async () => (await api.get<Department[]>('/departments')).data,
   });
 
-  if (!user?.isAdmin) {
+  if (user?.role !== 'admin') {
     return <div className="p-8 text-slate-400">{t('admin.admin_only')}</div>;
   }
 

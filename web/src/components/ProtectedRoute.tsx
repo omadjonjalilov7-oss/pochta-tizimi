@@ -8,7 +8,7 @@ export function ProtectedRoute({ adminOnly = false }: { adminOnly?: boolean }) {
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
-  if (adminOnly && !user.isAdmin) {
+  if (adminOnly && user.role !== 'admin') {
     return <Navigate to="/inbox" replace />;
   }
   return <Outlet />;

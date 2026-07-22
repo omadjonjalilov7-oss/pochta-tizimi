@@ -1117,24 +1117,20 @@ export class DocumentsService {
   // Mening barcha hujjatlarim (yaratganlarim + ishtirok etganlarim)
   async listMine(userId: string) {
     const docs = await this.prisma.document.findMany({
-      where: {
-        OR: [
-          { createdById: userId },
-          { participants: { some: { userId } } },
-        ],
-      },
+      where: await this.participantScope(userId),
       include: FULL_INCLUDE,
       orderBy: { updatedAt: 'desc' },
     });
     return docs.map((d) => this.serialize(d));
   }
 
-  // Alohida nazorat — men yaratgan va hali yopilmagan (faol) hujjatlar
+  // Alohida nazorat — faol hujjatlar (oddiy user: o'zi yaratganlar; admin/konselyariya: hammasi)
   async listControl(userId: string) {
+    const seeAll = await this.canSeeAllDocs(userId);
     const docs = await this.prisma.document.findMany({
       where: {
-        createdById: userId,
         status: { in: ['in_review', 'in_progress', 'overdue'] },
+        ...(seeAll ? {} : { createdById: userId }),
       },
       include: FULL_INCLUDE,
       orderBy: [{ deadline: 'asc' }, { updatedAt: 'desc' }],
@@ -1173,10 +1169,7 @@ export class DocumentsService {
     const docs = await this.prisma.document.findMany({
       where: {
         deadline: deadlineFilter,
-        OR: [
-          { createdById: userId },
-          { participants: { some: { userId } } },
-        ],
+        ...(await this.participantScope(userId)),
       },
       include: FULL_INCLUDE,
       orderBy: { deadline: 'asc' },
@@ -1235,10 +1228,7 @@ export class DocumentsService {
     const docs = await this.prisma.document.findMany({
       where: {
         type: 'incoming',
-        OR: [
-          { createdById: userId },
-          { participants: { some: { userId } } },
-        ],
+        ...(await this.participantScope(userId)),
       },
       include: FULL_INCLUDE,
       orderBy: { updatedAt: 'desc' },
@@ -1251,10 +1241,7 @@ export class DocumentsService {
     const docs = await this.prisma.document.findMany({
       where: {
         type: 'outgoing',
-        OR: [
-          { createdById: userId },
-          { participants: { some: { userId } } },
-        ],
+        ...(await this.participantScope(userId)),
       },
       include: FULL_INCLUDE,
       orderBy: { updatedAt: 'desc' },
@@ -1267,10 +1254,7 @@ export class DocumentsService {
     const docs = await this.prisma.document.findMany({
       where: {
         status: { in: ['done', 'rejected'] },
-        OR: [
-          { createdById: userId },
-          { participants: { some: { userId } } },
-        ],
+        ...(await this.participantScope(userId)),
       },
       include: FULL_INCLUDE,
       orderBy: { closedAt: 'desc' },
@@ -1674,11 +1658,30 @@ export class DocumentsService {
   // Hujjatga kirish huquqi (yaratuvchi yoki ishtirokchi)
   private async requireAccess(userId: string, doc: { id: string; createdById: string }) {
     if (doc.createdById === userId) return;
+    // Admin va konselyariya har qanday hujjatni ko'ra oladi
+    if (await this.canSeeAllDocs(userId)) return;
     const p = await this.prisma.documentParticipant.findFirst({
       where: { documentId: doc.id, userId },
       select: { id: true },
     });
     if (!p) throw new ForbiddenException("Sizda hujjatni ko'rish huquqi yo'q");
+  }
+
+  // Admin/konselyariya barcha hujjatlarni ko'radi; oddiy foydalanuvchi — faqat o'ziniki
+  private async canSeeAllDocs(userId: string): Promise<boolean> {
+    const u = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    return u?.role === 'admin' || u?.role === 'chancellery';
+  }
+
+  // Ro'lga qarab ro'yxat filtri: admin/konselyariya — hammasi, oddiy user — o'zi ishtirok etganlari
+  private async participantScope(userId: string): Promise<Prisma.DocumentWhereInput> {
+    if (await this.canSeeAllDocs(userId)) return {};
+    return {
+      OR: [{ createdById: userId }, { participants: { some: { userId } } }],
+    };
   }
 
   // Faqat hozir tasdiqlash navbatida turgan foydalanuvchi
@@ -1860,11 +1863,11 @@ export class DocumentsService {
     const isCreator = doc.createdById === userId;
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { isAdmin: true },
+      select: { role: true },
     });
-    const isAdmin = user?.isAdmin || false;
+    const canManageAll = user?.role === 'admin' || user?.role === 'chancellery';
 
-    if (!isCreator && !isAdmin) {
+    if (!isCreator && !canManageAll) {
       throw new ForbiddenException('Faqat yaratuvchi yoki rahbar muddatni uzayta oladi');
     }
 
