@@ -19,6 +19,7 @@ import { createReadStream } from 'fs';
 import type { Response } from 'express';
 import { DocumentsService } from './documents.service';
 import { QrApprovalService } from './qr-approval.service';
+import { ReportService } from './report.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { ApproveDocumentDto, ApproveOverdueDocumentDto, CommentDto, ExtendDeadlineDto, ForwardDto, RejectDto } from './dto/document-action.dto';
@@ -33,6 +34,7 @@ export class DocumentsController {
   constructor(
     private readonly docs: DocumentsService,
     private readonly qrApproval: QrApprovalService,
+    private readonly reports: ReportService,
   ) {}
 
   @Post()
@@ -80,6 +82,25 @@ export class DocumentsController {
     return this.docs.listToSign(user.id);
   }
 
+  @Get('control')
+  listControl(@CurrentUser() user: CurrentUserPayload) {
+    return this.docs.listControl(user.id);
+  }
+
+  @Get('department')
+  listDepartment(@CurrentUser() user: CurrentUserPayload) {
+    return this.docs.listDepartment(user.id);
+  }
+
+  @Get('calendar')
+  getCalendar(
+    @CurrentUser() user: CurrentUserPayload,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.docs.getCalendar(user.id, from, to);
+  }
+
   // Bo'lim bo'yicha keyingi hujjat raqamini oldindan ko'rsatish (counter'ni oshirmaydi)
   @Get('next-number')
   previewNextNumber(@Query('deptId') deptId: string) {
@@ -106,6 +127,36 @@ export class DocumentsController {
       throw new ForbiddenException("Global statistika faqat administrator uchun");
     }
     return this.docs.getGlobalStats(from, to);
+  }
+
+  @Get('report/preview')
+  reportPreview(
+    @CurrentUser() user: CurrentUserPayload,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.reports.preview(user.id, !!user.isAdmin, from, to);
+  }
+
+  @Get('report')
+  async exportReport(
+    @CurrentUser() user: CurrentUserPayload,
+    @Res() res: Response,
+    @Query('format') format?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    const fmt = format === 'pdf' ? 'pdf' : 'excel';
+    const { filename, mime, buffer } = await this.reports.generate(
+      user.id,
+      !!user.isAdmin,
+      fmt,
+      from,
+      to,
+    );
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
   }
 
   @Get(':id/pdf')

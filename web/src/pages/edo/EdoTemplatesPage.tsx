@@ -105,12 +105,12 @@ export function EdoTemplatesPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('edo.templates.search_ph')}
-            className="pl-8 pr-3 py-1.5 text-sm border border-slate-300 rounded-lg w-64 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none"
+            className="pl-8 pr-3 py-1.5 text-sm border border-slate-300 rounded-lg w-64 focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none"
           />
         </div>
         <button
           onClick={() => setEditing({ ...EMPTY_FORM })}
-          className="inline-flex items-center gap-1.5 bg-brand-600 hover:bg-brand-700 text-white font-medium px-3 py-1.5 rounded-lg text-sm"
+          className="inline-flex items-center gap-1.5 bg-asaka-600 hover:bg-asaka-700 text-white font-medium px-3 py-1.5 rounded-lg text-sm"
         >
           <Plus size={16} />
           {t('edo.templates.add')}
@@ -135,9 +135,9 @@ export function EdoTemplatesPage() {
                 {items.map((tpl) => (
                   <div
                     key={tpl.id}
-                    className="bg-white border border-slate-200 rounded-xl px-4 py-3 hover:border-brand-300 transition flex items-start gap-3"
+                    className="bg-white border border-slate-200 rounded-xl px-4 py-3 hover:border-asaka-300 transition flex items-start gap-3"
                   >
-                    <div className="bg-brand-50 text-brand-600 rounded-lg p-2 mt-0.5">
+                    <div className="bg-asaka-50 text-asaka-600 rounded-lg p-2 mt-0.5">
                       <FileText size={16} />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -274,7 +274,7 @@ function TemplateFormModal({
               value={form.name}
               onChange={(e) => onChange({ ...form, name: e.target.value })}
               maxLength={255}
-              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none"
+              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none"
             />
           </div>
           <div>
@@ -287,7 +287,7 @@ function TemplateFormModal({
               onChange={(e) => onChange({ ...form, category: e.target.value })}
               maxLength={64}
               placeholder={t('edo.templates.category_ph')}
-              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none"
+              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none"
             />
           </div>
           <div>
@@ -299,7 +299,7 @@ function TemplateFormModal({
               value={form.bodyTemplate}
               onChange={(e) => onChange({ ...form, bodyTemplate: e.target.value })}
               rows={12}
-              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none font-sans"
+              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none font-sans"
             />
             {placeholders.length > 0 && (
               <div className="mt-1.5 flex flex-wrap gap-1">
@@ -319,7 +319,7 @@ function TemplateFormModal({
               type="checkbox"
               checked={form.isShared}
               onChange={(e) => onChange({ ...form, isShared: e.target.checked })}
-              className="h-4 w-4 accent-brand-600"
+              className="h-4 w-4 accent-asaka-600"
             />
             {t('edo.templates.is_shared')}
           </label>
@@ -339,7 +339,7 @@ function TemplateFormModal({
           <button
             onClick={onSave}
             disabled={saving || !form.name.trim() || !form.category.trim() || !form.bodyTemplate.trim()}
-            className="px-4 py-2 text-sm rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-medium disabled:opacity-50"
+            className="px-4 py-2 text-sm rounded-lg bg-asaka-600 hover:bg-asaka-700 text-white font-medium disabled:opacity-50"
           >
             {saving ? t('common.saving') : t('common.save')}
           </button>

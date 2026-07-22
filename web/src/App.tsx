@@ -14,12 +14,14 @@ import { AdminDepartmentsPage } from './pages/AdminDepartmentsPage';
 import { AdminPositionsPage } from './pages/AdminPositionsPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { EdoHomePage } from './pages/edo/EdoHomePage';
-import { EdoComingSoon } from './pages/edo/EdoComingSoon';
 import { EdoComposePage } from './pages/edo/EdoComposePage';
 import { EdoDocumentViewPage } from './pages/edo/EdoDocumentViewPage';
 import { EdoTemplatesPage } from './pages/edo/EdoTemplatesPage';
 import { EdoReportsPage } from './pages/edo/EdoReportsPage';
+import { EdoHisobotlarPage } from './pages/edo/EdoHisobotlarPage';
+import { EdoChatPage } from './pages/edo/EdoChatPage';
 import { EdoApprovalPage } from './pages/edo/EdoApprovalPage';
+import { EdoCalendarPage } from './pages/edo/EdoCalendarPage';
 import {
   EdoMyDocsPage,
   EdoDraftsPage,
@@ -28,6 +30,8 @@ import {
   EdoOutgoingPage,
   EdoArchivePage,
   EdoToSignPage,
+  EdoControlPage,
+  EdoDepartmentPage,
 } from './pages/edo/EdoDocList';
 
 export function App() {
@@ -62,8 +66,13 @@ export function App() {
           <Route path="/admin/positions" element={<AdminPositionsPage />} />
         </Route>
         <Route path="/edo" element={<LayoutEdo />}>
-          <Route index element={<EdoMyDocsPage />} />
+          <Route index element={<EdoHomePage />} />
           <Route path="home" element={<EdoHomePage />} />
+          <Route path="calendar" element={<EdoCalendarPage />} />
+          <Route path="chat" element={<EdoChatPage />} />
+          <Route path="mine" element={<EdoMyDocsPage />} />
+          <Route path="control" element={<EdoControlPage />} />
+          <Route path="department" element={<EdoDepartmentPage />} />
           <Route path="approval" element={<EdoApprovalPage />} />
           <Route path="compose" element={<EdoComposePage />} />
           <Route path="tasks" element={<EdoTasksPage />} />
@@ -75,6 +84,7 @@ export function App() {
           <Route path="signing" element={<EdoToSignPage />} />
           <Route path="templates" element={<EdoTemplatesPage />} />
           <Route path="reports" element={<EdoReportsPage />} />
+          <Route path="hisobotlar" element={<EdoHisobotlarPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/inbox" replace />} />

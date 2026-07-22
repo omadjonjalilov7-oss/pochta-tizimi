@@ -1,6 +1,7 @@
 import {
   ArrayMaxSize,
   IsArray,
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsOptional,
@@ -57,4 +58,50 @@ export class CreateDocumentDto {
   @ArrayMaxSize(20)
   @IsUUID('all', { each: true })
   approverIds?: string[];
+
+  // ── Yaratish formasidagi qo'shimcha maydonlar ──
+  // Masalalar guruhi
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  issueGroup?: string;
+
+  // Masalalar
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  issues?: string;
+
+  // Hujjat heshteglari
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @IsString({ each: true })
+  @MaxLength(50, { each: true })
+  tags?: string[];
+
+  // XDFU / DSP rejimi
+  @IsOptional()
+  @IsBoolean()
+  xdfuDsp?: boolean;
+
+  // QR kodsiz yaratish
+  @IsOptional()
+  @IsBoolean()
+  qrLess?: boolean;
+
+  // Qabul qiluvchiga murojaat sifatida yetkazish (outgoing)
+  @IsOptional()
+  @IsBoolean()
+  deliverAsAppeal?: boolean;
+
+  // Javob xati talab qilinadi (outgoing)
+  @IsOptional()
+  @IsBoolean()
+  replyRequired?: boolean;
+
+  // Imzodan so'ng kelishuvchilar ro'yxatini shakllantirish (internal)
+  @IsOptional()
+  @IsBoolean()
+  formApproversAfterSign?: boolean;
 }

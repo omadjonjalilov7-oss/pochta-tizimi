@@ -6,6 +6,7 @@ import { DocumentsService } from './documents.service';
 import { DocumentsCron } from './documents.cron';
 import { QrApprovalService } from './qr-approval.service';
 import { PdfGeneratorService } from './pdf-generator.service';
+import { ReportService } from './report.service';
 import { MessagesModule } from '../messages/messages.module';
 import { UsersModule } from '../users/users.module';
 
@@ -22,7 +23,7 @@ import { UsersModule } from '../users/users.module';
     UsersModule,
   ],
   controllers: [DocumentsController],
-  providers: [DocumentsService, DocumentsCron, QrApprovalService, PdfGeneratorService],
-  exports: [DocumentsService, QrApprovalService, PdfGeneratorService],
+  providers: [DocumentsService, DocumentsCron, QrApprovalService, PdfGeneratorService, ReportService],
+  exports: [DocumentsService, QrApprovalService, PdfGeneratorService, ReportService],
 })
 export class DocumentsModule {}

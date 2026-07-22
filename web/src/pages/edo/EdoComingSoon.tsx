@@ -8,7 +8,7 @@ export function EdoComingSoon({ titleKey, descKey }: { titleKey: string; descKey
   const { t } = useTranslation();
   return (
     <div className="h-full flex flex-col items-center justify-center text-center px-6 py-16">
-      <div className="bg-brand-50 text-brand-600 rounded-full p-4 mb-4">
+      <div className="bg-asaka-50 text-asaka-600 rounded-full p-4 mb-4">
         <Construction size={36} />
       </div>
       <h1 className="text-xl font-semibold text-slate-900 mb-2">{t(titleKey)}</h1>

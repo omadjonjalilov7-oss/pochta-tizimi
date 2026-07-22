@@ -426,9 +426,18 @@
     "app_tagline": "Elektron hujjat aylanmasi tizimi",
     "nav": {
       "compose": "Yangi hujjat",
+      "home": "Bosh sahifa",
+      "calendar": "Taqvim",
+      "chat": "Muloqot",
       "my_documents": "Mening hujjatlarim",
+      "control": "Alohida nazorat uchun",
+      "department": "Bo'lim hujjatlari",
+      "editor": "Tahrirchi",
+      "statistika": "Statistika",
+      "section_internal": "Ichki hujjatlar",
       "tasks": "Topshiriqlar",
-      "tasks_approval": "Tasdiqlash topshiriqlari",
+      "tasks_approval": "Kelishish uchun",
+      "approval_status": "Kelishuv holati",
       "tasks_execution": "Ijro topshiriqlari (rezolyutsiya)",
       "incoming": "Kiruvchi",
       "outgoing": "Chiquvchi",
@@ -438,7 +447,8 @@
       "to_sign": "Imzolanadigan hujjatlar",
       "tools": "Vositalar",
       "templates": "Shablonlar",
-      "reports": "Hisobotlar"
+      "reports": "Hisobotlar",
+      "hisobotlar": "Hisobotlar"
     },
     "home": {
       "greeting": "Assalomu alaykum, {{name}}",
@@ -508,6 +518,18 @@
     },
     "compose": {
       "title_new": "Yangi hujjat",
+      "title_new_internal": "Ichki hujjat yaratish",
+      "title_new_outgoing": "Chiquvchi hujjat yaratish",
+      "type_internal": "Ichki hujjat",
+      "type_outgoing": "Chiquvchi hujjat",
+      "label_journal": "Ro'yxatga olish jurnali",
+      "label_doc_number": "Hujjat raqami",
+      "label_summary": "Qisqacha mazmuni",
+      "ph_summary": "Hujjatning qisqacha mazmunini yozing",
+      "ph_doc_number": "Yuborishda beriladi",
+      "label_tags": "Hujjat heshteglari",
+      "ph_tag": "Heshteg qo'shib Enter bosing",
+      "section_approvers": "Kelishuvchilar",
       "title_edit": "Hujjatni tahrirlash",
       "subtitle": "Hujjat ma'lumotlarini kiriting va qoralama sifatida saqlang yoki birdaniga tasdiqlashga yuboring.",
       "label_type": "Hujjat turi",
@@ -558,6 +580,24 @@
       "number_preview_pending": "Raqam tasdiqlashga yuborilganda beriladi",
       "cancel": "Bekor qilish",
       "err_subject_for_upload": "Fayl biriktirishdan oldin mavzuni kiriting (kamida 2 belgi)",
+      "ph_journal": "Ro'yxatga olish jurnali",
+      "label_issue_group": "Masalalar guruhi",
+      "ph_issue_group": "Masalalar guruhi",
+      "label_issues": "Masalalar",
+      "ph_issues": "Masalalar",
+      "main_file_upload": "Asosiy faylni yuklash",
+      "opt_qr_less": "QR kodsiz yaratish",
+      "opt_as_appeal": "Qabul qiluvchiga murojaat sifatida yetkazish",
+      "opt_reply_required": "Javob xati talab qilinadi",
+      "opt_form_approvers_after_sign": "Imzodan so'ng kelishuvchilar ro'yxatini shakllantirish",
+      "btn_attachments": "Ilovalar",
+      "btn_recipients": "Qabul qiluvchilar",
+      "btn_related": "Aloqador hujjatlar",
+      "btn_attach_file": "Fayl biriktirish",
+      "save": "Saqlash",
+      "recipients_panel_title": "Qabul qiluvchilar va kelishuvchilar",
+      "related_panel_title": "Aloqador hujjatlar",
+      "related_empty": "Aloqador hujjatlar hali qo'shilmagan",
       "confirm_send_title": "Hujjatni tasdiqlashga yuborasizmi?",
       "confirm_send_text": "Tasdiqlash zanjiriga jo'natilgach, hujjat tahrirlanmaydi. \"Yo'q\" tugmasi hujjatni qoralamalar ichida saqlab qoldiradi.",
       "confirm_send_yes": "Ha, yuborilsin",
@@ -646,7 +686,19 @@
       "empty_incoming": "Kiruvchi hujjat yo'q.",
       "empty_outgoing": "Chiquvchi hujjat yo'q.",
       "empty_archive": "Arxivda hujjat yo'q.",
-      "empty_to_sign": "Sizga imzolash uchun keltirilgan hujjat yo'q."
+      "empty_to_sign": "Sizga imzolash uchun keltirilgan hujjat yo'q.",
+      "empty_control": "Alohida nazoratdagi hujjat yo'q.",
+      "empty_department": "Bo'limingizga tegishli hujjat yo'q."
+    },
+    "calendar": {
+      "title": "Taqvim",
+      "empty": "Bu oyda muddatli hujjat yo'q.",
+      "no_deadline": "Muddat belgilanmagan",
+      "months": ["Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr"],
+      "weekdays": ["Du", "Se", "Ch", "Pa", "Ju", "Sh", "Ya"],
+      "today": "Bugun",
+      "prev": "Oldingi",
+      "next": "Keyingi"
     },
     "templates": {
       "title": "Hujjat shablonlari",
@@ -676,7 +728,7 @@
       "apply": "Qo'llash"
     },
     "reports": {
-      "title": "Hisobotlar",
+      "title": "Statistika",
       "subtitle": "Hujjat aylanmasi bo'yicha statistik ma'lumotlar",
       "from": "Boshlanish sanasi",
       "to": "Tugash sanasi",
@@ -694,6 +746,33 @@
       "by_type": "Tur bo'yicha",
       "top_creators": "Eng faol yaratuvchilar (TOP 10)",
       "global_unavailable": "Umumiy statistika mavjud emas"
+    },
+    "hisobotlar": {
+      "title": "Hisobotlar",
+      "subtitle": "Hujjatlar ro'yxatini Excel yoki PDF formatda yuklab oling",
+      "export_hint": "Formatni tanlang va hisobotni yuklab oling",
+      "export_excel": "Excel (.xlsx)",
+      "export_pdf": "PDF",
+      "preview": "Ko'rish",
+      "total": "Jami: {{count}} ta hujjat",
+      "empty": "Tanlangan davr uchun hujjat topilmadi",
+      "col_number": "Raqami",
+      "col_subject": "Mavzu",
+      "col_type": "Turi",
+      "col_status": "Holati",
+      "col_author": "Yaratuvchi",
+      "col_department": "Bo'lim",
+      "col_created": "Yaratilgan",
+      "col_deadline": "Muddat"
+    },
+    "chat": {
+      "search": "Qidirish...",
+      "search_user": "Foydalanuvchi qidirish...",
+      "new_conversation": "Yangi suhbat",
+      "start_conversation": "Yangi suhbat boshlash",
+      "no_conversations": "Suhbatlar yo'q",
+      "no_users": "Foydalanuvchi topilmadi",
+      "select_conversation": "Suhbatni tanlang yoki yangi suhbat boshlang"
     }
   }
 }

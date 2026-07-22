@@ -130,7 +130,7 @@ export function EimzoSignModal({
         <div className="px-6 py-5 overflow-y-auto flex-1">
           {step === 'connect' && (
             <div className="text-center py-8">
-              <Loader2 size={32} className="animate-spin text-brand-600 mx-auto mb-3" />
+              <Loader2 size={32} className="animate-spin text-asaka-600 mx-auto mb-3" />
               <p className="text-sm text-slate-600">{t('edo.sign.connecting')}</p>
               <p className="text-xs text-slate-400 mt-2">{t('edo.sign.connecting_hint')}</p>
             </div>
@@ -145,7 +145,7 @@ export function EimzoSignModal({
                     <label
                       className={`flex items-start gap-3 border rounded-xl p-3 cursor-pointer transition ${
                         selected?.serialNumber === c.serialNumber
-                          ? 'border-brand-400 bg-brand-50'
+                          ? 'border-asaka-400 bg-asaka-50'
                           : 'border-slate-200 hover:border-slate-300'
                       }`}
                     >

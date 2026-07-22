@@ -92,7 +92,7 @@ export function EdoReportsPage() {
               type="date"
               value={from}
               onChange={(e) => setRange((r) => ({ ...r, from: e.target.value }))}
-              className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none"
+              className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none"
             />
           </div>
           <div>
@@ -103,7 +103,7 @@ export function EdoReportsPage() {
               type="date"
               value={to}
               onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))}
-              className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none"
+              className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none"
             />
           </div>
         </div>
@@ -120,7 +120,7 @@ export function EdoReportsPage() {
         ) : mineQ.data ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <StatCard
-              icon={<FileCheck2 size={18} className="text-brand-600" />}
+              icon={<FileCheck2 size={18} className="text-asaka-600" />}
               title={t('edo.reports.my_created')}
               total={mineQ.data.created.total}
               breakdown={mineQ.data.created.byStatus}
@@ -310,7 +310,7 @@ function BreakdownBlock({
                   </span>
                   <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-brand-500"
+                      className="h-full bg-asaka-500"
                       style={{ width: `${pct}%` }}
                     />
                   </div>

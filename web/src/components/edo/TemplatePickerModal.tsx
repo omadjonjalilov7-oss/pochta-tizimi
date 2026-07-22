@@ -104,7 +104,7 @@ export function TemplatePickerModal({
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder={t('edo.template_picker.search_ph')}
-                  className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none"
+                  className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none"
                 />
               </div>
             </div>
@@ -128,9 +128,9 @@ export function TemplatePickerModal({
                           <button
                             key={tpl.id}
                             onClick={() => handleSelect(tpl)}
-                            className="w-full text-left bg-white border border-slate-200 hover:border-brand-300 hover:bg-brand-50/50 rounded-lg px-3 py-2.5 transition flex items-start gap-3"
+                            className="w-full text-left bg-white border border-slate-200 hover:border-asaka-300 hover:bg-asaka-50/50 rounded-lg px-3 py-2.5 transition flex items-start gap-3"
                           >
-                            <FileText size={16} className="text-brand-600 mt-0.5 shrink-0" />
+                            <FileText size={16} className="text-asaka-600 mt-0.5 shrink-0" />
                             <div className="flex-1 min-w-0">
                               <div className="font-medium text-sm text-slate-900 truncate">
                                 {tpl.name}
@@ -168,7 +168,7 @@ export function TemplatePickerModal({
                           type="text"
                           value={values[p] || ''}
                           onChange={(e) => setValues({ ...values, [p]: e.target.value })}
-                          className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none"
+                          className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none"
                         />
                       </div>
                     ))}
@@ -194,7 +194,7 @@ export function TemplatePickerModal({
               </button>
               <button
                 onClick={handleApply}
-                className="px-4 py-2 text-sm rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-medium"
+                className="px-4 py-2 text-sm rounded-lg bg-asaka-600 hover:bg-asaka-700 text-white font-medium"
               >
                 {t('edo.template_picker.apply')}
               </button>

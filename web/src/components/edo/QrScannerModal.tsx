@@ -71,7 +71,7 @@ export function QrScannerModal({
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="QR kod ma'lumotlari bu yerga paydo bo'ladi..."
               disabled={isLoading}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none transition disabled:bg-slate-50"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none transition disabled:bg-slate-50"
             />
             <p className="text-xs text-slate-500 mt-1">
               Smartphone'i yoki scanner'i qo'lga oling va QR kod'ni skanerlang
@@ -111,7 +111,7 @@ export function QrScannerModal({
                 'flex-1 px-4 py-2 rounded-lg text-white font-medium transition-colors flex items-center justify-center gap-2',
                 isLoading || !inputValue.trim()
                   ? 'bg-slate-300 cursor-not-allowed'
-                  : 'bg-brand-600 hover:bg-brand-700',
+                  : 'bg-asaka-600 hover:bg-asaka-700',
               )}
             >
               {isLoading && <Loader size={16} className="animate-spin" />}

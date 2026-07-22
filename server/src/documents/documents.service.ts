@@ -217,6 +217,15 @@ export class DocumentsService {
           currentHolderId: userId,
           numberDeptId,
           targetDeptId: dto.targetDeptId ?? null,
+          issueGroup: dto.issueGroup ?? null,
+          issues: dto.issues ?? null,
+          tags: dto.tags ?? [],
+          xdfuDsp: dto.xdfuDsp ?? false,
+          qrLess: dto.qrLess ?? false,
+          deliverAsAppeal: dto.type === 'outgoing' ? (dto.deliverAsAppeal ?? false) : false,
+          replyRequired: dto.type === 'outgoing' ? (dto.replyRequired ?? false) : false,
+          formApproversAfterSign:
+            dto.type === 'internal' ? (dto.formApproversAfterSign ?? false) : false,
         },
       });
       await tx.documentParticipant.create({
@@ -276,6 +285,23 @@ export class DocumentsService {
       data.targetDept = dto.targetDeptId
         ? { connect: { id: dto.targetDeptId } }
         : { disconnect: true };
+    }
+    if (dto.issueGroup !== undefined) data.issueGroup = dto.issueGroup || null;
+    if (dto.issues !== undefined) data.issues = dto.issues || null;
+    if (dto.tags !== undefined) data.tags = dto.tags;
+    if (dto.xdfuDsp !== undefined) data.xdfuDsp = dto.xdfuDsp;
+    if (dto.qrLess !== undefined) data.qrLess = dto.qrLess;
+    // Faqat mos tur uchun saqlaymiz
+    const effType = dto.type ?? doc.type;
+    if (dto.deliverAsAppeal !== undefined) {
+      data.deliverAsAppeal = effType === 'outgoing' ? dto.deliverAsAppeal : false;
+    }
+    if (dto.replyRequired !== undefined) {
+      data.replyRequired = effType === 'outgoing' ? dto.replyRequired : false;
+    }
+    if (dto.formApproversAfterSign !== undefined) {
+      data.formApproversAfterSign =
+        effType === 'internal' ? dto.formApproversAfterSign : false;
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -1099,6 +1125,61 @@ export class DocumentsService {
       },
       include: FULL_INCLUDE,
       orderBy: { updatedAt: 'desc' },
+    });
+    return docs.map((d) => this.serialize(d));
+  }
+
+  // Alohida nazorat — men yaratgan va hali yopilmagan (faol) hujjatlar
+  async listControl(userId: string) {
+    const docs = await this.prisma.document.findMany({
+      where: {
+        createdById: userId,
+        status: { in: ['in_review', 'in_progress', 'overdue'] },
+      },
+      include: FULL_INCLUDE,
+      orderBy: [{ deadline: 'asc' }, { updatedAt: 'desc' }],
+    });
+    return docs.map((d) => this.serialize(d));
+  }
+
+  // Bo'lim hujjatlari — foydalanuvchi bo'limiga tegishli barcha hujjatlar
+  async listDepartment(userId: string) {
+    const me = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { departmentId: true },
+    });
+    if (!me?.departmentId) return [];
+    const deptId = me.departmentId;
+    const docs = await this.prisma.document.findMany({
+      where: {
+        status: { not: 'draft' },
+        OR: [
+          { numberDeptId: deptId },
+          { targetDeptId: deptId },
+          { createdBy: { departmentId: deptId } },
+        ],
+      },
+      include: FULL_INCLUDE,
+      orderBy: { updatedAt: 'desc' },
+    });
+    return docs.map((d) => this.serialize(d));
+  }
+
+  // Taqvim — muddati belgilangan, men ishtirok etayotgan hujjatlar
+  async getCalendar(userId: string, fromIso?: string, toIso?: string) {
+    const deadlineFilter: any = fromIso || toIso ? {} : { not: null };
+    if (fromIso) deadlineFilter.gte = new Date(fromIso);
+    if (toIso) deadlineFilter.lte = new Date(toIso);
+    const docs = await this.prisma.document.findMany({
+      where: {
+        deadline: deadlineFilter,
+        OR: [
+          { createdById: userId },
+          { participants: { some: { userId } } },
+        ],
+      },
+      include: FULL_INCLUDE,
+      orderBy: { deadline: 'asc' },
     });
     return docs.map((d) => this.serialize(d));
   }

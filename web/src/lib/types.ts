@@ -219,6 +219,14 @@ export interface EdoDocument {
   numberDeptId?: string | null;
   targetDeptId?: string | null;
   deadline?: string | null;
+  issueGroup?: string | null;
+  issues?: string | null;
+  tags?: string[];
+  xdfuDsp?: boolean;
+  qrLess?: boolean;
+  deliverAsAppeal?: boolean;
+  replyRequired?: boolean;
+  formApproversAfterSign?: boolean;
   signatureChainPosition: number;
   isSigned: boolean;
   createdAt: string;

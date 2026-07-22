@@ -381,6 +381,16 @@ model Document {
   targetDeptId      String?   @map("target_dept_id") @db.Uuid
   deadline          DateTime? @db.Timestamptz(3)
 
+  // Yaratish formasidagi qo'shimcha maydonlar
+  issueGroup             String?  @map("issue_group") @db.VarChar(255)            // Masalalar guruhi
+  issues                 String?  @map("issues") @db.VarChar(255)                 // Masalalar
+  tags                   String[] @map("tags")                                    // Hujjat heshteglari
+  xdfuDsp                Boolean  @default(false) @map("xdfu_dsp")                 // XDFU / DSP rejimi
+  qrLess                 Boolean  @default(false) @map("qr_less")                  // QR kodsiz yaratish
+  deliverAsAppeal        Boolean  @default(false) @map("deliver_as_appeal")       // Qabul qiluvchiga murojaat sifatida yetkazish (outgoing)
+  replyRequired          Boolean  @default(false) @map("reply_required")          // Javob xati talab qilinadi (outgoing)
+  formApproversAfterSign Boolean  @default(false) @map("form_approvers_after_sign") // Imzodan so'ng kelishuvchilar ro'yxatini shakllantirish (internal)
+
   // Imzo zanjiri holati
   signatureChainPosition Int  @default(0) @map("signature_chain_position")
   isSigned               Boolean @default(false) @map("is_signed")

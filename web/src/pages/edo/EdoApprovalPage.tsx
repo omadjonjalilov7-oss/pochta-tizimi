@@ -135,7 +135,7 @@ export function EdoApprovalPage() {
         {/* Loading State */}
         {docsLoading && (
           <div className="flex items-center justify-center py-12">
-            <Loader size={32} className="animate-spin text-brand-600" />
+            <Loader size={32} className="animate-spin text-asaka-600" />
           </div>
         )}
 
@@ -208,7 +208,7 @@ function DocumentApprovalCard({ doc, onApprove, isLoading = false }: DocumentApp
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-3">
             <h3 className="text-lg font-semibold text-slate-900">{doc.subject}</h3>
-            <span className="px-3 py-1 bg-brand-100 text-brand-700 text-xs font-semibold rounded-full">
+            <span className="px-3 py-1 bg-asaka-100 text-asaka-700 text-xs font-semibold rounded-full">
               {doc.number}
             </span>
           </div>

@@ -57,9 +57,9 @@ function DocList({ queryKey, endpoint, titleKey, emptyKey, showHolder }: DocList
             <li key={d.id}>
               <Link
                 to={`/edo/documents/${d.id}`}
-                className="flex items-start gap-3 bg-white border border-slate-200 hover:border-brand-300 hover:shadow-sm rounded-xl px-4 py-3 transition"
+                className="flex items-start gap-3 bg-white border border-slate-200 hover:border-asaka-300 hover:shadow-sm rounded-xl px-4 py-3 transition"
               >
-                <div className="bg-brand-50 text-brand-600 rounded-lg p-2 mt-0.5">
+                <div className="bg-asaka-50 text-asaka-600 rounded-lg p-2 mt-0.5">
                   <FileText size={18} />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -99,7 +99,7 @@ function DocList({ queryKey, endpoint, titleKey, emptyKey, showHolder }: DocList
                       </span>
                     )}
                     {showHolder && d.currentHolder && d.status === 'in_review' && (
-                      <span className="text-brand-700">
+                      <span className="text-asaka-700">
                         → {d.currentHolder.fullName}
                       </span>
                     )}
@@ -208,6 +208,30 @@ export function EdoToSignPage() {
       endpoint="/documents/to-sign"
       titleKey="edo.nav.to_sign"
       emptyKey="edo.list.empty_to_sign"
+    />
+  );
+}
+
+export function EdoControlPage() {
+  return (
+    <DocList
+      queryKey="edo-control"
+      endpoint="/documents/control"
+      titleKey="edo.nav.control"
+      emptyKey="edo.list.empty_control"
+      showHolder
+    />
+  );
+}
+
+export function EdoDepartmentPage() {
+  return (
+    <DocList
+      queryKey="edo-department"
+      endpoint="/documents/department"
+      titleKey="edo.nav.department"
+      emptyKey="edo.list.empty_department"
+      showHolder
     />
   );
 }

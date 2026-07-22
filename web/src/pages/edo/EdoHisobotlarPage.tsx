@@ -1,0 +1,205 @@
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import { FileSpreadsheet, FileText, Download, Loader2 } from 'lucide-react';
+import { api } from '../../lib/api';
+
+interface ReportRow {
+  index: number;
+  number: string;
+  subject: string;
+  type: string;
+  status: string;
+  createdBy: string;
+  department: string;
+  createdAt: string;
+  deadline: string | null;
+}
+
+interface ReportPreview {
+  from: string;
+  to: string;
+  total: number;
+  rows: ReportRow[];
+}
+
+function defaultRange() {
+  const to = new Date();
+  const from = new Date();
+  from.setDate(from.getDate() - 30);
+  const fmt = (d: Date) => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+  return { from: fmt(from), to: fmt(to) };
+}
+
+export function EdoHisobotlarPage() {
+  const { t } = useTranslation();
+  const [{ from, to }, setRange] = useState(defaultRange);
+  const [downloading, setDownloading] = useState<'excel' | 'pdf' | null>(null);
+
+  const params = useMemo(() => {
+    const p = new URLSearchParams();
+    if (from) p.set('from', new Date(from).toISOString());
+    if (to) {
+      const d = new Date(to);
+      d.setHours(23, 59, 59, 999);
+      p.set('to', d.toISOString());
+    }
+    return p.toString();
+  }, [from, to]);
+
+  const previewQ = useQuery({
+    queryKey: ['edo-report-preview', params],
+    queryFn: async () =>
+      (await api.get<ReportPreview>(`/documents/report/preview?${params}`)).data,
+  });
+
+  const download = async (format: 'excel' | 'pdf') => {
+    setDownloading(format);
+    try {
+      const res = await api.get(`/documents/report?format=${format}&${params}`, {
+        responseType: 'blob',
+      });
+      const disposition = res.headers['content-disposition'] as string | undefined;
+      const match = disposition?.match(/filename="?([^"]+)"?/);
+      const filename = match?.[1] ?? `hisobot.${format === 'excel' ? 'xlsx' : 'pdf'}`;
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const rows = previewQ.data?.rows ?? [];
+
+  return (
+    <div className="max-w-6xl mx-auto px-6 py-6 space-y-5">
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">{t('edo.hisobotlar.title')}</h1>
+          <p className="text-xs text-slate-500 mt-0.5">{t('edo.hisobotlar.subtitle')}</p>
+        </div>
+        <div className="ml-auto flex items-end gap-2">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              {t('edo.reports.from')}
+            </label>
+            <input
+              type="date"
+              value={from}
+              onChange={(e) => setRange((r) => ({ ...r, from: e.target.value }))}
+              className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              {t('edo.reports.to')}
+            </label>
+            <input
+              type="date"
+              value={to}
+              onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))}
+              className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Eksport paneli */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-2 text-sm text-slate-600">
+          <Download size={16} className="text-asaka-600" />
+          <span>{t('edo.hisobotlar.export_hint')}</span>
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={() => download('excel')}
+            disabled={downloading !== null}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60 transition-colors"
+          >
+            {downloading === 'excel' ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <FileSpreadsheet size={16} />
+            )}
+            {t('edo.hisobotlar.export_excel')}
+          </button>
+          <button
+            onClick={() => download('pdf')}
+            disabled={downloading !== null}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-60 transition-colors"
+          >
+            {downloading === 'pdf' ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <FileText size={16} />
+            )}
+            {t('edo.hisobotlar.export_pdf')}
+          </button>
+        </div>
+      </div>
+
+      {/* Ko'rish jadvali */}
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+        <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between">
+          <span className="text-sm font-semibold text-slate-700">
+            {t('edo.hisobotlar.preview')}
+          </span>
+          <span className="text-xs text-slate-500">
+            {t('edo.hisobotlar.total', { count: previewQ.data?.total ?? 0 })}
+          </span>
+        </div>
+        {previewQ.isLoading ? (
+          <div className="px-5 py-10 text-center text-sm text-slate-400">{t('common.loading')}</div>
+        ) : rows.length === 0 ? (
+          <div className="px-5 py-10 text-center text-sm text-slate-400">
+            {t('edo.hisobotlar.empty')}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                  <th className="px-3 py-2 w-10">№</th>
+                  <th className="px-3 py-2">{t('edo.hisobotlar.col_number')}</th>
+                  <th className="px-3 py-2">{t('edo.hisobotlar.col_subject')}</th>
+                  <th className="px-3 py-2">{t('edo.hisobotlar.col_type')}</th>
+                  <th className="px-3 py-2">{t('edo.hisobotlar.col_status')}</th>
+                  <th className="px-3 py-2">{t('edo.hisobotlar.col_author')}</th>
+                  <th className="px-3 py-2">{t('edo.hisobotlar.col_department')}</th>
+                  <th className="px-3 py-2">{t('edo.hisobotlar.col_created')}</th>
+                  <th className="px-3 py-2">{t('edo.hisobotlar.col_deadline')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.index} className="border-t border-slate-100 hover:bg-slate-50/60">
+                    <td className="px-3 py-2 text-slate-400">{r.index}</td>
+                    <td className="px-3 py-2 font-mono text-xs text-slate-700">{r.number}</td>
+                    <td className="px-3 py-2 text-slate-800 max-w-xs truncate" title={r.subject}>
+                      {r.subject}
+                    </td>
+                    <td className="px-3 py-2 text-slate-600">{r.type}</td>
+                    <td className="px-3 py-2 text-slate-600">{r.status}</td>
+                    <td className="px-3 py-2 text-slate-600">{r.createdBy}</td>
+                    <td className="px-3 py-2 text-slate-600">{r.department}</td>
+                    <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{r.createdAt}</td>
+                    <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{r.deadline ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

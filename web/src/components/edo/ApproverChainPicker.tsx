@@ -146,7 +146,7 @@ export function ApproverChainPicker({
                       onClick={() => move(idx, -1)}
                       disabled={idx === 0}
                       title={t('edo.compose.move_up')}
-                      className="p-1 text-slate-500 hover:text-brand-700 hover:bg-white rounded disabled:opacity-30 disabled:hover:bg-transparent"
+                      className="p-1 text-slate-500 hover:text-asaka-700 hover:bg-white rounded disabled:opacity-30 disabled:hover:bg-transparent"
                     >
                       <ArrowUp size={14} />
                     </button>
@@ -155,7 +155,7 @@ export function ApproverChainPicker({
                       onClick={() => move(idx, 1)}
                       disabled={idx === value.length - 1}
                       title={t('edo.compose.move_down')}
-                      className="p-1 text-slate-500 hover:text-brand-700 hover:bg-white rounded disabled:opacity-30 disabled:hover:bg-transparent"
+                      className="p-1 text-slate-500 hover:text-asaka-700 hover:bg-white rounded disabled:opacity-30 disabled:hover:bg-transparent"
                     >
                       <ArrowDown size={14} />
                     </button>
@@ -178,7 +178,7 @@ export function ApproverChainPicker({
       {/* Qo'shish — search + ro'yxat */}
       {!disabled && value.length < max && (
         <div className="relative">
-          <div className="flex items-center gap-2 px-3 py-2 border border-slate-300 rounded-lg focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-100">
+          <div className="flex items-center gap-2 px-3 py-2 border border-slate-300 rounded-lg focus-within:border-asaka-500 focus-within:ring-2 focus-within:ring-asaka-100">
             <Search size={14} className="text-slate-400 shrink-0" />
             <input
               type="text"
@@ -232,7 +232,7 @@ export function ApproverChainPicker({
                             </div>
                           )}
                         </div>
-                        <UserPlus size={14} className="text-brand-600 shrink-0" />
+                        <UserPlus size={14} className="text-asaka-600 shrink-0" />
                       </button>
                     </li>
                   ))}

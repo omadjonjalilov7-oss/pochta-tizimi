@@ -172,7 +172,7 @@ export function EdoDocumentViewPage() {
       {/* Shapka — hujjat ma'lumotlari */}
       <header className="bg-white border border-slate-200 rounded-2xl p-6 mb-4">
         <div className="flex items-start gap-4">
-          <div className="bg-brand-50 text-brand-600 rounded-xl p-3">
+          <div className="bg-asaka-50 text-asaka-600 rounded-xl p-3">
             <FileText size={28} />
           </div>
           <div className="flex-1 min-w-0">
@@ -219,7 +219,7 @@ export function EdoDocumentViewPage() {
                 <DeadlineBadge deadline={doc.deadline} status={doc.status} lang={lang} />
               )}
               {doc.currentHolder && doc.status === 'in_review' && (
-                <span className="flex items-center gap-1 text-brand-700">
+                <span className="flex items-center gap-1 text-asaka-700">
                   <ChevronRight size={12} />
                   {t('edo.view.holder')}: <span className="font-medium">{doc.currentHolder.fullName}</span>
                 </span>
@@ -253,7 +253,7 @@ export function EdoDocumentViewPage() {
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploadAttachment.isPending}
-                      className="inline-flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium disabled:opacity-50"
+                      className="inline-flex items-center gap-1 text-xs text-asaka-600 hover:text-asaka-700 font-medium disabled:opacity-50"
                     >
                       <Paperclip size={12} />
                       {uploadAttachment.isPending ? t('common.saving') : t('edo.compose.add_file')}
@@ -281,12 +281,12 @@ export function EdoDocumentViewPage() {
                               URL.revokeObjectURL(url);
                             } catch {}
                           }}
-                          className="group flex items-center gap-2 text-sm text-slate-700 hover:text-brand-700 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
+                          className="group flex items-center gap-2 text-sm text-slate-700 hover:text-asaka-700 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
                         >
-                          <Paperclip size={14} className="text-slate-400 group-hover:text-brand-600 shrink-0" />
+                          <Paperclip size={14} className="text-slate-400 group-hover:text-asaka-600 shrink-0" />
                           <span className="truncate flex-1">{a.filename}</span>
                           <span className="text-xs text-slate-400 shrink-0">{formatBytes(a.sizeBytes)}</span>
-                          <Download size={14} className="text-slate-400 group-hover:text-brand-600 shrink-0" />
+                          <Download size={14} className="text-slate-400 group-hover:text-asaka-600 shrink-0" />
                         </a>
                       </li>
                     ))}
@@ -321,7 +321,7 @@ export function EdoDocumentViewPage() {
               <button
                 onClick={() => send.mutate()}
                 disabled={send.isPending}
-                className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg"
+                className="inline-flex items-center gap-2 bg-asaka-600 hover:bg-asaka-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg"
               >
                 <Send size={16} />
                 {send.isPending ? t('common.sending') : t('edo.view.send_for_approval')}
@@ -445,7 +445,7 @@ export function EdoDocumentViewPage() {
                   type="datetime-local"
                   value={extendDeadlineValue}
                   onChange={(e) => setExtendDeadlineValue(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none"
                 />
               </div>
               <div>
@@ -457,7 +457,7 @@ export function EdoDocumentViewPage() {
                   onChange={(e) => setExtendReasonValue(e.target.value)}
                   placeholder={t('edo.view.reason_ph') || 'Muddatni nima sababli uzaytirilgani...'}
                   maxLength={1000}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none resize-none"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none resize-none"
                   rows={3}
                 />
               </div>
@@ -546,7 +546,7 @@ function PdfDownloadButton({
       onClick={handleClick}
       disabled={isDisabled || busy}
       title={title}
-      className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-700 hover:text-brand-800 hover:bg-brand-50 px-2 py-1 rounded-md disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+      className="inline-flex items-center gap-1.5 text-xs font-medium text-asaka-700 hover:text-asaka-800 hover:bg-asaka-50 px-2 py-1 rounded-md disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
     >
       <Download size={14} />
       <span>PDF</span>
@@ -959,8 +959,8 @@ function ApproverActions({
   );
 
   return (
-    <div className="bg-white border-2 border-brand-200 rounded-2xl p-4 space-y-3">
-      <div className="flex items-center gap-2 text-sm text-brand-700 font-semibold">
+    <div className="bg-white border-2 border-asaka-200 rounded-2xl p-4 space-y-3">
+      <div className="flex items-center gap-2 text-sm text-asaka-700 font-semibold">
         <AlertTriangle size={16} />
         {t('edo.view.your_turn')}
       </div>
@@ -1138,7 +1138,7 @@ function ApproverActions({
                     <button
                       type="button"
                       onClick={() => setShowAddApprovers(true)}
-                      className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-700 hover:text-brand-800"
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-asaka-700 hover:text-asaka-800"
                     >
                       <UserPlus size={14} />
                       {t('edo.view.add_approver_btn')}
@@ -1194,7 +1194,7 @@ function ApproverActions({
                   </button>
                   <a
                     href="/profile"
-                    className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold px-4 py-2 rounded-lg text-sm"
+                    className="inline-flex items-center gap-2 bg-asaka-600 hover:bg-asaka-700 text-white font-semibold px-4 py-2 rounded-lg text-sm"
                   >
                     <ShieldCheck size={16} />
                     {t('edo.view.pin_go_to_profile')}
@@ -1234,7 +1234,7 @@ function ApproverActions({
             value={forwardUserId}
             onChange={(e) => setForwardUserId(e.target.value)}
             required
-            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-brand-500 outline-none"
+            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 outline-none"
           >
             <option value="">{t('edo.view.forward_select')}</option>
             {users
@@ -1252,7 +1252,7 @@ function ApproverActions({
             onChange={(e) => setForwardNote(e.target.value)}
             placeholder={t('edo.view.forward_note_ph')}
             maxLength={2000}
-            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-brand-500 outline-none"
+            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 outline-none"
           />
           {/* Qo'shimcha tasdiqlovchilar — toUserId'dan keyin zanjirga ulanadi */}
           <ApproverChainPicker
@@ -1275,7 +1275,7 @@ function ApproverActions({
               placeholder="••••"
               maxLength={4}
               wrapperClassName="w-40"
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none text-base font-mono tracking-[0.6em] text-center"
+              className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none text-base font-mono tracking-[0.6em] text-center"
             />
             {!hasPin && (
               <p className="text-[11px] text-red-600 mt-1">{t('edo.view.pin_not_set')}</p>
@@ -1286,7 +1286,7 @@ function ApproverActions({
             <button
               type="submit"
               disabled={loadingAction === 'forward' || !forwardUserId}
-              className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg text-sm"
+              className="bg-asaka-600 hover:bg-asaka-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg text-sm"
             >
               {t('edo.view.confirm_forward')}
             </button>
@@ -1363,12 +1363,12 @@ function CommentsSection({
           onChange={(e) => setText(e.target.value)}
           rows={2}
           placeholder={t('edo.view.comment_ph')}
-          className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none"
+          className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none"
         />
         <button
           type="submit"
           disabled={!text.trim() || sending}
-          className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-medium px-4 py-2 rounded-lg text-sm"
+          className="bg-asaka-600 hover:bg-asaka-700 disabled:opacity-50 text-white font-medium px-4 py-2 rounded-lg text-sm"
         >
           {sending ? t('common.sending') : t('edo.view.add_comment')}
         </button>
@@ -1412,7 +1412,7 @@ function ParticipantsPanel({
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium text-slate-900 truncate">
                   {p.user.fullName}
-                  {isMe && <span className="ml-1 text-xs text-brand-600">({t('edo.view.you')})</span>}
+                  {isMe && <span className="ml-1 text-xs text-asaka-600">({t('edo.view.you')})</span>}
                 </div>
                 <div className="text-xs text-slate-500">
                   {t(`edo.role.${p.role}`)}
@@ -1723,7 +1723,7 @@ function ResolutionSection({
         {canResolve && !adding_open && (
           <button
             onClick={() => setAddingOpen(true)}
-            className="inline-flex items-center gap-1 text-sm bg-brand-50 hover:bg-brand-100 text-brand-700 font-medium px-3 py-1.5 rounded-lg"
+            className="inline-flex items-center gap-1 text-sm bg-asaka-50 hover:bg-asaka-100 text-asaka-700 font-medium px-3 py-1.5 rounded-lg"
           >
             <UserPlus size={14} />
             {t('edo.view.add_resolution')}
@@ -1794,7 +1794,7 @@ function ResolutionSection({
               rows={3}
               required
               placeholder={t('edo.view.resolution_ph')}
-              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none"
+              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none"
             />
           </div>
 
@@ -1813,7 +1813,7 @@ function ResolutionSection({
                       setTargets(v);
                     }}
                     required
-                    className="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-brand-500 outline-none"
+                    className="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 outline-none"
                   >
                     <option value="">{t('edo.view.select_executor')}</option>
                     {users.map((u) => (
@@ -1831,7 +1831,7 @@ function ResolutionSection({
                       v[idx] = { ...v[idx], deadline: e.target.value || undefined };
                       setTargets(v);
                     }}
-                    className="px-2 py-2 text-sm border border-slate-300 rounded-lg focus:border-brand-500 outline-none"
+                    className="px-2 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 outline-none"
                   />
                   {targets.length > 1 && (
                     <button
@@ -1848,7 +1848,7 @@ function ResolutionSection({
               <button
                 type="button"
                 onClick={() => setTargets([...targets, { userId: '' }])}
-                className="text-sm text-brand-700 hover:bg-brand-50 font-medium px-3 py-1.5 rounded-lg"
+                className="text-sm text-asaka-700 hover:bg-asaka-50 font-medium px-3 py-1.5 rounded-lg"
               >
                 + {t('edo.view.add_executor')}
               </button>
@@ -1861,7 +1861,7 @@ function ResolutionSection({
             <button
               type="submit"
               disabled={adding}
-              className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg text-sm"
+              className="bg-asaka-600 hover:bg-asaka-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg text-sm"
             >
               {adding ? t('common.saving') : t('edo.view.save_resolution')}
             </button>

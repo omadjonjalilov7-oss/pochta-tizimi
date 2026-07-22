@@ -1,25 +1,33 @@
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
 import {
+  Home,
   FileText,
   Inbox,
   Send,
   FilePlus,
-  ListTodo,
   FileSearch,
   LogOut,
   Bell,
   Palette,
   LayoutGrid,
   Languages,
-  ScrollText,
   FileSignature,
   Files,
   BarChart3,
+  FileSpreadsheet,
   CheckCircle2,
+  CalendarDays,
+  MessagesSquare,
+  ShieldCheck,
+  Building2,
+  SquarePen,
+  Handshake,
+  ChevronsUp,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Avatar } from '../Avatar';
-import { Logo } from '../Logo';
+import { AsakaLogo } from '../AsakaLogo';
 import { AppSwitcher } from '../AppSwitcher';
 import { cn } from '../../lib/utils';
 import { useLayoutData } from './useLayoutData';
@@ -49,8 +57,8 @@ function EdoNav({
           'flex items-center rounded-lg text-sm font-medium transition-colors',
           collapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-4 py-2.5',
           isActive
-            ? 'bg-brand-600 text-white'
-            : 'text-slate-700 hover:bg-brand-50 hover:text-brand-700',
+            ? 'bg-asaka-600 text-white shadow-sm'
+            : 'text-slate-300 hover:bg-white/10 hover:text-white',
         )
       }
     >
@@ -60,19 +68,78 @@ function EdoNav({
   );
 }
 
+function NewDocButton({ collapsed }: { collapsed?: boolean }) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+
+  const go = (type: 'outgoing' | 'internal') => {
+    setOpen(false);
+    navigate(`/edo/compose?type=${type}`);
+  };
+
+  return (
+    <div className="relative mb-3" ref={ref}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        title={collapsed ? t('edo.nav.compose') : undefined}
+        className={cn(
+          'w-full bg-asaka-600 hover:bg-asaka-700 text-white rounded-lg flex items-center justify-center font-medium shadow-sm transition-colors',
+          collapsed ? 'p-2.5' : 'py-2.5 px-4 gap-2',
+        )}
+      >
+        <FilePlus size={16} />
+        {!collapsed && t('edo.nav.compose')}
+      </button>
+      {open && (
+        <div
+          className={cn(
+            'absolute z-30 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 overflow-hidden',
+            collapsed ? 'left-0 w-56' : 'left-0 right-0',
+          )}
+        >
+          <button
+            onClick={() => go('outgoing')}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-asaka-50 hover:text-asaka-700 transition-colors"
+          >
+            <ChevronsUp size={18} className="text-asaka-600" />
+            {t('edo.compose.type_outgoing')}
+          </button>
+          <button
+            onClick={() => go('internal')}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-asaka-50 hover:text-asaka-700 transition-colors"
+          >
+            <FileText size={18} className="text-asaka-600" />
+            {t('edo.compose.type_internal')}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function LayoutEdo() {
   const { t } = useTranslation();
   const { user, notification, handleLogout } = useLayoutData();
   const { openTheme, openDesign, openLanguage, modals } = useAppearanceModals();
-  const location = useLocation();
-  // Yangi hujjat oynasida sidebar avtomatik kichrayadi (faqat ikonkalar)
-  const collapsed = location.pathname.startsWith('/edo/compose');
+  // Menu har doim ochiq turadi (compose sahifasida ham kichraymaydi)
+  const collapsed = false;
 
   return (
     <div className="flex h-full flex-col bg-slate-50">
       <header className="h-16 bg-white border-b border-slate-200 flex items-center gap-4 px-4">
-        <Link to="/edo" className="flex items-center gap-2 font-semibold text-xl text-slate-700 px-2 min-w-[220px]">
-          <Logo size={26} className="text-brand-700" />
+        <Link to="/edo" className="flex items-center gap-2.5 font-semibold text-xl text-slate-700 px-2 min-w-[220px]">
+          <AsakaLogo size={34} />
           <div className="flex flex-col leading-tight">
             <span className="text-base">{t('edo.app_name')}</span>
             <span className="text-xs font-normal text-slate-500">{t('edo.app_tagline')}</span>
@@ -81,12 +148,12 @@ export function LayoutEdo() {
         <AppSwitcher className="ml-2" />
         <div className="flex items-center gap-2 ml-auto">
           {notification && (
-            <div className="flex items-center gap-2 bg-brand-50 text-brand-700 px-3 py-1.5 rounded-full text-xs animate-pulse">
+            <div className="flex items-center gap-2 bg-asaka-50 text-asaka-700 px-3 py-1.5 rounded-full text-xs animate-pulse">
               <Bell size={14} />
               <span className="max-w-xs truncate">{notification}</span>
             </div>
           )}
-          <Link to="/profile" className="rounded-full hover:ring-2 hover:ring-brand-200" title={user.fullName}>
+          <Link to="/profile" className="rounded-full hover:ring-2 hover:ring-asaka-200" title={user.fullName}>
             <Avatar fullName={user.fullName} avatarPath={user.avatarPath} size="sm" />
           </Link>
           <button
@@ -102,64 +169,67 @@ export function LayoutEdo() {
       <div className="flex-1 flex overflow-hidden">
         <aside
           className={cn(
-            'bg-white border-r border-slate-200 flex flex-col p-4 gap-1 overflow-y-auto transition-[width] duration-200',
+            'bg-edonav-900 flex flex-col p-4 gap-1 overflow-y-auto transition-[width] duration-200',
             collapsed ? 'w-[68px]' : 'w-64',
           )}
         >
-          <Link
-            to="/edo/compose"
-            title={collapsed ? t('edo.nav.compose') : undefined}
-            className={cn(
-              'bg-brand-600 hover:bg-brand-700 text-white rounded-lg mb-3 flex items-center justify-center font-medium shadow-sm transition-colors',
-              collapsed ? 'p-2.5' : 'py-2.5 px-4 gap-2',
-            )}
-          >
-            <FilePlus size={16} />
-            {!collapsed && t('edo.nav.compose')}
-          </Link>
+          <NewDocButton collapsed={collapsed} />
 
-          <EdoNav to="/edo" end icon={FileText} label={t('edo.nav.my_documents')} collapsed={collapsed} />
-          <EdoNav to="/edo/approval" icon={CheckCircle2} label="Xujjatlar" collapsed={collapsed} />
-          <EdoNav to="/edo/tasks" icon={ListTodo} label={t('edo.nav.tasks')} collapsed={collapsed} />
-          <EdoNav to="/edo/incoming" icon={Inbox} label={t('edo.nav.incoming')} collapsed={collapsed} />
-          <EdoNav to="/edo/outgoing" icon={Send} label={t('edo.nav.outgoing')} collapsed={collapsed} />
-          <EdoNav to="/edo/drafts" icon={ScrollText} label={t('edo.nav.drafts')} collapsed={collapsed} />
-          <EdoNav to="/edo/archive" icon={FileSearch} label={t('edo.nav.archive')} collapsed={collapsed} />
-
-          {user.canSignExternal && (
-            <>
-              {!collapsed && (
-                <div className="mt-6 mb-2 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                  {t('edo.nav.signing')}
-                </div>
-              )}
-              {collapsed && <div className="mt-4 border-t border-slate-100" />}
-              <EdoNav to="/edo/signing" icon={FileSignature} label={t('edo.nav.to_sign')} collapsed={collapsed} />
-            </>
+          {/* ── Ichki hujjatlar ── */}
+          {!collapsed ? (
+            <div className="mt-2 mb-2 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wide">
+              {t('edo.nav.section_internal')}
+            </div>
+          ) : (
+            <div className="mt-1 border-t border-white/10" />
           )}
+          <EdoNav to="/edo" end icon={Home} label={t('edo.nav.home')} collapsed={collapsed} />
+          <EdoNav to="/edo/calendar" icon={CalendarDays} label={t('edo.nav.calendar')} collapsed={collapsed} />
+          <EdoNav to="/edo/mine" icon={FileText} label={t('edo.nav.my_documents')} collapsed={collapsed} />
+          <EdoNav to="/edo/chat" icon={MessagesSquare} label={t('edo.nav.chat')} collapsed={collapsed} />
+          <EdoNav to="/edo/outgoing" icon={Send} label={t('edo.nav.outgoing')} collapsed={collapsed} />
+          <EdoNav to="/edo/incoming" icon={Inbox} label={t('edo.nav.incoming')} collapsed={collapsed} />
+          <EdoNav to="/edo/control" icon={ShieldCheck} label={t('edo.nav.control')} collapsed={collapsed} />
+          <EdoNav to="/edo/tasks" icon={Handshake} label={t('edo.nav.tasks_approval')} collapsed={collapsed} />
+          <EdoNav to="/edo/signing" icon={FileSignature} label={t('edo.nav.to_sign')} collapsed={collapsed} />
+          <EdoNav to="/edo/department" icon={Building2} label={t('edo.nav.department')} collapsed={collapsed} />
+          <EdoNav to="/edo/drafts" icon={SquarePen} label={t('edo.nav.editor')} collapsed={collapsed} />
 
+          {/* ── Statistika ── */}
+          {!collapsed ? (
+            <div className="mt-6 mb-2 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wide">
+              {t('edo.nav.statistika')}
+            </div>
+          ) : (
+            <div className="mt-4 border-t border-white/10" />
+          )}
+          <EdoNav to="/edo/reports" icon={BarChart3} label={t('edo.nav.statistika')} collapsed={collapsed} />
+          <EdoNav to="/edo/hisobotlar" icon={FileSpreadsheet} label={t('edo.nav.hisobotlar')} collapsed={collapsed} />
+
+          {/* ── Vositalar ── */}
           {!collapsed ? (
             <div className="mt-6 mb-2 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wide">
               {t('edo.nav.tools')}
             </div>
           ) : (
-            <div className="mt-4 border-t border-slate-100" />
+            <div className="mt-4 border-t border-white/10" />
           )}
           <EdoNav to="/edo/templates" icon={Files} label={t('edo.nav.templates')} collapsed={collapsed} />
-          <EdoNav to="/edo/reports" icon={BarChart3} label={t('edo.nav.reports')} collapsed={collapsed} />
+          <EdoNav to="/edo/approval" icon={CheckCircle2} label={t('edo.nav.approval_status')} collapsed={collapsed} />
+          <EdoNav to="/edo/archive" icon={FileSearch} label={t('edo.nav.archive')} collapsed={collapsed} />
 
           {!collapsed ? (
             <div className="mt-6 mb-2 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wide">
               {t('common.settings')}
             </div>
           ) : (
-            <div className="mt-4 border-t border-slate-100" />
+            <div className="mt-4 border-t border-white/10" />
           )}
           <button
             onClick={openLanguage}
             title={collapsed ? t('common.language') : undefined}
             className={cn(
-              'flex items-center rounded-lg text-sm font-medium text-slate-700 hover:bg-brand-50 hover:text-brand-700 transition-colors text-left',
+              'flex items-center rounded-lg text-sm font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-colors text-left',
               collapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-4 py-2.5',
             )}
           >
@@ -170,7 +240,7 @@ export function LayoutEdo() {
             onClick={openTheme}
             title={collapsed ? t('common.theme') : undefined}
             className={cn(
-              'flex items-center rounded-lg text-sm font-medium text-slate-700 hover:bg-brand-50 hover:text-brand-700 transition-colors text-left',
+              'flex items-center rounded-lg text-sm font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-colors text-left',
               collapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-4 py-2.5',
             )}
           >
@@ -181,7 +251,7 @@ export function LayoutEdo() {
             onClick={openDesign}
             title={collapsed ? t('common.design') : undefined}
             className={cn(
-              'flex items-center rounded-lg text-sm font-medium text-slate-700 hover:bg-brand-50 hover:text-brand-700 transition-colors text-left',
+              'flex items-center rounded-lg text-sm font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-colors text-left',
               collapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-4 py-2.5',
             )}
           >
