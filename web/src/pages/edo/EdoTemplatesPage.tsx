@@ -511,7 +511,7 @@ function RichTemplateEditor({
         onKeyUp={saveSelection}
         onMouseUp={saveSelection}
         onBlur={saveSelection}
-        className="prose prose-sm max-w-none min-h-[220px] max-h-[420px] overflow-y-auto px-3 py-2 text-sm text-slate-800 outline-none"
+        className="edo-doc-body prose prose-sm max-w-none min-h-[220px] max-h-[420px] overflow-y-auto px-3 py-2 text-sm text-slate-800 outline-none"
       />
     </div>
   );

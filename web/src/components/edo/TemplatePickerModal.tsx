@@ -21,17 +21,6 @@ function applyTemplate(body: string, values: Record<string, string>): string {
   return body.replace(PLACEHOLDER_RE, (_m, key) => escapeHtml(values[key] ?? ''));
 }
 
-// HTML'ni oddiy matnga aylantiradi — xujjat matni oddiy matn bo'lgani uchun
-function htmlToText(html: string): string {
-  const div = document.createElement('div');
-  div.innerHTML = html;
-  div.querySelectorAll('br').forEach((br) => br.replaceWith('\n'));
-  div
-    .querySelectorAll('p, div, li, tr, h1, h2, h3, h4, h5, h6, blockquote')
-    .forEach((el) => el.append('\n'));
-  return (div.textContent ?? '').replace(/\n{3,}/g, '\n\n').trim();
-}
-
 export function TemplatePickerModal({
   onClose,
   onPick,
@@ -78,7 +67,7 @@ export function TemplatePickerModal({
 
   const handleApply = () => {
     if (!selected) return;
-    onPick(htmlToText(applyTemplate(selected.bodyTemplate, values)));
+    onPick(applyTemplate(selected.bodyTemplate, values));
     onClose();
   };
 
@@ -201,7 +190,7 @@ export function TemplatePickerModal({
                 </div>
                 <div
                   className={cn(
-                    'prose prose-sm max-w-none text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2',
+                    'edo-doc-body prose prose-sm max-w-none text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2',
                     'text-slate-800 max-h-72 overflow-auto',
                   )}
                   dangerouslySetInnerHTML={{ __html: preview }}

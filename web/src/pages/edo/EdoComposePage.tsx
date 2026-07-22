@@ -23,6 +23,7 @@ import type { Department, DocumentType, EdoDocument } from '../../lib/types';
 import { useAuth } from '../../context/AuthContext';
 import { Avatar } from '../../components/Avatar';
 import { TemplatePickerModal } from '../../components/edo/TemplatePickerModal';
+import { RichBodyEditor } from '../../components/edo/RichBodyEditor';
 
 const FILE_ACCEPT =
   '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.7z,.txt,.csv,image/*,video/*';
@@ -517,13 +518,11 @@ export function EdoComposePage() {
           {/* Hujjat matni */}
           <div>
             <label className={labelCls}>{t('edo.compose.label_body')}</label>
-            <textarea
+            <RichBodyEditor
               value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder={t('edo.compose.ph_body')}
-              rows={10}
+              onChange={setBody}
               disabled={!isDraft}
-              className={`${fieldCls} resize-y`}
+              placeholder={t('edo.compose.ph_body')}
             />
           </div>
 
@@ -783,7 +782,7 @@ export function EdoComposePage() {
         <TemplatePickerModal
           onClose={() => setShowTemplatePicker(false)}
           onPick={(picked) =>
-            setBody((prev) => (prev.trim() ? prev + '\n' + picked : picked))
+            setBody((prev) => (prev.trim() ? prev + picked : picked))
           }
         />
       )}

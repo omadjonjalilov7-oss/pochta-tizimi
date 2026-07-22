@@ -20,6 +20,7 @@ import { UsersService } from '../users/users.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { SendDocumentDto } from './dto/send-document.dto';
+import { sanitizeRichHtml } from '../common/sanitize';
 import {
   ApproveDocumentDto,
   ApproveOverdueDocumentDto,
@@ -211,7 +212,7 @@ export class DocumentsService {
           type: dto.type,
           subject: dto.subject,
           shortInfo: dto.shortInfo,
-          body: dto.body ?? '',
+          body: sanitizeRichHtml(dto.body ?? ''),
           status: 'draft',
           isExternal: dto.type === 'outgoing',
           externalRecipient: dto.type === 'outgoing' ? dto.externalRecipient : null,
@@ -266,7 +267,7 @@ export class DocumentsService {
     const data: Prisma.DocumentUpdateInput = {};
     if (dto.subject !== undefined) data.subject = dto.subject;
     if (dto.shortInfo !== undefined) data.shortInfo = dto.shortInfo;
-    if (dto.body !== undefined) data.body = dto.body;
+    if (dto.body !== undefined) data.body = sanitizeRichHtml(dto.body);
     if (dto.externalRecipient !== undefined && doc.type === 'outgoing') {
       data.externalRecipient = dto.externalRecipient;
     }

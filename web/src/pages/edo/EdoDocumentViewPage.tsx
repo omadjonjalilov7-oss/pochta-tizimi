@@ -251,9 +251,16 @@ export function EdoDocumentViewPage() {
             <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">
               {t('edo.view.body')}
             </h2>
-            <div className="prose prose-sm max-w-none whitespace-pre-wrap text-slate-800">
-              {doc.body}
-            </div>
+            {/^\s*<[a-z]/i.test(doc.body || '') ? (
+              <div
+                className="edo-doc-body prose prose-sm max-w-none text-slate-800"
+                dangerouslySetInnerHTML={{ __html: doc.body }}
+              />
+            ) : (
+              <div className="prose prose-sm max-w-none whitespace-pre-wrap text-slate-800">
+                {doc.body}
+              </div>
+            )}
 
             {((doc.attachments?.length ?? 0) > 0 || canUploadAttachment) && (
               <div className="mt-5 pt-4 border-t border-slate-100">
@@ -652,6 +659,15 @@ function WordExportButton({
       word-wrap: break-word;
       line-height: 1.4;
       font-size: 10px;
+    }
+    .body-text table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    .body-text td, .body-text th {
+      border: 1px solid #333;
+      padding: 3px 5px;
+      vertical-align: top;
     }
     .footer-table {
       margin-top: 0.5cm;

@@ -237,3 +237,24 @@ input, textarea, select {
 [data-theme="dark"] .external-mail-body pre { background: #1e293b; }
 [data-theme="dark"] .external-mail-body table td,
 [data-theme="dark"] .external-mail-body table th { border-color: #334155; }
+
+/* EDO hujjat matni — Word'dan kelgan jadval/formatlashni ko'rsatadi */
+.edo-doc-body table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 100%;
+}
+.edo-doc-body table td,
+.edo-doc-body table th {
+  padding: 4px 8px;
+  border: 1px solid #94a3b8;
+  vertical-align: top;
+}
+.edo-doc-body p { margin: 0.4em 0; }
+.edo-doc-body:empty::before,
+.edo-doc-body[data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+}
+[data-theme="dark"] .edo-doc-body table td,
+[data-theme="dark"] .edo-doc-body table th { border-color: #475569; }
