@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from 'react';
-import { Navigate, useNavigate, Link } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Mail, Eye, EyeOff, Languages } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -142,13 +142,6 @@ export function LoginPage() {
           >
             {submitting ? t('auth.signing_in') : t('auth.sign_in')}
           </button>
-
-          <div className="text-center text-sm text-slate-600">
-            Akkauntingiz yo'qmi?{' '}
-            <Link to="/register" className="text-brand-600 hover:text-brand-700 font-semibold">
-              Ro'yxatdan o'tish
-            </Link>
-          </div>
         </form>
 
         <p className="text-center text-xs text-slate-400 mt-6">
