@@ -206,8 +206,11 @@ export class ImapPollService implements OnModuleInit {
           // Dedup tekshiruvi
           let existing: { id: string; isRead: boolean } | null = null;
 
-          // INBOX uchun: Message-ID orqali qidirish
-          if (targetFolder === MessageFolder.inbox && messageIdHeader) {
+          // Har ikki papka uchun: Message-ID orqali qidirish (asosiy dedup).
+          // Bu bo'lmasa Sent papka har pollda tashqi yuborilgan xabarni
+          // qayta-qayta yaratardi (fromUserId=null bo'lgani uchun pastdagi
+          // subject+date match unga tushmaydi).
+          if (messageIdHeader) {
             const found = await this.prisma.messageRecipient.findFirst({
               where: {
                 userId,
@@ -218,7 +221,7 @@ export class ImapPollService implements OnModuleInit {
             if (found) existing = { id: found.messageId, isRead: found.isRead };
           }
 
-          // Sent folder uchun: O'z mesajlarni topish uchun subject + date bo'yicha
+          // Sent folder uchun: ichki (app orqali) yuborilgan xabarni subject + date bo'yicha topish
           if (!existing && targetFolder === MessageFolder.sent && messageIdHeader) {
             const subject = m.envelope?.subject || '';
             const sentDate = m.envelope?.date || new Date();
