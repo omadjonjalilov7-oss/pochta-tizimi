@@ -306,12 +306,17 @@ export class ImapPollService implements OnModuleInit {
           importedCount++;
         }
 
-        // Oxirgi UID va sinx vaqtini saqlash
+        // Oxirgi UID va sinx vaqtini saqlash.
+        // MUHIM: externalMailLastUid faqat INBOX uchun. Sent folder'ning UID
+        // fazosi boshqacha — uni yozsak, INBOX lastUid buzilib har pollda
+        // hamma xabar qayta import bo'lardi.
         await this.prisma.user.update({
           where: { id: userId },
           data: {
             externalMailLastSyncAt: new Date(),
-            externalMailLastUid: maxUid,
+            ...(targetFolder === MessageFolder.inbox
+              ? { externalMailLastUid: maxUid }
+              : {}),
           },
         });
 
