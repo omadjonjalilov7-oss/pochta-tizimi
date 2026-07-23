@@ -174,7 +174,7 @@ export function EdoDocumentViewPage() {
     .filter((t) => t.userId === user?.id && t.status !== 'done');
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-6">
+    <div className="max-w-7xl mx-auto px-6 py-6">
       {/* Shapka — hujjat ma'lumotlari */}
       <header className="bg-white border border-slate-200 rounded-2xl p-6 mb-4">
         <div className="flex items-start gap-4">
@@ -252,10 +252,12 @@ export function EdoDocumentViewPage() {
               {t('edo.view.body')}
             </h2>
             {/^\s*<[a-z]/i.test(doc.body || '') ? (
-              <div
-                className="edo-doc-body prose prose-sm max-w-none text-slate-800"
-                dangerouslySetInnerHTML={{ __html: doc.body }}
-              />
+              <div className="overflow-x-auto">
+                <div
+                  className="edo-doc-body prose prose-sm max-w-none text-slate-800"
+                  dangerouslySetInnerHTML={{ __html: doc.body }}
+                />
+              </div>
             ) : (
               <div className="prose prose-sm max-w-none whitespace-pre-wrap text-slate-800">
                 {doc.body}
