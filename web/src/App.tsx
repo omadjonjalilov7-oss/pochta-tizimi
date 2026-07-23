@@ -17,6 +17,7 @@ import { EdoComposePage } from './pages/edo/EdoComposePage';
 import { EdoDocumentViewPage } from './pages/edo/EdoDocumentViewPage';
 import { EdoTemplatesPage } from './pages/edo/EdoTemplatesPage';
 import { EdoReportsPage } from './pages/edo/EdoReportsPage';
+import { EdoStatsPage } from './pages/edo/EdoStatsPage';
 import { EdoHisobotlarPage } from './pages/edo/EdoHisobotlarPage';
 import { EdoChatPage } from './pages/edo/EdoChatPage';
 import { EdoApprovalPage } from './pages/edo/EdoApprovalPage';
@@ -84,6 +85,7 @@ export function App() {
           <Route path="archive" element={<EdoArchivePage />} />
           <Route path="signing" element={<EdoToSignPage />} />
           <Route path="templates" element={<EdoTemplatesPage />} />
+          <Route path="stats" element={<EdoStatsPage />} />
           <Route path="reports" element={<EdoReportsPage />} />
           <Route path="hisobotlar" element={<EdoHisobotlarPage />} />
         </Route>

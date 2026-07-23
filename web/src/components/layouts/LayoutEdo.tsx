@@ -15,6 +15,7 @@ import {
   FileSignature,
   Files,
   BarChart3,
+  PieChart,
   FileSpreadsheet,
   CheckCircle2,
   CalendarDays,
@@ -132,6 +133,7 @@ function NewDocButton({ collapsed }: { collapsed?: boolean }) {
 export function LayoutEdo() {
   const { t } = useTranslation();
   const { user, notification, handleLogout } = useLayoutData();
+  const isStaff = user.role === 'admin' || user.role === 'chancellery';
   const { openTheme, openDesign, openLanguage, modals } = useAppearanceModals();
   // Menu har doim ochiq turadi (compose sahifasida ham kichraymaydi)
   const collapsed = false;
@@ -203,6 +205,9 @@ export function LayoutEdo() {
             </div>
           ) : (
             <div className="mt-4 border-t border-white/10" />
+          )}
+          {isStaff && (
+            <EdoNav to="/edo/stats" icon={PieChart} label={t('edo.nav.stats_panel')} collapsed={collapsed} />
           )}
           <EdoNav to="/edo/reports" icon={BarChart3} label={t('edo.nav.statistika')} collapsed={collapsed} />
           <EdoNav to="/edo/hisobotlar" icon={FileSpreadsheet} label={t('edo.nav.hisobotlar')} collapsed={collapsed} />

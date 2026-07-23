@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Camera, Trash2, Mail, CheckCircle2, AlertCircle, Loader2, LinkIcon, Unlink, RefreshCw, Stethoscope, X, Bell, ShieldCheck } from 'lucide-react';
+import { Camera, Trash2, Mail, CheckCircle2, AlertCircle, Loader2, LinkIcon, Unlink, RefreshCw, Stethoscope, X, Bell, ShieldCheck, Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { Avatar } from '../components/Avatar';
@@ -154,6 +154,91 @@ export function ProfilePage() {
       </div>
 
       <ExternalMailSection />
+
+      {user.role === 'admin' && <ProtectedLoginsSection />}
+    </div>
+  );
+}
+
+function ProtectedLoginsSection() {
+  const { t } = useTranslation();
+  const [value, setValue] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await api.get<{ logins: string[] }>('/users/protected-logins');
+        setValue((data.logins || []).join(', '));
+      } catch {
+        // ignore
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const save = async () => {
+    setSaving(true);
+    setMsg(null);
+    try {
+      const logins = value
+        .split(/[\s,;\n]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const { data } = await api.patch<{ logins: string[] }>('/users/protected-logins', { logins });
+      setValue((data.logins || []).join(', '));
+      setMsg({ type: 'ok', text: t('profile.protected_saved') });
+    } catch (e: any) {
+      setMsg({ type: 'err', text: e.response?.data?.message || t('common.error') });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="flex items-center gap-3 px-8 py-5 border-b border-slate-100 bg-gradient-to-r from-amber-50/50 to-white">
+        <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
+          <Lock size={20} />
+        </div>
+        <div className="flex-1">
+          <h2 className="text-base font-semibold text-slate-900">{t('profile.protected_title')}</h2>
+          <p className="text-xs text-slate-500">{t('profile.protected_subtitle')}</p>
+        </div>
+      </div>
+      <div className="p-8 space-y-3">
+        {loading ? (
+          <div className="text-sm text-slate-400">{t('common.loading')}</div>
+        ) : (
+          <>
+            <textarea
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder={t('profile.protected_placeholder')}
+              rows={3}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+            />
+            <p className="text-xs text-slate-400">{t('profile.protected_hint')}</p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={save}
+                disabled={saving}
+                className="bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white text-sm font-semibold px-4 py-2 rounded-lg"
+              >
+                {saving ? t('common.saving') : t('common.save')}
+              </button>
+              {msg && (
+                <span className={cn('text-xs', msg.type === 'ok' ? 'text-green-600' : 'text-red-600')}>
+                  {msg.text}
+                </span>
+              )}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

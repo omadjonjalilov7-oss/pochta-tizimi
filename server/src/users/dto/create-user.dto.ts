@@ -54,6 +54,11 @@ export class CreateUserDto {
   @IsBoolean()
   canSignExternal?: boolean;
 
+  // Maxfiy loginlarni ko'ra oladimi (admin yoqadi)
+  @IsOptional()
+  @IsBoolean()
+  canSeeProtected?: boolean;
+
   // EDO roli: admin | chancellery (konselyariya) | user
   @IsOptional()
   @IsIn(['admin', 'chancellery', 'user'])

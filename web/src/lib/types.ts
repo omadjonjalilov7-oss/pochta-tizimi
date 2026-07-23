@@ -33,6 +33,8 @@ export interface User {
   externalMailLogin?: string | null;
   isActive: boolean;
   isAdmin: boolean;
+  isProtected?: boolean;
+  canSeeProtected?: boolean;
   role: 'admin' | 'chancellery' | 'user';
   notifyEdo?: boolean;
   hasApprovalPin?: boolean;

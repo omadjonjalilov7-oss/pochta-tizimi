@@ -18,6 +18,7 @@ import { DocumentsModule } from './documents/documents.module';
 import { TemplatesModule } from './templates/templates.module';
 import { ChatModule } from './chat/chat.module';
 import { ContactGroupsModule } from './contact-groups/contact-groups.module';
+import { StatsModule } from './stats/stats.module';
 
 const avatarsDir = process.env.AVATARS_DIR || 'C:\\D\\pochta\\storage\\avatars';
 
@@ -58,6 +59,7 @@ const staticImports = [
     TemplatesModule,
     ChatModule,
     ContactGroupsModule,
+    StatsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

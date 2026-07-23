@@ -16,7 +16,7 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { SetApprovalPinDto } from './dto/approval-pin.dto';
-import { IsBoolean } from 'class-validator';
+import { IsArray, IsBoolean, IsOptional, IsString } from 'class-validator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { CurrentUser, CurrentUserPayload } from '../auth/decorators/current-user.decorator';
@@ -26,15 +26,37 @@ class UpdatePreferencesDto {
   notifyEdo: boolean;
 }
 
+class SetProtectedLoginsDto {
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  logins?: string[];
+}
+
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
   constructor(private readonly users: UsersService) {}
 
   // hamma autentifikatsiya qilingan foydalanuvchilar ko'ra oladi (kontaktlar uchun)
+  // Maxfiy loginlar faqat admin / ruxsat berilganlar uchun ko'rinadi
   @Get()
-  findAll() {
-    return this.users.findAll();
+  findAll(@CurrentUser() user: CurrentUserPayload) {
+    return this.users.findAll(user);
+  }
+
+  // Admin: maxfiy loginlar ro'yxatini olish
+  @Get('protected-logins')
+  @UseGuards(AdminGuard)
+  getProtectedLogins() {
+    return this.users.getProtectedLogins();
+  }
+
+  // Admin: maxfiy loginlar ro'yxatini o'rnatish
+  @Patch('protected-logins')
+  @UseGuards(AdminGuard)
+  setProtectedLogins(@Body() dto: SetProtectedLoginsDto) {
+    return this.users.setProtectedLogins(dto.logins ?? []);
   }
 
   // avatar yuklash — foydalanuvchining o'zi

@@ -25,8 +25,15 @@ export class UsersService {
     private readonly externalMail: ExternalMailService,
   ) {}
 
-  async findAll() {
+  async findAll(requester?: { id: string; role?: string; canSeeProtected?: boolean }) {
+    // Maxfiy loginlar: faqat admin yoki canSeeProtected yoqilgan xodimlar (va egasi o'zi) ko'radi
+    const canSeeAll =
+      !requester || requester.role === 'admin' || requester.canSeeProtected === true;
+    const where = canSeeAll
+      ? {}
+      : { OR: [{ isProtected: false }, { id: requester.id }] };
     const users = await this.prisma.user.findMany({
+      where,
       include: { department: true, position: true },
       orderBy: [
         { position: { rank: 'asc' } },
@@ -34,6 +41,39 @@ export class UsersService {
       ],
     });
     return users.map((u) => this.sanitize(u));
+  }
+
+  // Admin: maxfiy loginlar ro'yxatini olish
+  async getProtectedLogins() {
+    const users = await this.prisma.user.findMany({
+      where: { isProtected: true },
+      select: { login: true },
+      orderBy: { login: 'asc' },
+    });
+    return { logins: users.map((u) => u.login) };
+  }
+
+  // Admin: maxfiy loginlar ro'yxatini o'rnatish (ro'yxatdagilar maxfiy, qolganlar oddiy)
+  async setProtectedLogins(logins: string[]) {
+    const wanted = new Set(
+      logins.map((l) => l.trim().toLowerCase()).filter((l) => l.length > 0),
+    );
+    const all = await this.prisma.user.findMany({ select: { id: true, login: true } });
+    const protectedIds = all
+      .filter((u) => wanted.has(u.login.toLowerCase()))
+      .map((u) => u.id);
+    await this.prisma.$transaction([
+      this.prisma.user.updateMany({ data: { isProtected: false } }),
+      ...(protectedIds.length > 0
+        ? [
+            this.prisma.user.updateMany({
+              where: { id: { in: protectedIds } },
+              data: { isProtected: true },
+            }),
+          ]
+        : []),
+    ]);
+    return this.getProtectedLogins();
   }
 
   async findOne(id: string) {
@@ -94,6 +134,7 @@ export class UsersService {
         canSignExternal: dto.canSignExternal ?? false,
         role: dto.role ?? 'user',
         isAdmin: (dto.role ?? 'user') === 'admin', // legacy ustunni sinxron saqlaymiz
+        canSeeProtected: dto.canSeeProtected ?? false,
         ...externalData,
       },
       include: { department: true, position: true },

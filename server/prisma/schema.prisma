@@ -77,6 +77,10 @@ model User {
   // EDO: tashqi yuboriladigan hujjatlarni E-IMZO bilan imzolash huquqi (faqat tor doiradagi xodimlar)
   canSignExternal Boolean  @default(false) @map("can_sign_external")
   isActive        Boolean  @default(true) @map("is_active")
+  // Maxfiy login: bu foydalanuvchi oddiy xodimlarga ro'yxatlarda ko'rinmaydi
+  isProtected     Boolean  @default(false) @map("is_protected")
+  // Maxfiy loginlarni ko'ra oladimi (admin yoqib qo'yadi)
+  canSeeProtected Boolean  @default(false) @map("can_see_protected")
   // LEGACY: role kiritilgandan keyin faqat migratsiya uchun saqlanadi (keyingi bosqichda o'chiriladi)
   isAdmin         Boolean  @default(false) @map("is_admin")
   role            UserRole @default(user) @map("role")

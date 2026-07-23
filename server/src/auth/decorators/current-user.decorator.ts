@@ -6,6 +6,7 @@ export interface CurrentUserPayload {
   id: string;
   login: string;
   role: UserRoleName;
+  canSeeProtected?: boolean;
 }
 
 export const CurrentUser = createParamDecorator(

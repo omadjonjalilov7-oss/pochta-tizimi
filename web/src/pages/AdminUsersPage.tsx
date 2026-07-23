@@ -237,6 +237,7 @@ function UserModal({
   const [managerId, setManagerId] = useState(user?.managerId || '');
   const [canSendExternal, setCanSendExternal] = useState(user?.canSendExternal || false);
   const [canSignExternal, setCanSignExternal] = useState(user?.canSignExternal || false);
+  const [canSeeProtected, setCanSeeProtected] = useState(user?.canSeeProtected || false);
   const [role, setRole] = useState<'admin' | 'chancellery' | 'user'>(user?.role || 'user');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -272,6 +273,7 @@ function UserModal({
         managerId: managerId || undefined,
         canSendExternal,
         canSignExternal,
+        canSeeProtected,
         role,
       };
       if (mailType === 'external') {
@@ -484,6 +486,16 @@ function UserModal({
               />
               {t('admin.can_sign_external')}
             </label>
+            <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={canSeeProtected}
+                onChange={(e) => setCanSeeProtected(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+              />
+              {t('admin.can_see_protected')}
+            </label>
+            <p className="text-xs text-slate-400 pl-6">{t('admin.can_see_protected_hint')}</p>
           </div>
 
           <div>

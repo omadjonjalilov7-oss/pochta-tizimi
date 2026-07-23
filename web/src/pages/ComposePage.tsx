@@ -781,7 +781,7 @@ function RecipientRow({
                   <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 border-b border-slate-100">
                     {grpName}
                   </div>
-                  {members.slice(0, 30).map((c) => (
+                  {members.slice(0, 200).map((c) => (
                     <ContactOption key={c.id} c={c} onPick={onPick} />
                   ))}
                 </div>
@@ -791,14 +791,14 @@ function RecipientRow({
                   <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 border-b border-slate-100">
                     Boshqalar
                   </div>
-                  {groupedContacts.ungrouped.slice(0, 30).map((c) => (
+                  {groupedContacts.ungrouped.slice(0, 200).map((c) => (
                     <ContactOption key={c.id} c={c} onPick={onPick} />
                   ))}
                 </div>
               )}
             </>
           ) : (
-            suggestions.slice(0, 50).map((c) => (
+            suggestions.slice(0, 200).map((c) => (
               <ContactOption key={c.id} c={c} onPick={onPick} />
             ))
           )}
