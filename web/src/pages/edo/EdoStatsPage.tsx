@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Navigate } from 'react-router-dom';
-import { BarChart3, Building2, Users, FileSignature, Handshake } from 'lucide-react';
+import { Navigate, useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../lib/utils';
@@ -70,8 +69,10 @@ export function EdoStatsPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const isStaff = user?.role === 'admin' || user?.role === 'chancellery';
+  const { view } = useParams<{ view?: string }>();
   const [{ from, to }, setRange] = useState(defaultRange);
-  const [tab, setTab] = useState<TabKey>('overview');
+  const validViews: TabKey[] = ['overview', 'departments', 'staff', 'signing', 'approvals'];
+  const tab: TabKey = validViews.includes(view as TabKey) ? (view as TabKey) : 'overview';
 
   const params = useMemo(() => {
     const p = new URLSearchParams();
@@ -112,14 +113,6 @@ export function EdoStatsPage() {
 
   if (!isStaff) return <Navigate to="/edo" replace />;
 
-  const tabs: { key: TabKey; label: string; icon: typeof BarChart3 }[] = [
-    { key: 'overview', label: t('edo.stats.tab_overview'), icon: BarChart3 },
-    { key: 'departments', label: t('edo.stats.tab_departments'), icon: Building2 },
-    { key: 'staff', label: t('edo.stats.tab_staff'), icon: Users },
-    { key: 'signing', label: t('edo.stats.tab_signing'), icon: FileSignature },
-    { key: 'approvals', label: t('edo.stats.tab_approvals'), icon: Handshake },
-  ];
-
   const th = 'px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide';
   const td = 'px-3 py-2 text-sm text-slate-700 whitespace-nowrap';
 
@@ -127,7 +120,7 @@ export function EdoStatsPage() {
     <div className="max-w-6xl mx-auto px-6 py-6 space-y-5">
       <div className="flex flex-wrap items-end gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">{t('edo.stats.title')}</h1>
+          <h1 className="text-xl font-semibold text-slate-900">{t(`edo.stats.tab_${tab}`)}</h1>
           <p className="text-xs text-slate-500 mt-0.5">{t('edo.stats.subtitle')}</p>
         </div>
         <div className="ml-auto flex items-end gap-2">
@@ -150,24 +143,6 @@ export function EdoStatsPage() {
             />
           </div>
         </div>
-      </div>
-
-      <div className="flex flex-wrap gap-1.5 border-b border-slate-200">
-        {tabs.map((tb) => (
-          <button
-            key={tb.key}
-            onClick={() => setTab(tb.key)}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-lg -mb-px border-b-2 transition-colors',
-              tab === tb.key
-                ? 'border-asaka-600 text-asaka-700'
-                : 'border-transparent text-slate-500 hover:text-slate-800',
-            )}
-          >
-            <tb.icon size={16} />
-            {tb.label}
-          </button>
-        ))}
       </div>
 
       {tab === 'overview' && (

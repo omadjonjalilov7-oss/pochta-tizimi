@@ -86,6 +86,7 @@ export function App() {
           <Route path="signing" element={<EdoToSignPage />} />
           <Route path="templates" element={<EdoTemplatesPage />} />
           <Route path="stats" element={<EdoStatsPage />} />
+          <Route path="stats/:view" element={<EdoStatsPage />} />
           <Route path="reports" element={<EdoReportsPage />} />
           <Route path="hisobotlar" element={<EdoHisobotlarPage />} />
         </Route>

@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import {
   Home,
@@ -25,6 +25,8 @@ import {
   SquarePen,
   Handshake,
   ChevronsUp,
+  ChevronDown,
+  Users,
   Search,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -67,6 +69,70 @@ function EdoNav({
       <Icon size={18} />
       {!collapsed && <span className="flex-1">{label}</span>}
     </NavLink>
+  );
+}
+
+function EdoNavGroup({
+  icon: Icon,
+  label,
+  basePath,
+  items,
+  collapsed,
+}: {
+  icon: typeof Inbox;
+  label: string;
+  basePath: string;
+  items: { to: string; icon: typeof Inbox; label: string }[];
+  collapsed?: boolean;
+}) {
+  const location = useLocation();
+  const childActive = location.pathname.startsWith(basePath);
+  const [open, setOpen] = useState(childActive);
+
+  useEffect(() => {
+    if (childActive) setOpen(true);
+  }, [childActive]);
+
+  if (collapsed) {
+    return <EdoNav to={`${basePath}/overview`} icon={Icon} label={label} collapsed />;
+  }
+
+  return (
+    <div>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          'w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors',
+          childActive ? 'text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white',
+        )}
+      >
+        <Icon size={18} />
+        <span className="flex-1 text-left">{label}</span>
+        <ChevronDown size={16} className={cn('transition-transform', open && 'rotate-180')} />
+      </button>
+      {open && (
+        <div className="mt-1 ml-3 pl-3 border-l border-white/10 flex flex-col gap-1">
+          {items.map((it) => (
+            <NavLink
+              key={it.to}
+              to={it.to}
+              end
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors',
+                  isActive
+                    ? 'bg-asaka-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:bg-white/10 hover:text-white',
+                )
+              }
+            >
+              <it.icon size={15} />
+              <span className="flex-1">{it.label}</span>
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -207,7 +273,19 @@ export function LayoutEdo() {
             <div className="mt-4 border-t border-white/10" />
           )}
           {isStaff && (
-            <EdoNav to="/edo/stats" icon={PieChart} label={t('edo.nav.stats_panel')} collapsed={collapsed} />
+            <EdoNavGroup
+              icon={PieChart}
+              label={t('edo.nav.stats_panel')}
+              basePath="/edo/stats"
+              collapsed={collapsed}
+              items={[
+                { to: '/edo/stats/overview', icon: BarChart3, label: t('edo.stats.tab_overview') },
+                { to: '/edo/stats/staff', icon: Users, label: t('edo.stats.tab_staff') },
+                { to: '/edo/stats/departments', icon: Building2, label: t('edo.stats.tab_departments') },
+                { to: '/edo/stats/signing', icon: FileSignature, label: t('edo.stats.tab_signing') },
+                { to: '/edo/stats/approvals', icon: Handshake, label: t('edo.stats.tab_approvals') },
+              ]}
+            />
           )}
           <EdoNav to="/edo/reports" icon={BarChart3} label={t('edo.nav.statistika')} collapsed={collapsed} />
           <EdoNav to="/edo/hisobotlar" icon={FileSpreadsheet} label={t('edo.nav.hisobotlar')} collapsed={collapsed} />
