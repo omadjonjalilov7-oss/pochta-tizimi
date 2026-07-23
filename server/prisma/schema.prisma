@@ -674,3 +674,12 @@ model DocUidCounter {
 
   @@map("doc_uid_counters")
 }
+
+// Tizim sozlamalari — kalit/qiymat (masalan: internal_deadline_days)
+model AppSetting {
+  key       String   @id @db.VarChar(64)
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("app_settings")
+}

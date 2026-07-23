@@ -79,7 +79,10 @@ export function TemplatePickerModal({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col"
+        className={cn(
+          'bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] flex flex-col',
+          selected ? 'max-w-5xl' : 'max-w-3xl',
+        )}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
@@ -161,13 +164,14 @@ export function TemplatePickerModal({
           </>
         ) : (
           <>
-            <div className="overflow-y-auto flex-1 p-5 space-y-4">
-              {selected.placeholders.length > 0 && (
-                <div>
-                  <div className="text-sm font-medium text-slate-700 mb-2">
-                    {t('edo.template_picker.fill_fields')}
-                  </div>
-                  <div className="space-y-2.5">
+            <div className="overflow-hidden flex-1 grid md:grid-cols-2 gap-0 md:divide-x divide-slate-200">
+              {/* Chap: maydonlarni to'ldirish */}
+              <div className="overflow-y-auto p-5 space-y-2.5">
+                {selected.placeholders.length > 0 ? (
+                  <>
+                    <div className="text-sm font-medium text-slate-700 mb-1">
+                      {t('edo.template_picker.fill_fields')}
+                    </div>
                     {selected.placeholders.map((p) => (
                       <div key={p}>
                         <label className="block text-xs font-medium text-slate-600 mb-1">
@@ -181,18 +185,20 @@ export function TemplatePickerModal({
                         />
                       </div>
                     ))}
+                  </>
+                ) : (
+                  <div className="text-sm text-slate-500">
+                    {t('edo.template_picker.no_fields')}
                   </div>
-                </div>
-              )}
-              <div>
+                )}
+              </div>
+              {/* O'ng: jonli ko'rinish — ma'lumot kiritilganda hujjat shakllanib boradi */}
+              <div className="overflow-y-auto p-5 bg-slate-50/60">
                 <div className="text-sm font-medium text-slate-700 mb-2">
                   {t('edo.template_picker.preview')}
                 </div>
                 <div
-                  className={cn(
-                    'edo-doc-body prose prose-sm max-w-none text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2',
-                    'text-slate-800 max-h-72 overflow-auto',
-                  )}
+                  className="edo-doc-body prose prose-sm max-w-none text-sm bg-white border border-slate-200 rounded-lg px-3 py-3 text-slate-800"
                   dangerouslySetInnerHTML={{ __html: preview }}
                 />
                 <p className="mt-1.5 text-xs text-slate-400">

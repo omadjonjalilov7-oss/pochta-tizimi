@@ -463,7 +463,8 @@
       "search": "Qidiruv",
       "templates": "Shablonlar",
       "reports": "Hisobotlar",
-      "hisobotlar": "Hisobotlar"
+      "hisobotlar": "Hisobotlar",
+      "settings": "EDO sozlamalari"
     },
     "search": {
       "title": "Hujjat qidiruvi",
@@ -544,6 +545,7 @@
       "title_new_outgoing": "Chiquvchi hujjat yaratish",
       "type_internal": "Ichki hujjat",
       "type_outgoing": "Chiquvchi hujjat",
+      "type_incoming": "Kiruvchi hujjat",
       "label_journal": "Ro'yxatga olish jurnali",
       "label_doc_number": "Hujjat raqami",
       "label_summary": "Qisqacha mazmuni",
@@ -573,6 +575,7 @@
       "err_required": "Mavzu va matn to'ldirilishi shart",
       "label_deadline": "Bajarish muddati",
       "deadline_hint": "(ixtiyoriy — keyin avtomatik 'Muddati o'tgan' belgilanadi)",
+      "deadline_auto_hint": "Ichki hujjat muddati admin tomonidan {{days}} kun qilib belgilangan — avtomatik hisoblanadi.",
       "pick_template": "Shablon tanlash",
       "label_number_dept": "Hujjat raqami bo'limi",
       "label_target_dept": "Qabul qiluvchi bo'lim",
@@ -729,6 +732,13 @@
       "prev": "Oldingi",
       "next": "Keyingi"
     },
+    "settings": {
+      "title": "EDO sozlamalari",
+      "internal_deadline_label": "Ichki hujjat muddati (kun)",
+      "internal_deadline_placeholder": "masalan: 3",
+      "internal_deadline_hint": "Son kiritilsa — har bir ichki hujjat shu kunga avtomatik belgilanadi va xodim o'zgartira olmaydi. Bo'sh qoldirilsa — xodim muddatni o'zi tanlaydi.",
+      "saved": "Saqlandi"
+    },
     "templates": {
       "title": "Hujjat shablonlari",
       "search_ph": "Nom yoki kategoriya bo'yicha qidirish...",
@@ -747,6 +757,12 @@
       "tb_bold": "Qalin",
       "tb_italic": "Kursiv",
       "tb_list": "Ro'yxat",
+      "tb_align_left": "Chapga tekislash",
+      "tb_align_center": "Markazga tekislash",
+      "tb_align_right": "O'ngga tekislash",
+      "tb_table": "Jadval qo'shish",
+      "table_rows_prompt": "Nechta qator?",
+      "table_cols_prompt": "Nechta ustun?",
       "is_shared": "Hammaga ochiq (boshqa xodimlar ham foydalanishi mumkin)",
       "shared": "Umumiy",
       "personal": "Shaxsiy",
@@ -759,6 +775,7 @@
       "title": "Shablon tanlash",
       "search_ph": "Shablon nomi yoki kategoriyasi...",
       "fill_fields": "Joy almashtiruvchilarni to'ldiring",
+      "no_fields": "Bu shablonda to'ldiriladigan maydonlar yo'q.",
       "preview": "Oldindan ko'rish",
       "plain_note": "Xujjat matniga jadval va formatlash saqlangan holda qo'yiladi.",
       "apply": "Qo'llash"

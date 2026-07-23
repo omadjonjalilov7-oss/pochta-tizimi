@@ -25,9 +25,11 @@ import {
   SquarePen,
   Handshake,
   ChevronsUp,
+  ChevronsDown,
   ChevronDown,
   Users,
   Search,
+  Settings,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Avatar } from '../Avatar';
@@ -136,7 +138,7 @@ function EdoNavGroup({
   );
 }
 
-function NewDocButton({ collapsed }: { collapsed?: boolean }) {
+function NewDocButton({ collapsed, showIncoming }: { collapsed?: boolean; showIncoming?: boolean }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -151,7 +153,7 @@ function NewDocButton({ collapsed }: { collapsed?: boolean }) {
     return () => document.removeEventListener('mousedown', onDoc);
   }, [open]);
 
-  const go = (type: 'outgoing' | 'internal') => {
+  const go = (type: 'outgoing' | 'internal' | 'incoming') => {
     setOpen(false);
     navigate(`/edo/compose?type=${type}`);
   };
@@ -176,6 +178,15 @@ function NewDocButton({ collapsed }: { collapsed?: boolean }) {
             collapsed ? 'left-0 w-56' : 'left-0 right-0',
           )}
         >
+          {showIncoming && (
+            <button
+              onClick={() => go('incoming')}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-asaka-50 hover:text-asaka-700 transition-colors"
+            >
+              <ChevronsDown size={18} className="text-asaka-600" />
+              {t('edo.compose.type_incoming')}
+            </button>
+          )}
           <button
             onClick={() => go('outgoing')}
             className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-asaka-50 hover:text-asaka-700 transition-colors"
@@ -242,7 +253,7 @@ export function LayoutEdo() {
             collapsed ? 'w-[68px]' : 'w-64',
           )}
         >
-          <NewDocButton collapsed={collapsed} />
+          <NewDocButton collapsed={collapsed} showIncoming={isStaff} />
 
           {/* ── Ichki hujjatlar ── */}
           {!collapsed ? (
@@ -309,6 +320,9 @@ export function LayoutEdo() {
             </div>
           ) : (
             <div className="mt-4 border-t border-white/10" />
+          )}
+          {user.role === 'admin' && (
+            <EdoNav to="/edo/settings" icon={Settings} label={t('edo.nav.settings')} collapsed={collapsed} />
           )}
           <button
             onClick={openLanguage}

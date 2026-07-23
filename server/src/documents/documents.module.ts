@@ -9,6 +9,7 @@ import { PdfGeneratorService } from './pdf-generator.service';
 import { ReportService } from './report.service';
 import { MessagesModule } from '../messages/messages.module';
 import { UsersModule } from '../users/users.module';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { UsersModule } from '../users/users.module';
     }),
     forwardRef(() => MessagesModule),
     UsersModule,
+    SettingsModule,
   ],
   controllers: [DocumentsController],
   providers: [DocumentsService, DocumentsCron, QrApprovalService, PdfGeneratorService, ReportService],

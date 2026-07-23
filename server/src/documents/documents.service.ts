@@ -17,6 +17,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MessagesService } from '../messages/messages.service';
 import { MessagesGateway } from '../messages/messages.gateway';
 import { UsersService } from '../users/users.service';
+import { SettingsService } from '../settings/settings.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { SendDocumentDto } from './dto/send-document.dto';
@@ -162,6 +163,7 @@ export class DocumentsService {
     private readonly gateway: MessagesGateway,
     private readonly config: ConfigService,
     private readonly users: UsersService,
+    private readonly settings: SettingsService,
     @Inject(forwardRef(() => QrApprovalService))
     private readonly qrApproval: QrApprovalService,
   ) {
@@ -201,6 +203,16 @@ export class DocumentsService {
     });
     const numberDeptId = dto.numberDeptId ?? creator?.departmentId ?? null;
 
+    // Ichki hujjat muddati: admin sozlamasi bo'lsa (kun soni) — avtomatik hisoblanadi,
+    // aks holda xodim kiritgan sana ishlatiladi.
+    let deadline: Date | null = dto.deadline ? new Date(dto.deadline) : null;
+    if (dto.type === 'internal') {
+      const days = await this.settings.getInternalDeadlineDays();
+      if (days && days > 0) {
+        deadline = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+      }
+    }
+
     const doc = await this.prisma.$transaction(async (tx) => {
       const docUid = await this.allocateDocUid(tx);
       const d = await tx.document.create({
@@ -216,7 +228,7 @@ export class DocumentsService {
           status: 'draft',
           isExternal: dto.type === 'outgoing',
           externalRecipient: dto.type === 'outgoing' ? dto.externalRecipient : null,
-          deadline: dto.deadline ? new Date(dto.deadline) : null,
+          deadline,
           createdById: userId,
           currentHolderId: userId,
           numberDeptId,

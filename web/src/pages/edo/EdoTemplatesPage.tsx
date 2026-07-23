@@ -15,6 +15,10 @@ import {
   List,
   Braces,
   Upload,
+  Table as TableIcon,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import type { EdoTemplate } from '../../lib/types';
@@ -460,14 +464,7 @@ function RichTemplateEditor({
     emit();
   };
 
-  const insertPlaceholder = () => {
-    const raw = window.prompt(t('edo.templates.placeholder_prompt') ?? '');
-    if (!raw) return;
-    const key = raw
-      .trim()
-      .replace(/[^a-zA-Z0-9_]/g, '_')
-      .replace(/^([0-9])/, '_$1');
-    if (!key) return;
+  const restoreSelection = () => {
     const el = ref.current;
     if (!el) return;
     el.focus();
@@ -476,8 +473,56 @@ function RichTemplateEditor({
       sel.removeAllRanges();
       sel.addRange(savedRange.current);
     }
+  };
+
+  const insertPlaceholder = () => {
+    const raw = window.prompt(t('edo.templates.placeholder_prompt') ?? '');
+    if (!raw) return;
+    const key = raw
+      .trim()
+      .replace(/[^a-zA-Z0-9_]/g, '_')
+      .replace(/^([0-9])/, '_$1');
+    if (!key) return;
+    if (!ref.current) return;
+    restoreSelection();
     document.execCommand('insertText', false, `{{${key}}}`);
     emit();
+  };
+
+  const insertTable = () => {
+    const rows = Math.min(20, Math.max(1, parseInt(window.prompt(t('edo.templates.table_rows_prompt') ?? '', '2') || '', 10) || 0));
+    if (!rows) return;
+    const cols = Math.min(10, Math.max(1, parseInt(window.prompt(t('edo.templates.table_cols_prompt') ?? '', '2') || '', 10) || 0));
+    if (!cols) return;
+    if (!ref.current) return;
+    restoreSelection();
+    let html = '<table><tbody>';
+    for (let r = 0; r < rows; r++) {
+      html += '<tr>';
+      for (let c = 0; c < cols; c++) html += '<td>&nbsp;</td>';
+      html += '</tr>';
+    }
+    html += '</tbody></table><p><br></p>';
+    document.execCommand('insertHTML', false, html);
+    emit();
+  };
+
+  // Joriy katak/paragraf uchun matn tekislashini o'rnatadi (jadval ustunlarini tenglash uchun)
+  const alignCell = (dir: 'left' | 'center' | 'right') => {
+    const sel = window.getSelection();
+    let node: Node | null = sel && sel.rangeCount > 0 ? sel.getRangeAt(0).startContainer : null;
+    let block: HTMLElement | null = null;
+    while (node && ref.current?.contains(node)) {
+      if (node instanceof HTMLElement && /^(TD|TH|P|LI|DIV|H1|H2|H3|H4|H5|H6)$/.test(node.tagName)) {
+        block = node;
+        break;
+      }
+      node = node.parentNode;
+    }
+    if (block) {
+      block.style.textAlign = dir;
+      emit();
+    }
   };
 
   return (
@@ -491,6 +536,19 @@ function RichTemplateEditor({
         </ToolBtn>
         <ToolBtn onClick={() => exec('insertUnorderedList')} title={t('edo.templates.tb_list')}>
           <List size={15} />
+        </ToolBtn>
+        <div className="w-px h-5 bg-slate-300 mx-1" />
+        <ToolBtn onClick={() => alignCell('left')} title={t('edo.templates.tb_align_left')}>
+          <AlignLeft size={15} />
+        </ToolBtn>
+        <ToolBtn onClick={() => alignCell('center')} title={t('edo.templates.tb_align_center')}>
+          <AlignCenter size={15} />
+        </ToolBtn>
+        <ToolBtn onClick={() => alignCell('right')} title={t('edo.templates.tb_align_right')}>
+          <AlignRight size={15} />
+        </ToolBtn>
+        <ToolBtn onClick={insertTable} title={t('edo.templates.tb_table')}>
+          <TableIcon size={15} />
         </ToolBtn>
         <div className="w-px h-5 bg-slate-300 mx-1" />
         <button

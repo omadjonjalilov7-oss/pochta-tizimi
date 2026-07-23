@@ -1,12 +1,21 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { DocumentStatus } from '@prisma/client';
+import { DocumentStatus, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MessagesService } from '../messages/messages.service';
 import { MessagesGateway } from '../messages/messages.gateway';
 
 const REMINDER_WINDOW_HOURS = 24; // muddat tugashidan 24 soat oldin eslatma
 const REMINDER_KEY_PREFIX = 'reminded_';
+
+// Ochiq (yakunlanmagan) hujjatlar — xodim harakati kutilayotgan holatlar
+const OPEN_STATUSES = [
+  DocumentStatus.in_review,
+  DocumentStatus.in_progress,
+  DocumentStatus.overdue,
+];
+const DISCIPLINE_MESSAGE =
+  "Sizda ochiq hujjat mavjud tasdiqlab qo'ying aks holda intizomiy chora ko'riladi!";
 
 /**
  * Hujjat muddatlarini kuzatuvchi cron.
@@ -128,6 +137,56 @@ export class DocumentsCron {
       await this.prisma.documentAuditLog.create({
         data: { documentId: d.id, action: key },
       });
+    }
+  }
+
+  /**
+   * Ochiq hujjatlar bo'yicha ogohlantirish popup'lari.
+   * Kuniga 5 marta (9:00, 11:00, 13:00, 15:00, 17:00) ishga tushadi.
+   * - Kanselyariya xodimlariga: tizimda birorta ochiq hujjat bo'lsa ham ogohlantiradi.
+   * - Oddiy foydalanuvchilarga: aynan o'zida turgan (currentHolder) ochiq hujjatlar bo'yicha.
+   * Xabar Pochta yozuvi sifatida saqlanmaydi — faqat realtime popup.
+   */
+  @Cron('0 9,11,13,15,17 * * *')
+  async remindOpenDocuments() {
+    // Kanselyariya: barcha ochiq hujjatlar uchun mas'ul
+    const openCount = await this.prisma.document.count({
+      where: { status: { in: OPEN_STATUSES } },
+    });
+    const notified = new Set<string>();
+    if (openCount > 0) {
+      const chancellery = await this.prisma.user.findMany({
+        where: { role: UserRole.chancellery, isActive: true },
+        select: { id: true },
+      });
+      for (const u of chancellery) {
+        this.pushDisciplineReminder(u.id, openCount);
+        notified.add(u.id);
+      }
+    }
+
+    // Oddiy foydalanuvchilar: o'zida turgan ochiq hujjatlar soni
+    const holders = await this.prisma.document.groupBy({
+      by: ['currentHolderId'],
+      where: { status: { in: OPEN_STATUSES }, currentHolderId: { not: null } },
+      _count: { _all: true },
+    });
+    for (const h of holders) {
+      if (!h.currentHolderId || notified.has(h.currentHolderId)) continue;
+      this.pushDisciplineReminder(h.currentHolderId, h._count._all);
+    }
+  }
+
+  private pushDisciplineReminder(userId: string, count: number) {
+    try {
+      this.gateway.notifyNewMessage([userId], {
+        message: {
+          fromUser: { fullName: 'EDO tizimi' },
+          subject: `${DISCIPLINE_MESSAGE} (${count} ta)`,
+        },
+      });
+    } catch (e) {
+      this.logger.error(`Ogohlantirish xatosi: ${(e as Error).message}`);
     }
   }
 

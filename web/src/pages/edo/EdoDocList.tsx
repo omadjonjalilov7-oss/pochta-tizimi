@@ -57,7 +57,10 @@ function DocList({ queryKey, endpoint, titleKey, emptyKey, showHolder }: DocList
             <li key={d.id}>
               <Link
                 to={`/edo/documents/${d.id}`}
-                className="flex items-start gap-3 bg-white border border-slate-200 hover:border-asaka-300 hover:shadow-sm rounded-xl px-4 py-3 transition"
+                className={cn(
+                  'flex items-start gap-3 bg-white border border-slate-200 hover:border-asaka-300 hover:shadow-sm rounded-xl px-4 py-3 transition',
+                  ageAccentClass(d.createdAt, d.status),
+                )}
               >
                 <div className="bg-asaka-50 text-asaka-600 rounded-lg p-2 mt-0.5">
                   <FileText size={18} />
@@ -118,6 +121,16 @@ function DocList({ queryKey, endpoint, titleKey, emptyKey, showHolder }: DocList
       )}
     </div>
   );
+}
+
+// Hujjat ochiqligi (yakunlanmagan) davomida yoshiga qarab rang:
+// 1 kun — yashil, 2 kun — sariq, 3+ kun — qizil.
+function ageAccentClass(createdAt: string, status: DocumentStatus): string {
+  if (status === 'done' || status === 'rejected') return 'border-l-4 border-l-transparent';
+  const days = (Date.now() - new Date(createdAt).getTime()) / (24 * 60 * 60 * 1000);
+  if (days >= 2) return 'border-l-4 border-l-red-500';
+  if (days >= 1) return 'border-l-4 border-l-amber-400';
+  return 'border-l-4 border-l-emerald-500';
 }
 
 function isDeadlinePast(iso: string, status: DocumentStatus): boolean {

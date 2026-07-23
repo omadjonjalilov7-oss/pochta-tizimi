@@ -23,6 +23,7 @@ import { EdoChatPage } from './pages/edo/EdoChatPage';
 import { EdoApprovalPage } from './pages/edo/EdoApprovalPage';
 import { EdoCalendarPage } from './pages/edo/EdoCalendarPage';
 import { EdoSearchPage } from './pages/edo/EdoSearchPage';
+import { EdoSettingsPage } from './pages/edo/EdoSettingsPage';
 import {
   EdoMyDocsPage,
   EdoDraftsPage,
@@ -87,6 +88,7 @@ export function App() {
           <Route path="templates" element={<EdoTemplatesPage />} />
           <Route path="stats" element={<EdoStatsPage />} />
           <Route path="stats/:view" element={<EdoStatsPage />} />
+          <Route path="settings" element={<EdoSettingsPage />} />
           <Route path="reports" element={<EdoReportsPage />} />
           <Route path="hisobotlar" element={<EdoHisobotlarPage />} />
         </Route>
