@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Plus, Pencil, Trash2, X, KeyRound, Lock, Unlock, ShieldCheck, ShieldOff, Globe } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, KeyRound, Lock, Unlock, ShieldCheck, ShieldOff, Globe, Eye, EyeOff } from 'lucide-react';
 import { api } from '../lib/api';
 import { Avatar } from '../components/Avatar';
 import { useAuth } from '../context/AuthContext';
@@ -40,6 +40,15 @@ export function AdminUsersPage() {
   const toggleActive = async (u: User) => {
     try {
       await api.post(`/users/${u.id}/${u.isActive ? 'block' : 'activate'}`);
+      refresh();
+    } catch (err: any) {
+      alert(err?.response?.data?.message || t('common.error'));
+    }
+  };
+
+  const toggleSeeProtected = async (u: User) => {
+    try {
+      await api.patch(`/users/${u.id}`, { canSeeProtected: !u.canSeeProtected });
       refresh();
     } catch (err: any) {
       alert(err?.response?.data?.message || t('common.error'));
@@ -150,6 +159,21 @@ export function AdminUsersPage() {
                           className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded"
                         >
                           <KeyRound size={16} />
+                        </button>
+                        <button
+                          onClick={() => toggleSeeProtected(u)}
+                          title={
+                            u.canSeeProtected
+                              ? t('admin.tooltip_see_protected_on')
+                              : t('admin.tooltip_see_protected_off')
+                          }
+                          className={
+                            u.canSeeProtected
+                              ? 'p-1.5 text-emerald-600 hover:bg-emerald-50 rounded'
+                              : 'p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded'
+                          }
+                        >
+                          {u.canSeeProtected ? <Eye size={16} /> : <EyeOff size={16} />}
                         </button>
                         {u.hasApprovalPin && (
                           <button
