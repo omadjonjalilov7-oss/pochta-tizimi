@@ -40,8 +40,8 @@ type TabKey = 'overview' | 'departments' | 'staff' | 'signing' | 'approvals';
 
 function defaultRange() {
   const to = new Date();
-  const from = new Date();
-  from.setDate(from.getDate() - 30);
+  // Standart: joriy yil boshidan bugungi kungacha — barcha yillik ma'lumot ko'rinadi
+  const from = new Date(to.getFullYear(), 0, 1);
   const fmt = (d: Date) => {
     const pad = (n: number) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;

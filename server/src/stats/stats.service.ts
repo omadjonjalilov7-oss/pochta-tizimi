@@ -103,7 +103,7 @@ export class StatsService {
       this.prisma.documentParticipant.groupBy({
         by: ['status'],
         _count: { _all: true },
-        where: { role: 'approver' },
+        where: { role: 'approver', ...(range ? { document: { createdAt: range } } : {}) },
       }),
     ]);
 
