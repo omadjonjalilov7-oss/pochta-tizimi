@@ -23,6 +23,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 interface ReportRow {
+  id: string;
   index: number;
   number: string;
   subject: string;
@@ -35,6 +36,7 @@ interface ReportRow {
 }
 
 export interface ReportPreviewRow {
+  id: string;
   index: number;
   number: string;
   subject: string;
@@ -98,6 +100,7 @@ export class ReportService {
       where,
       orderBy: { createdAt: 'desc' },
       select: {
+        id: true,
         number: true,
         subject: true,
         type: true,
@@ -111,6 +114,7 @@ export class ReportService {
     });
 
     return docs.map((d, i) => ({
+      id: d.id,
       index: i + 1,
       number: d.number,
       subject: d.subject,

@@ -845,7 +845,9 @@
       "col_author": "Yaratuvchi",
       "col_department": "Bo'lim",
       "col_created": "Yaratilgan",
-      "col_deadline": "Muddat"
+      "col_deadline": "Muddat",
+      "col_pdf": "PDF",
+      "download_pdf": "Hujjatni PDF ko'rinishida yuklab olish"
     },
     "chat": {
       "search": "Qidirish...",

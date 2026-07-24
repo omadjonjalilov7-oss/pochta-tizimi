@@ -847,7 +847,9 @@
       "col_author": "Автор",
       "col_department": "Отдел",
       "col_created": "Создан",
-      "col_deadline": "Срок"
+      "col_deadline": "Срок",
+      "col_pdf": "PDF",
+      "download_pdf": "Скачать документ в формате PDF"
     },
     "chat": {
       "search": "Поиск...",

@@ -5,6 +5,7 @@ import { FileSpreadsheet, FileText, Download, Loader2 } from 'lucide-react';
 import { api } from '../../lib/api';
 
 interface ReportRow {
+  id: string;
   index: number;
   number: string;
   subject: string;
@@ -38,6 +39,7 @@ export function EdoHisobotlarPage() {
   const { t } = useTranslation();
   const [{ from, to }, setRange] = useState(defaultRange);
   const [downloading, setDownloading] = useState<'excel' | 'pdf' | null>(null);
+  const [rowDownloading, setRowDownloading] = useState<string | null>(null);
 
   const params = useMemo(() => {
     const p = new URLSearchParams();
@@ -75,6 +77,26 @@ export function EdoHisobotlarPage() {
       window.URL.revokeObjectURL(url);
     } finally {
       setDownloading(null);
+    }
+  };
+
+  const downloadDoc = async (row: ReportRow) => {
+    setRowDownloading(row.id);
+    try {
+      const res = await api.get(`/documents/${row.id}/pdf`, { responseType: 'blob' });
+      const disposition = res.headers['content-disposition'] as string | undefined;
+      const match = disposition?.match(/filename="?([^"]+)"?/);
+      const filename = match?.[1] ?? `hujjat-${row.number}.pdf`;
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } finally {
+      setRowDownloading(null);
     }
   };
 
@@ -177,6 +199,7 @@ export function EdoHisobotlarPage() {
                   <th className="px-3 py-2">{t('edo.hisobotlar.col_department')}</th>
                   <th className="px-3 py-2">{t('edo.hisobotlar.col_created')}</th>
                   <th className="px-3 py-2">{t('edo.hisobotlar.col_deadline')}</th>
+                  <th className="px-3 py-2 text-right">{t('edo.hisobotlar.col_pdf')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -193,6 +216,21 @@ export function EdoHisobotlarPage() {
                     <td className="px-3 py-2 text-slate-600">{r.department}</td>
                     <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{r.createdAt}</td>
                     <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{r.deadline ?? '—'}</td>
+                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                      <button
+                        onClick={() => downloadDoc(r)}
+                        disabled={rowDownloading !== null}
+                        title={t('edo.hisobotlar.download_pdf')}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border border-rose-200 text-rose-600 hover:bg-rose-50 disabled:opacity-50 transition-colors"
+                      >
+                        {rowDownloading === r.id ? (
+                          <Loader2 size={13} className="animate-spin" />
+                        ) : (
+                          <FileText size={13} />
+                        )}
+                        PDF
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
