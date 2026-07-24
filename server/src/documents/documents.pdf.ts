@@ -1,10 +1,30 @@
 import PDFDocument from 'pdfkit';
+import * as fs from 'fs';
+import * as path from 'path';
 
 type AnyDoc = any;
 
 const MARGIN = 30;
 const PAGE_WIDTH = 595;
 const CONTENT_WIDTH = PAGE_WIDTH - 2 * MARGIN;
+
+// Kirill + lotin harflarni qo'llaydigan Unicode shrift.
+// Ubuntu serverda tizim DejaVu shrifti bor; bo'lmasa Helvetica (faqat lotin).
+const FONT_REGULAR_CANDIDATES = [
+  path.join(process.cwd(), 'assets', 'fonts', 'DejaVuSans.ttf'),
+  '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+];
+const FONT_BOLD_CANDIDATES = [
+  path.join(process.cwd(), 'assets', 'fonts', 'DejaVuSans-Bold.ttf'),
+  '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+];
+
+function firstExisting(candidates: string[]): string | null {
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return null;
+}
 
 function formatDateOnly(d: Date | string | null | undefined): string {
   if (!d) return '-';
@@ -79,6 +99,22 @@ export function buildDocumentPdf(doc: AnyDoc): Promise<Buffer> {
       pdf.on('end', () => resolve(Buffer.concat(chunks)));
       pdf.on('error', reject);
 
+      // Unicode shriftlarni ro'yxatdan o'tkazish (kirill matn buzilmasligi uchun)
+      let FN = 'Helvetica';
+      let FNB = 'Helvetica-Bold';
+      const regularFont = firstExisting(FONT_REGULAR_CANDIDATES);
+      const boldFont = firstExisting(FONT_BOLD_CANDIDATES);
+      if (regularFont) {
+        pdf.registerFont('DVS', regularFont);
+        FN = 'DVS';
+        FNB = 'DVS';
+      }
+      if (boldFont) {
+        pdf.registerFont('DVS-Bold', boldFont);
+        FNB = 'DVS-Bold';
+      }
+      pdf.font(FN);
+
       const approvers = getApprovers(doc.participants);
       const executor = getExecutor(doc);
       const pageHeight = pdf.page.height;
@@ -106,14 +142,14 @@ export function buildDocumentPdf(doc: AnyDoc): Promise<Buffer> {
 
       // Chap taraf: Xizmat xati (merged both rows) - oradagi chiziq yo'q
       drawVerticalLine(pdf, tableX + colWidth, y, y + mergedHeight);
-      pdf.fontSize(7).fillColor('#000').font('Helvetica-Bold');
+      pdf.fontSize(7).fillColor('#000').font(FNB);
       // Markazida yozuv
       pdf.text('Xizmat xati', tableX + 2, y + (mergedHeight / 2 - 4), { width: colWidth - 4, align: 'center' });
 
       // Boshqa sarlavhalar - faqat birinchi qatorga
       for (let i = 1; i < colCount; i++) {
         drawVerticalLine(pdf, tableX + (i + 1) * colWidth, y, y + headerHeight);
-        pdf.fontSize(7).fillColor('#000').font('Helvetica-Bold');
+        pdf.fontSize(7).fillColor('#000').font(FNB);
         pdf.text(headers[i] || '', tableX + i * colWidth + 2, y + 4, { width: colWidth - 4 });
       }
       drawVerticalLine(pdf, tableX + colCount * colWidth, y, y + headerHeight);
@@ -130,10 +166,10 @@ export function buildDocumentPdf(doc: AnyDoc): Promise<Buffer> {
         else if (i > 2) approver = approvers[i];
 
         const cellX = tableX + i * colWidth;
-        pdf.fontSize(6).fillColor('#666').font('Helvetica');
+        pdf.fontSize(6).fillColor('#666').font(FN);
         pdf.text(approver?.user?.department?.name || '', cellX + 2, y + 2, { width: colWidth - 4 });
         pdf.text(approver?.user?.position?.name || '', cellX + 2, y + 10, { width: colWidth - 4 });
-        pdf.fontSize(7).fillColor('#000').font('Helvetica-Bold');
+        pdf.fontSize(7).fillColor('#000').font(FNB);
         pdf.text(approver?.user?.fullName || '', cellX + 2, y + 18, { width: colWidth - 4 });
 
         drawVerticalLine(pdf, cellX + colWidth, y, y + detailHeight);
@@ -144,7 +180,7 @@ export function buildDocumentPdf(doc: AnyDoc): Promise<Buffer> {
       // Qator 3: Hujjat raqami va sanasi (Document Number and Date)
       const docInfoHeight = 20;
       drawVerticalLine(pdf, tableX + tableWidth / 2, y, y + docInfoHeight);
-      pdf.fontSize(7).fillColor('#000').font('Helvetica');
+      pdf.fontSize(7).fillColor('#000').font(FN);
       pdf.text('Hujjat raqami: ' + doc.number, tableX + 5, y + 4, { width: tableWidth / 2 - 10 });
       pdf.text('Sana: ' + formatDateOnly(doc.createdAt), tableX + tableWidth / 2 + 5, y + 4, { width: tableWidth / 2 - 10 });
       drawVerticalLine(pdf, tableX + tableWidth, y, y + docInfoHeight);
@@ -156,7 +192,7 @@ export function buildDocumentPdf(doc: AnyDoc): Promise<Buffer> {
       const creatorColWidth = tableWidth / 3;
       drawVerticalLine(pdf, tableX + creatorColWidth, y, y + creatorHeight);
       drawVerticalLine(pdf, tableX + 2 * creatorColWidth, y, y + creatorHeight);
-      pdf.fontSize(7).fillColor('#000').font('Helvetica');
+      pdf.fontSize(7).fillColor('#000').font(FN);
       pdf.text('Bo\'lim: ' + (doc.createdBy?.department?.name || '-'), tableX + 5, y + 4, { width: creatorColWidth - 10 });
       pdf.text('Lavozim: ' + (doc.createdBy?.position?.name || '-'), tableX + creatorColWidth + 5, y + 4, { width: creatorColWidth - 10 });
       pdf.text('Xodim: ' + (doc.createdBy?.fullName || '-'), tableX + 2 * creatorColWidth + 5, y + 4, { width: creatorColWidth - 10 });
@@ -169,7 +205,7 @@ export function buildDocumentPdf(doc: AnyDoc): Promise<Buffer> {
       const receiverColWidth = tableWidth / 3;
       drawVerticalLine(pdf, tableX + receiverColWidth, y, y + receiverHeight);
       drawVerticalLine(pdf, tableX + 2 * receiverColWidth, y, y + receiverHeight);
-      pdf.fontSize(7).fillColor('#000').font('Helvetica');
+      pdf.fontSize(7).fillColor('#000').font(FN);
       pdf.text('Bo\'lim: ' + (executor?.user?.department?.name || '-'), tableX + 5, y + 4, { width: receiverColWidth - 10 });
       pdf.text('Lavozim: ' + (executor?.user?.position?.name || '-'), tableX + receiverColWidth + 5, y + 4, { width: receiverColWidth - 10 });
       pdf.text('Xodim: ' + (executor?.user?.fullName || '-'), tableX + 2 * receiverColWidth + 5, y + 4, { width: receiverColWidth - 10 });
@@ -182,7 +218,7 @@ export function buildDocumentPdf(doc: AnyDoc): Promise<Buffer> {
       const directorColWidth = tableWidth / 3;
       drawVerticalLine(pdf, tableX + directorColWidth, y, y + directorHeight);
       drawVerticalLine(pdf, tableX + 2 * directorColWidth, y, y + directorHeight);
-      pdf.fontSize(7).fillColor('#000').font('Helvetica');
+      pdf.fontSize(7).fillColor('#000').font(FN);
       pdf.text('Bosh direktor', tableX + 5, y + 4, { width: directorColWidth - 10 });
       pdf.text('Imzo: _____', tableX + directorColWidth + 5, y + 4, { width: directorColWidth - 10 });
       pdf.text('Sana: ' + formatDateOnly(new Date()), tableX + 2 * directorColWidth + 5, y + 4, { width: directorColWidth - 10 });
@@ -192,9 +228,9 @@ export function buildDocumentPdf(doc: AnyDoc): Promise<Buffer> {
 
       // Qator 7: Mavzu (Subject)
       const subjectHeight = 25;
-      pdf.fontSize(7).fillColor('#000').font('Helvetica-Bold');
+      pdf.fontSize(7).fillColor('#000').font(FNB);
       pdf.text('Mavzu:', tableX + 5, y + 3, { width: tableWidth - 10 });
-      pdf.font('Helvetica');
+      pdf.font(FN);
       pdf.text(doc.subject, tableX + 5, y + 11, { width: tableWidth - 10 });
       drawVerticalLine(pdf, tableX, y, y + subjectHeight);
       drawVerticalLine(pdf, tableX + tableWidth, y, y + subjectHeight);
@@ -205,9 +241,9 @@ export function buildDocumentPdf(doc: AnyDoc): Promise<Buffer> {
       const bodyStartY = y;
       const bodyHeight = Math.max(100, tableBottom - y);
 
-      pdf.fontSize(7).fillColor('#000').font('Helvetica-Bold');
+      pdf.fontSize(7).fillColor('#000').font(FNB);
       pdf.text('Hujjat matni:', tableX + 5, y + 3, { width: tableWidth - 10 });
-      pdf.font('Helvetica');
+      pdf.font(FN);
       pdf.fontSize(7);
       pdf.text(doc.body, tableX + 5, y + 11, { width: tableWidth - 10, lineGap: 1 });
 
@@ -228,7 +264,7 @@ export function buildDocumentPdf(doc: AnyDoc): Promise<Buffer> {
       drawVerticalLine(pdf, tableX + 2 * bottomCellWidth, bottomRowY, bottomRowY + bottomRowHeight);
 
       // Uchinchi katak - ijro sanasi
-      pdf.fontSize(7).fillColor('#000').font('Helvetica');
+      pdf.fontSize(7).fillColor('#000').font(FN);
       pdf.text('Ijro sanasi:', tableX + 2 * bottomCellWidth + 2, bottomRowY + 2, { width: bottomCellWidth - 4 });
       pdf.text(formatDateOnly(new Date()), tableX + 2 * bottomCellWidth + 2, bottomRowY + 10, { width: bottomCellWidth - 4 });
 
@@ -243,7 +279,7 @@ export function buildDocumentPdf(doc: AnyDoc): Promise<Buffer> {
 
       // ===== JADVALDAN KEYIN FOOTER =====
       const footerStartY = bottomRowY + bottomRowHeight + 5;
-      pdf.fontSize(7).fillColor('#000').font('Helvetica');
+      pdf.fontSize(7).fillColor('#000').font(FN);
       pdf.text('Ijrochi: ' + (executor?.user?.fullName || '-'), tableX, footerStartY);
       pdf.text('Telefon: ' + (executor?.user?.phone || '-'), tableX, footerStartY + 10);
 

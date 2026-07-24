@@ -194,9 +194,12 @@ export class ReportService {
         pdf.on('end', () => resolve(Buffer.concat(chunks)));
         pdf.on('error', reject);
 
-        // Cyrillic/Lotin shrift
-        const fontPath = path.join(process.cwd(), 'assets', 'fonts', 'DejaVuSans.ttf');
-        const font = fs.existsSync(fontPath) ? fontPath : 'Helvetica';
+        // Cyrillic/Lotin shrift — bundle yoki Ubuntu tizim DejaVu shrifti
+        const fontCandidates = [
+          path.join(process.cwd(), 'assets', 'fonts', 'DejaVuSans.ttf'),
+          '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+        ];
+        const font = fontCandidates.find((c) => fs.existsSync(c)) ?? 'Helvetica';
         pdf.font(font);
 
         const pageWidth = pdf.page.width - 60; // margin 30 ikki tomon
