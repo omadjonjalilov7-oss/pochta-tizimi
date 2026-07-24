@@ -87,7 +87,9 @@ export function EdoHisobotlarPage() {
       const disposition = res.headers['content-disposition'] as string | undefined;
       const match = disposition?.match(/filename="?([^"]+)"?/);
       const filename = match?.[1] ?? `hujjat-${row.number}.pdf`;
-      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const url = window.URL.createObjectURL(
+        new Blob([res.data], { type: 'application/pdf' }),
+      );
       const a = document.createElement('a');
       a.href = url;
       a.download = filename;
