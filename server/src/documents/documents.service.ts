@@ -363,9 +363,6 @@ export class DocumentsService {
         "Yaratuvchi bo'limi tanlanmagan yoki bo'lim kodi yo'q. Bo'lim sozlamalarini tekshiring",
       );
     }
-    if (!doc.targetDeptId) {
-      throw new BadRequestException("Hujjat yuboriladigan bo'lim tanlanmagan");
-    }
 
     // Yuborish paytida tanlangan tasdiqlovchilar ustuvor. Bo'lmasa — qoralamaga
     // biriktirilgan zanjir; u ham bo'lmasa eski mantiq: o'z + maqsadli bo'lim raxbari.
@@ -383,6 +380,11 @@ export class DocumentsService {
     } else if (persistedApprovers.length > 0) {
       chain = persistedApprovers;
     } else {
+      // Avtomatik zanjir — bo'lim rahbarlari orqali quriladi. Faqat shu holatda
+      // yuboriladigan bo'lim ko'rsatilishi shart (rahbarni topish uchun).
+      if (!doc.targetDeptId) {
+        throw new BadRequestException("Hujjat yuboriladigan bo'lim tanlanmagan");
+      }
       chain = [];
       const ownHead = await findDeptHead(this.prisma, doc.numberDeptId, userId);
       if (ownHead) chain.push(ownHead);
