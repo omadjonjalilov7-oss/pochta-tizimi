@@ -196,17 +196,13 @@ export class DocumentsService {
       }
     }
 
-    // Yaratuvchining bo'limini default qiymat sifatida olamiz.
-    // Oddiy foydalanuvchi jurnalni (ro'yxatga olish bo'limi) o'zgartira olmaydi —
-    // har doim o'z bo'limi. Faqat admin boshqa bo'limni ko'rsatishi mumkin.
+    // Ro'yxatga olish jurnali har doim yaratuvchining bo'limi bo'ladi —
+    // hech kim (admin ham) uni o'zgartira olmaydi.
     const creator = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { departmentId: true, role: true },
+      select: { departmentId: true },
     });
-    const numberDeptId =
-      creator?.role === 'admin'
-        ? (dto.numberDeptId ?? creator?.departmentId ?? null)
-        : (creator?.departmentId ?? null);
+    const numberDeptId = creator?.departmentId ?? null;
 
     // Ichki hujjat muddati: admin sozlamasi bo'lsa (kun soni) — avtomatik hisoblanadi,
     // aks holda xodim kiritgan sana ishlatiladi.
@@ -297,17 +293,8 @@ export class DocumentsService {
     if (dto.deadline !== undefined) {
       data.deadline = dto.deadline ? new Date(dto.deadline) : null;
     }
-    // Ro'yxatga olish jurnali (numberDept) — faqat admin o'zgartira oladi.
-    // Oddiy foydalanuvchi uchun bu maydon o'zgarmaydi (o'z bo'limi qat'iy).
-    const editor = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: true },
-    });
-    if (dto.numberDeptId !== undefined && editor?.role === 'admin') {
-      data.numberDept = dto.numberDeptId
-        ? { connect: { id: dto.numberDeptId } }
-        : { disconnect: true };
-    }
+    // Ro'yxatga olish jurnali (numberDept) — hech kim o'zgartira olmaydi,
+    // har doim yaratuvchining bo'limi qat'iy qoladi.
     if (dto.targetDeptId !== undefined) {
       data.targetDept = dto.targetDeptId
         ? { connect: { id: dto.targetDeptId } }

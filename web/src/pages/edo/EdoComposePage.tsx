@@ -36,9 +36,6 @@ export function EdoComposePage() {
   const [searchParams] = useSearchParams();
   const draftId = searchParams.get('id');
   const { user } = useAuth();
-  // Jurnal (ro'yxatga olish bo'limi) — oddiy foydalanuvchi uchun o'z bo'limi,
-  // o'zgartirib bo'lmaydi. Faqat admin boshqa bo'limni tanlashi mumkin.
-  const isAdmin = user?.role === 'admin';
 
   const initialType = (searchParams.get('type') as DocumentType) || 'internal';
   const [type, setType] = useState<DocumentType>(initialType);
@@ -398,7 +395,7 @@ export function EdoComposePage() {
                 <select
                   value={numberDeptId}
                   onChange={(e) => setNumberDeptId(e.target.value)}
-                  disabled={!isDraft || !isAdmin}
+                  disabled
                   className={fieldCls}
                 >
                   <option value="">{t('edo.compose.ph_journal')}</option>
@@ -409,11 +406,9 @@ export function EdoComposePage() {
                     </option>
                   ))}
                 </select>
-                {!isAdmin && (
-                  <p className="mt-1 text-xs text-slate-500">
-                    {t('edo.compose.journal_locked_hint')}
-                  </p>
-                )}
+                <p className="mt-1 text-xs text-slate-500">
+                  {t('edo.compose.journal_locked_hint')}
+                </p>
               </div>
               <div>
                 <label className={labelCls}>{t('edo.compose.label_doc_number')}</label>
@@ -472,7 +467,7 @@ export function EdoComposePage() {
                 <select
                   value={numberDeptId}
                   onChange={(e) => setNumberDeptId(e.target.value)}
-                  disabled={!isDraft || !isAdmin}
+                  disabled
                   className={fieldCls}
                 >
                   <option value="">{t('edo.compose.ph_journal')}</option>
@@ -483,11 +478,9 @@ export function EdoComposePage() {
                     </option>
                   ))}
                 </select>
-                {!isAdmin && (
-                  <p className="mt-1 text-xs text-slate-500">
-                    {t('edo.compose.journal_locked_hint')}
-                  </p>
-                )}
+                <p className="mt-1 text-xs text-slate-500">
+                  {t('edo.compose.journal_locked_hint')}
+                </p>
               </div>
               <div>
                 <label className={labelCls}>{t('edo.compose.label_doc_number')}</label>
