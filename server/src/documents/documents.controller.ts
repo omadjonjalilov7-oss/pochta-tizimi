@@ -226,6 +226,18 @@ export class DocumentsController {
     return this.docs.remove(user.id, id);
   }
 
+  // Admin uchun bir yoki bir nechta hujjatni ommaviy o'chirish
+  @Post('bulk-delete')
+  bulkRemove(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() dto: { ids: string[] },
+  ) {
+    if (user.role !== 'admin') {
+      throw new ForbiddenException("Ommaviy o'chirish faqat administrator uchun");
+    }
+    return this.docs.bulkRemove(dto.ids ?? []);
+  }
+
   @Post(':id/send')
   send(
     @CurrentUser() user: CurrentUserPayload,

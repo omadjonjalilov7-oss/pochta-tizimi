@@ -547,6 +547,7 @@
       "type_outgoing": "Chiquvchi hujjat",
       "type_incoming": "Kiruvchi hujjat",
       "label_journal": "Ro'yxatga olish jurnali",
+      "journal_locked_hint": "Jurnal profildagi bo'limingiz bo'yicha avtomat belgilanadi.",
       "label_doc_number": "Hujjat raqami",
       "label_summary": "Qisqacha mazmuni",
       "ph_summary": "Hujjatning qisqacha mazmunini yozing",
@@ -720,7 +721,10 @@
       "empty_archive": "Arxivda hujjat yo'q.",
       "empty_to_sign": "Sizga imzolash uchun keltirilgan hujjat yo'q.",
       "empty_control": "Alohida nazoratdagi hujjat yo'q.",
-      "empty_department": "Bo'limingizga tegishli hujjat yo'q."
+      "empty_department": "Bo'limingizga tegishli hujjat yo'q.",
+      "select_for_delete": "O'chirish uchun belgilash",
+      "delete_selected": "O'chirish ({{count}})",
+      "delete_confirm": "{{count}} ta hujjat butunlay o'chiriladi. Davom etilsinmi?"
     },
     "calendar": {
       "title": "Taqvim",

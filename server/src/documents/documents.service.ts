@@ -196,12 +196,17 @@ export class DocumentsService {
       }
     }
 
-    // Yaratuvchining bo'limini default qiymat sifatida olamiz
+    // Yaratuvchining bo'limini default qiymat sifatida olamiz.
+    // Oddiy foydalanuvchi jurnalni (ro'yxatga olish bo'limi) o'zgartira olmaydi —
+    // har doim o'z bo'limi. Faqat admin boshqa bo'limni ko'rsatishi mumkin.
     const creator = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { departmentId: true },
+      select: { departmentId: true, role: true },
     });
-    const numberDeptId = dto.numberDeptId ?? creator?.departmentId ?? null;
+    const numberDeptId =
+      creator?.role === 'admin'
+        ? (dto.numberDeptId ?? creator?.departmentId ?? null)
+        : (creator?.departmentId ?? null);
 
     // Ichki hujjat muddati: admin sozlamasi bo'lsa (kun soni) — avtomatik hisoblanadi,
     // aks holda xodim kiritgan sana ishlatiladi.
@@ -292,7 +297,13 @@ export class DocumentsService {
     if (dto.deadline !== undefined) {
       data.deadline = dto.deadline ? new Date(dto.deadline) : null;
     }
-    if (dto.numberDeptId !== undefined) {
+    // Ro'yxatga olish jurnali (numberDept) — faqat admin o'zgartira oladi.
+    // Oddiy foydalanuvchi uchun bu maydon o'zgarmaydi (o'z bo'limi qat'iy).
+    const editor = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    if (dto.numberDeptId !== undefined && editor?.role === 'admin') {
       data.numberDept = dto.numberDeptId
         ? { connect: { id: dto.numberDeptId } }
         : { disconnect: true };
@@ -342,6 +353,16 @@ export class DocumentsService {
     }
     await this.prisma.document.delete({ where: { id } });
     return { ok: true };
+  }
+
+  // Admin — bir nechta hujjatni ommaviy o'chirish (holatidan qat'i nazar)
+  async bulkRemove(ids: string[]) {
+    const clean = [...new Set(ids)].filter((x) => typeof x === 'string' && x);
+    if (clean.length === 0) return { ok: true, deleted: 0 };
+    const res = await this.prisma.document.deleteMany({
+      where: { id: { in: clean } },
+    });
+    return { ok: true, deleted: res.count };
   }
 
   // ── YUBORISH ──────────────────────────────────────────────────────────

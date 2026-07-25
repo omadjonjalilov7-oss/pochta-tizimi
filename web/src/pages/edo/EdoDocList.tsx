@@ -1,8 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FileText, Clock, ChevronRight } from 'lucide-react';
+import { FileText, Clock, ChevronRight, Trash2, Loader2 } from 'lucide-react';
 import { api } from '../../lib/api';
+import { useAuth } from '../../context/AuthContext';
 import type { DocumentStatus, EdoDocument } from '../../lib/types';
 import { Avatar } from '../../components/Avatar';
 import { cn } from '../../lib/utils';
@@ -34,15 +36,59 @@ function StatusPill({ status }: { status: DocumentStatus }) {
 
 function DocList({ queryKey, endpoint, titleKey, emptyKey, showHolder }: DocListProps) {
   const { t, i18n } = useTranslation();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+  const qc = useQueryClient();
   const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
   const { data: docs = [], isLoading } = useQuery({
     queryKey: [queryKey],
     queryFn: async () => (await api.get<EdoDocument[]>(endpoint)).data,
   });
 
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const toggle = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const bulkDelete = useMutation({
+    mutationFn: async (ids: string[]) =>
+      (await api.post('/documents/bulk-delete', { ids })).data,
+    onSuccess: () => {
+      setSelected(new Set());
+      qc.invalidateQueries({ queryKey: [queryKey] });
+    },
+  });
+
+  const onDelete = () => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    if (!window.confirm(t('edo.list.delete_confirm', { count: ids.length }))) return;
+    bulkDelete.mutate(ids);
+  };
+
   return (
     <div className="max-w-5xl mx-auto px-6 py-6">
-      <h1 className="text-xl font-semibold text-slate-900 mb-4">{t(titleKey)}</h1>
+      <div className="flex items-center justify-between mb-4 gap-3">
+        <h1 className="text-xl font-semibold text-slate-900">{t(titleKey)}</h1>
+        {isAdmin && selected.size > 0 && (
+          <button
+            onClick={onDelete}
+            disabled={bulkDelete.isPending}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-60 rounded-lg transition"
+          >
+            {bulkDelete.isPending ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Trash2 size={16} />
+            )}
+            {t('edo.list.delete_selected', { count: selected.size })}
+          </button>
+        )}
+      </div>
 
       {isLoading ? (
         <div className="text-slate-400 p-6">{t('common.loading')}</div>
@@ -54,12 +100,22 @@ function DocList({ queryKey, endpoint, titleKey, emptyKey, showHolder }: DocList
       ) : (
         <ul className="space-y-2">
           {docs.map((d) => (
-            <li key={d.id}>
+            <li key={d.id} className="flex items-start gap-2">
+              {isAdmin && (
+                <input
+                  type="checkbox"
+                  checked={selected.has(d.id)}
+                  onChange={() => toggle(d.id)}
+                  className="mt-4 h-4 w-4 flex-shrink-0 rounded border-slate-300 text-red-600 focus:ring-red-500 cursor-pointer"
+                  title={t('edo.list.select_for_delete')}
+                />
+              )}
               <Link
                 to={`/edo/documents/${d.id}`}
                 className={cn(
-                  'flex items-start gap-3 bg-white border border-slate-200 hover:border-asaka-300 hover:shadow-sm rounded-xl px-4 py-3 transition',
+                  'flex-1 min-w-0 flex items-start gap-3 bg-white border border-slate-200 hover:border-asaka-300 hover:shadow-sm rounded-xl px-4 py-3 transition',
                   ageAccentClass(d.createdAt, d.status),
+                  isAdmin && selected.has(d.id) && 'ring-2 ring-red-400 border-red-300',
                 )}
               >
                 <div className="bg-asaka-50 text-asaka-600 rounded-lg p-2 mt-0.5">

@@ -21,6 +21,7 @@ import {
   Download,
   Paperclip,
   FileDown,
+  ArrowLeft,
 } from 'lucide-react';
 import { EimzoSignModal } from '../../components/edo/EimzoSignModal';
 import { api } from '../../lib/api';
@@ -175,6 +176,13 @@ export function EdoDocumentViewPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-6">
+      <button
+        onClick={() => navigate(-1)}
+        className="inline-flex items-center gap-1.5 mb-3 px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-asaka-700 hover:bg-slate-100 rounded-lg transition"
+      >
+        <ArrowLeft size={16} />
+        {t('common.back')}
+      </button>
       {/* Shapka — hujjat ma'lumotlari */}
       <header className="bg-white border border-slate-200 rounded-2xl p-6 mb-4">
         <div className="flex items-start gap-4">
