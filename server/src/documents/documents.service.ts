@@ -33,6 +33,11 @@ import {
 import { CompleteTargetDto, CreateResolutionDto } from './dto/resolution.dto';
 import { SignDocumentDto } from './dto/sign.dto';
 import { buildDocumentPdf } from './documents.pdf';
+import {
+  AUTO_CHAIN_LOGINS,
+  buildIchkiTokens,
+  renderIchki,
+} from './template-fill';
 import { ConfigService } from '@nestjs/config';
 import { QrApprovalService } from './qr-approval.service';
 import { promises as fs } from 'fs';
@@ -234,6 +239,7 @@ export class DocumentsService {
           currentHolderId: userId,
           numberDeptId,
           targetDeptId: dto.targetDeptId ?? null,
+          templateId: dto.templateId ?? null,
           issueGroup: dto.issueGroup ?? null,
           issues: dto.issues ?? null,
           tags: dto.tags ?? [],
@@ -298,6 +304,11 @@ export class DocumentsService {
     if (dto.targetDeptId !== undefined) {
       data.targetDept = dto.targetDeptId
         ? { connect: { id: dto.targetDeptId } }
+        : { disconnect: true };
+    }
+    if (dto.templateId !== undefined) {
+      data.template = dto.templateId
+        ? { connect: { id: dto.templateId } }
         : { disconnect: true };
     }
     if (dto.issueGroup !== undefined) data.issueGroup = dto.issueGroup || null;
@@ -372,6 +383,43 @@ export class DocumentsService {
       );
     }
 
+    // Shablon tanlanmagan bo'lsa — hujjat "ichki" shabloniga avtomat solinadi va
+    // qat'iy zanjir (aziza → raxmatjon → abduxalil → mirzaxid) qo'yiladi.
+    let autoIchkiTemplateId: string | null = null;
+    let autoIchkiChain: string[] | null = null;
+    if (!doc.templateId) {
+      const tpl = await this.prisma.documentTemplate.findFirst({
+        where: { name: { equals: 'ichki', mode: 'insensitive' } },
+        select: { id: true },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (!tpl) {
+        throw new BadRequestException(
+          '"ichki" nomli shablon topilmadi. Uni Shablonlar bo\'limida yarating',
+        );
+      }
+      const chainUsers = await this.prisma.user.findMany({
+        where: { login: { in: [...AUTO_CHAIN_LOGINS] } },
+        select: { id: true, login: true, isActive: true },
+      });
+      const byLogin = new Map(chainUsers.map((u) => [u.login, u] as const));
+      const resolved: string[] = [];
+      for (const login of AUTO_CHAIN_LOGINS) {
+        const u = byLogin.get(login);
+        if (!u) {
+          throw new BadRequestException(
+            `Tasdiqlovchi topilmadi: "${login}". Foydalanuvchini yarating`,
+          );
+        }
+        if (!u.isActive) {
+          throw new BadRequestException(`Tasdiqlovchi faol emas: "${login}"`);
+        }
+        resolved.push(u.id);
+      }
+      autoIchkiTemplateId = tpl.id;
+      autoIchkiChain = resolved;
+    }
+
     // Yuborish paytida tanlangan tasdiqlovchilar ustuvor. Bo'lmasa — qoralamaga
     // biriktirilgan zanjir; u ham bo'lmasa eski mantiq: o'z + maqsadli bo'lim raxbari.
     const selectedApprovers = (dto?.approverIds ?? []).filter(
@@ -383,7 +431,9 @@ export class DocumentsService {
       .map((p) => p.userId);
 
     let chain: string[];
-    if (selectedApprovers.length > 0) {
+    if (autoIchkiChain) {
+      chain = autoIchkiChain;
+    } else if (selectedApprovers.length > 0) {
       chain = selectedApprovers;
     } else if (persistedApprovers.length > 0) {
       chain = persistedApprovers;
@@ -442,6 +492,9 @@ export class DocumentsService {
           status: DocumentStatus.in_review,
           currentHolderId: firstApproverId,
           signatureChainPosition: 1,
+          ...(autoIchkiTemplateId
+            ? { templateId: autoIchkiTemplateId, autoFilled: true }
+            : {}),
         },
       });
       await tx.documentAuditLog.create({
@@ -1142,7 +1195,40 @@ export class DocumentsService {
     });
     if (!doc) throw new NotFoundException('Hujjat topilmadi');
     await this.requireAccess(userId, doc);
+    await this.attachRenderedBody(doc);
     return this.serialize(doc);
+  }
+
+  // "ichki" shabloniga avtomat solingan hujjat uchun to'ldirilgan matnni
+  // jonli hisoblaydi (asl matn saqlanadi; sana tokenlari tasdiqlash bo'yicha
+  // to'ladi, shu bois o'qishda hisoblaymiz).
+  private async attachRenderedBody(doc: any): Promise<void> {
+    if (!doc?.autoFilled || !doc.templateId) return;
+    const tpl = await this.prisma.documentTemplate.findUnique({
+      where: { id: doc.templateId },
+      select: { bodyTemplate: true },
+    });
+    if (!tpl?.bodyTemplate) return;
+    const approvers = (doc.participants ?? [])
+      .filter((p: any) => p.role === ParticipantRole.approver && p.user?.login)
+      .map((p: any) => ({
+        login: p.user.login,
+        fullName: p.user.fullName ?? '',
+        actedAt: p.actedAt ?? null,
+      }));
+    const { values, raw } = buildIchkiTokens({
+      creatorName: doc.createdBy?.fullName ?? '',
+      number: doc.number ?? '',
+      senderDept: doc.numberDept?.name ?? doc.createdBy?.department?.name ?? '',
+      recipientDept: doc.targetDept?.name ?? '',
+      subject: doc.subject ?? '',
+      body: doc.body ?? '',
+      recipientName: '',
+      createdAt: doc.createdAt,
+      closedAt: doc.closedAt ?? null,
+      approvers,
+    });
+    doc.renderedBody = renderIchki(tpl.bodyTemplate, values, raw);
   }
 
   // Mening barcha hujjatlarim (yaratganlarim + ishtirok etganlarim)

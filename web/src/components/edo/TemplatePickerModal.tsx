@@ -26,7 +26,7 @@ export function TemplatePickerModal({
   onPick,
 }: {
   onClose: () => void;
-  onPick: (body: string) => void;
+  onPick: (body: string, templateId: string) => void;
 }) {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
@@ -67,7 +67,7 @@ export function TemplatePickerModal({
 
   const handleApply = () => {
     if (!selected) return;
-    onPick(applyTemplate(selected.bodyTemplate, values));
+    onPick(applyTemplate(selected.bodyTemplate, values), selected.id);
     onClose();
   };
 

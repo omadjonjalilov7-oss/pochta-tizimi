@@ -40,6 +40,12 @@ export class CreateDocumentDto {
   @IsUUID()
   targetDeptId?: string;
 
+  // Qo'lda tanlangan shablon. Bo'sh bo'lsa — hujjat "ichki" shabloniga
+  // avtomat solinadi (yuborishda).
+  @IsOptional()
+  @IsUUID()
+  templateId?: string;
+
   // Tashqi qabul qiluvchi (faqat outgoing tipida)
   @IsOptional()
   @IsString()

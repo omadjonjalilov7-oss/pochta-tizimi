@@ -259,18 +259,21 @@ export function EdoDocumentViewPage() {
             <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">
               {t('edo.view.body')}
             </h2>
-            {/^\s*<[a-z]/i.test(doc.body || '') ? (
-              <div className="overflow-x-auto">
-                <div
-                  className="edo-doc-body prose prose-sm max-w-none text-slate-800"
-                  dangerouslySetInnerHTML={{ __html: doc.body }}
-                />
-              </div>
-            ) : (
-              <div className="prose prose-sm max-w-none whitespace-pre-wrap text-slate-800">
-                {doc.body}
-              </div>
-            )}
+            {(() => {
+              const shown = doc.renderedBody ?? doc.body;
+              return /^\s*<[a-z]/i.test(shown || '') ? (
+                <div className="overflow-x-auto">
+                  <div
+                    className="edo-doc-body prose prose-sm max-w-none text-slate-800"
+                    dangerouslySetInnerHTML={{ __html: shown }}
+                  />
+                </div>
+              ) : (
+                <div className="prose prose-sm max-w-none whitespace-pre-wrap text-slate-800">
+                  {shown}
+                </div>
+              );
+            })()}
 
             {((doc.attachments?.length ?? 0) > 0 || canUploadAttachment) && (
               <div className="mt-5 pt-4 border-t border-slate-100">

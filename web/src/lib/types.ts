@@ -222,6 +222,9 @@ export interface EdoDocument {
   currentHolderId?: string | null;
   numberDeptId?: string | null;
   targetDeptId?: string | null;
+  templateId?: string | null;
+  autoFilled?: boolean;
+  renderedBody?: string;
   deadline?: string | null;
   issueGroup?: string | null;
   issues?: string | null;

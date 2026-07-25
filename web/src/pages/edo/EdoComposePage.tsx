@@ -62,6 +62,9 @@ export function EdoComposePage() {
   const [formApproversAfterSign, setFormApproversAfterSign] = useState(false);
   const [showRecipients, setShowRecipients] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  // Qo'lda tanlangan shablon id'si. Bo'sh bo'lsa — yuborishda "ichki" shabloniga
+  // avtomat solinadi (backend).
+  const [pickedTemplateId, setPickedTemplateId] = useState<string | null>(null);
   const [showRelated, setShowRelated] = useState(false);
 
   const { data: departments = [] } = useQuery({
@@ -119,6 +122,7 @@ export function EdoComposePage() {
     setAsAppeal(!!doc.deliverAsAppeal);
     setReplyRequired(!!doc.replyRequired);
     setFormApproversAfterSign(!!doc.formApproversAfterSign);
+    setPickedTemplateId(doc.templateId ?? null);
   }, [doc]);
 
   // Yangi hujjatda (qoralama emas) — URL'dagi ?type bo'yicha turini o'rnatamiz
@@ -151,6 +155,7 @@ export function EdoComposePage() {
         body: body.trim() ? body : subject.trim(),
         numberDeptId: numberDeptId || undefined,
         targetDeptId: targetDeptId || undefined,
+        templateId: pickedTemplateId || undefined,
         externalRecipient:
           type === 'outgoing' ? externalRecipient.trim() || undefined : undefined,
         deadline: deadline ? new Date(deadline).toISOString() : undefined,
@@ -804,9 +809,10 @@ export function EdoComposePage() {
       {showTemplatePicker && (
         <TemplatePickerModal
           onClose={() => setShowTemplatePicker(false)}
-          onPick={(picked) =>
-            setBody((prev) => (prev.trim() ? prev + picked : picked))
-          }
+          onPick={(picked, templateId) => {
+            setBody((prev) => (prev.trim() ? prev + picked : picked));
+            setPickedTemplateId(templateId);
+          }}
         />
       )}
     </div>

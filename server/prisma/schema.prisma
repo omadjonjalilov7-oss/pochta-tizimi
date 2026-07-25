@@ -421,6 +421,10 @@ model Document {
   overdueApprovedById       String? @map("overdue_approved_by_id") @db.Uuid
   overdueApprovedAt         DateTime? @map("overdue_approved_at") @db.Timestamptz(3)
 
+  // Shablon tanlanmagan hujjatlar avtomat "ichki" shablonga solinadi. Bu bayroq
+  // yoqilgan bo'lsa, hujjat ko'rsatilganda shablon jonli to'ldiriladi.
+  autoFilled  Boolean   @default(false) @map("auto_filled")
+
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   closedAt    DateTime? @map("closed_at") @db.Timestamptz(3)
