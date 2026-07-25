@@ -8,6 +8,7 @@ export interface AutoFillApprover {
   login: string;
   fullName: string;
   actedAt: Date | null;
+  approved: boolean;
 }
 
 export interface AutoFillInput {
@@ -23,14 +24,17 @@ export interface AutoFillInput {
   approvers: AutoFillApprover[];
 }
 
+// Sana Toshkent vaqti bo'yicha (UTC+5, yozgi vaqt yo'q) ko'rsatiladi —
+// server qaysi mintaqada bo'lishidan qat'i nazar.
 function fmtDate(d: Date | null | undefined): string {
   if (!d) return '';
   const dt = new Date(d);
   if (Number.isNaN(dt.getTime())) return '';
+  const t = new Date(dt.getTime() + 5 * 60 * 60 * 1000);
   const p = (n: number) => String(n).padStart(2, '0');
-  return `${p(dt.getDate())}.${p(dt.getMonth() + 1)}.${dt.getFullYear()} ${p(
-    dt.getHours(),
-  )}:${p(dt.getMinutes())}`;
+  return `${p(t.getUTCDate())}.${p(t.getUTCMonth() + 1)}.${t.getUTCFullYear()} ${p(
+    t.getUTCHours(),
+  )}:${p(t.getUTCMinutes())}`;
 }
 
 function escapeHtml(s: string): string {
@@ -48,16 +52,19 @@ export function buildIchkiTokens(input: AutoFillInput): {
   const byLogin = new Map(
     input.approvers.map((a) => [a.login.toLowerCase(), a] as const),
   );
-  const nameOf = (login: string) => byLogin.get(login)?.fullName ?? '';
+  // Tasdiqlash belgisi: shaxs tasdiqlagan bo'lsa "TASDIQLANDI", aks holda bo'sh.
+  const markOf = (login: string) =>
+    byLogin.get(login)?.approved ? 'TASDIQLANDI' : '';
   const dateOf = (login: string) => fmtDate(byLogin.get(login)?.actedAt ?? null);
 
   const values: Record<string, string> = {
     _asaka_1: input.creatorName,
-    _asaka_2: input.creatorName ? `${input.creatorName} tomonidan tasdiqlandi` : '',
-    _asaka_3: nameOf('aziza'),
-    _asaka_4: nameOf('raxmatjon'),
-    _asaka_5: nameOf('abduxalil'),
-    _asaka_6: nameOf('mirzaxid'),
+    // Yaratuvchi hujjatni yuborish bilan tasdiqlagan hisoblanadi.
+    _asaka_2: 'TASDIQLANDI',
+    _asaka_3: markOf('aziza'),
+    _asaka_4: markOf('raxmatjon'),
+    _asaka_5: markOf('abduxalil'),
+    _asaka_6: markOf('mirzaxid'),
     _asaka_7: input.number,
     _asaka_8: input.senderDept,
     _asaka_9: input.recipientDept,

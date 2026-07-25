@@ -1215,6 +1215,7 @@ export class DocumentsService {
         login: p.user.login,
         fullName: p.user.fullName ?? '',
         actedAt: p.actedAt ?? null,
+        approved: p.status === ParticipantStatus.approved,
       }));
     const { values, raw } = buildIchkiTokens({
       creatorName: doc.createdBy?.fullName ?? '',
