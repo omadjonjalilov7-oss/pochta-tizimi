@@ -1237,6 +1237,18 @@ export class DocumentsService {
         actedAt: p.actedAt ?? null,
         approved: p.status === ParticipantStatus.approved,
       }));
+    // Tasdiqlash katakchalarida "TASDIQLANDI" o'rniga hujjat QR kodi ko'rsatiladi.
+    let qrDataUrl: string | undefined;
+    try {
+      const token = await this.ensurePublicToken(doc.id, doc.publicToken);
+      qrDataUrl = await QRCode.toDataURL(this.buildScanUrl(token), {
+        errorCorrectionLevel: 'M',
+        margin: 1,
+        width: 160,
+      });
+    } catch {
+      qrDataUrl = undefined; // QR yaratilmasa — eski matnli belgiga qaytadi
+    }
     const { values, raw } = buildIchkiTokens({
       creatorName: doc.createdBy?.fullName ?? '',
       number: doc.number ?? '',
@@ -1248,6 +1260,7 @@ export class DocumentsService {
       createdAt: doc.createdAt,
       closedAt: doc.closedAt ?? null,
       approvers,
+      qrDataUrl,
     });
     doc.renderedBody = renderIchki(tpl.bodyTemplate, values, raw);
   }
@@ -1623,6 +1636,27 @@ export class DocumentsService {
     };
   }
 
+  // Skaner linkini quradi (ommaviy QR uchun umumiy manzil).
+  private buildScanUrl(token: string, baseOverride?: string): string {
+    const base = (
+      baseOverride ||
+      process.env.PUBLIC_BASE_URL ||
+      'https://edo.asaka-motors.uz'
+    ).replace(/\/+$/, '');
+    return `${base}/skaner/${token}`;
+  }
+
+  // Hujjatning ommaviy tokenini qaytaradi (yo'q bo'lsa yaratib saqlaydi).
+  private async ensurePublicToken(id: string, existing?: string | null): Promise<string> {
+    if (existing) return existing;
+    const token = randomBytes(16).toString('hex');
+    await this.prisma.document.update({
+      where: { id },
+      data: { publicToken: token },
+    });
+    return token;
+  }
+
   // Hujjat uchun QR kod (data URL PNG) va ommaviy skaner linkini qaytaradi.
   async generateQr(id: string, baseOverride?: string) {
     const doc = await this.prisma.document.findUnique({
@@ -1630,21 +1664,8 @@ export class DocumentsService {
       select: { publicToken: true },
     });
     if (!doc) throw new NotFoundException('Hujjat topilmadi');
-    // Eski hujjatlarda token bo'lmasa — shu yerda yaratamiz
-    let token = doc.publicToken;
-    if (!token) {
-      token = randomBytes(16).toString('hex');
-      await this.prisma.document.update({
-        where: { id },
-        data: { publicToken: token },
-      });
-    }
-    const base = (
-      baseOverride ||
-      process.env.PUBLIC_BASE_URL ||
-      'https://edo.asaka-motors.uz'
-    ).replace(/\/+$/, '');
-    const url = `${base}/skaner/${token}`;
+    const token = await this.ensurePublicToken(id, doc.publicToken);
+    const url = this.buildScanUrl(token, baseOverride);
     const dataUrl = await QRCode.toDataURL(url, {
       errorCorrectionLevel: 'M',
       margin: 1,

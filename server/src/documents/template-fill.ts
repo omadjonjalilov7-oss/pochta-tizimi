@@ -22,6 +22,9 @@ export interface AutoFillInput {
   createdAt: Date;
   closedAt: Date | null;
   approvers: AutoFillApprover[];
+  // Hujjatning ommaviy QR kodi (PNG data URL). Tasdiqlagan xodim katakchasida
+  // "TASDIQLANDI" yozuvi o'rniga shu QR ko'rsatiladi. Bo'sh bo'lsa — matn qoladi.
+  qrDataUrl?: string;
 }
 
 // Sana Toshkent vaqti bo'yicha (UTC+5, yozgi vaqt yo'q) ko'rsatiladi —
@@ -52,15 +55,21 @@ export function buildIchkiTokens(input: AutoFillInput): {
   const byLogin = new Map(
     input.approvers.map((a) => [a.login.toLowerCase(), a] as const),
   );
-  // Tasdiqlash belgisi: shaxs tasdiqlagan bo'lsa "TASDIQLANDI", aks holda bo'sh.
+  // Tasdiqlagan xodim katakchasida QR kod (hujjatni ko'rsatuvchi). QR bo'lmasa
+  // eski xatti-harakat: "TASDIQLANDI" yozuvi.
+  const qrTag = input.qrDataUrl
+    ? `<img src="${input.qrDataUrl}" alt="QR" title="Hujjatni skanerlab ko'rish" ` +
+      `style="width:84px;height:84px;display:block;margin:0 auto;" />`
+    : 'TASDIQLANDI';
+  // Tasdiqlash belgisi: shaxs tasdiqlagan bo'lsa QR (yoki matn), aks holda bo'sh.
   const markOf = (login: string) =>
-    byLogin.get(login)?.approved ? 'TASDIQLANDI' : '';
+    byLogin.get(login)?.approved ? qrTag : '';
   const dateOf = (login: string) => fmtDate(byLogin.get(login)?.actedAt ?? null);
 
   const values: Record<string, string> = {
     _asaka_1: input.creatorName,
     // Yaratuvchi hujjatni yuborish bilan tasdiqlagan hisoblanadi.
-    _asaka_2: 'TASDIQLANDI',
+    _asaka_2: qrTag,
     _asaka_3: markOf('aziza'),
     _asaka_4: markOf('raxmatjon'),
     _asaka_5: markOf('abduxalil'),
@@ -78,8 +87,16 @@ export function buildIchkiTokens(input: AutoFillInput): {
     _sana_5: dateOf('mirzaxid'),
     _sana_6: fmtDate(input.closedAt),
   };
-  // Faqat hujjat matni (_asaka_11) xom HTML sifatida joylanadi.
-  const raw = new Set<string>(['_asaka_11']);
+  // Hujjat matni (_asaka_11) va tasdiqlash katakchalaridagi QR <img> teglari
+  // xom HTML sifatida joylanadi (escape qilinmaydi).
+  const raw = new Set<string>([
+    '_asaka_11',
+    '_asaka_2',
+    '_asaka_3',
+    '_asaka_4',
+    '_asaka_5',
+    '_asaka_6',
+  ]);
   return { values, raw };
 }
 
