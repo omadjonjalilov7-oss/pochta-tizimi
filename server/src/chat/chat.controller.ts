@@ -1,10 +1,14 @@
 import {
+  BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
+  Query,
   Res,
   UploadedFile,
   UseGuards,
@@ -30,6 +34,12 @@ class SendChatDto {
   @IsString()
   @MaxLength(10000)
   body?: string;
+}
+
+class EditChatDto {
+  @IsString()
+  @MaxLength(10000)
+  body: string;
 }
 
 @Controller('chat')
@@ -81,6 +91,34 @@ export class ChatController {
     // Real-vaqt: qabul qiluvchiga xabar yuboramiz
     this.gateway.emitChatMessage(body.toUserId, msg);
     return msg;
+  }
+
+  @Patch('messages/:id')
+  async editMessage(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: EditChatDto,
+  ) {
+    const msg = await this.chat.editMessage(user.id, id, body.body);
+    // Suhbatdoshga real-vaqt yangilanish
+    const peerId = msg.fromUserId === user.id ? msg.toUserId : msg.fromUserId;
+    this.gateway.emitChatEdited(peerId, msg);
+    return msg;
+  }
+
+  @Delete('messages/:id')
+  async deleteMessage(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Query('scope') scope?: string,
+  ) {
+    const s = scope === 'all' ? 'all' : scope === 'me' ? 'me' : null;
+    if (!s) throw new BadRequestException("scope 'me' yoki 'all' bo'lishi kerak");
+    const res = await this.chat.deleteMessage(user.id, id, s);
+    if (s === 'all' && res.partnerId) {
+      this.gateway.emitChatDeleted(res.partnerId, id, user.id);
+    }
+    return res;
   }
 
   @Post('read/:userId')

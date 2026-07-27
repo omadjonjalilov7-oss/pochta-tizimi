@@ -613,6 +613,10 @@ model ChatMessage {
   body       String    @db.Text
   sentAt     DateTime  @default(now()) @map("sent_at") @db.Timestamptz(3)
   readAt     DateTime? @map("read_at") @db.Timestamptz(3)
+  editedAt       DateTime? @map("edited_at") @db.Timestamptz(3)
+  deletedForFrom Boolean   @default(false) @map("deleted_for_from")
+  deletedForTo   Boolean   @default(false) @map("deleted_for_to")
+  deletedForAll  Boolean   @default(false) @map("deleted_for_all")
 
   fromUser    User             @relation("ChatSender",   fields: [fromUserId], references: [id], onDelete: Cascade)
   toUser      User             @relation("ChatReceiver", fields: [toUserId],   references: [id], onDelete: Cascade)

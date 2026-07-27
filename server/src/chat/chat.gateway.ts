@@ -24,4 +24,20 @@ export class ChatGateway {
       payload: { readByUserId },
     });
   }
+
+  /** Xabar tahrirlandi — suhbatdoshga real-vaqt yangilash */
+  emitChatEdited(recipientId: string, message: any) {
+    this.ws.server.to(`user:${recipientId}`).emit('chat_message_edited', {
+      type: 'chat_message_edited',
+      payload: message,
+    });
+  }
+
+  /** Xabar o'chirildi (hamma uchun) — suhbatdoshga real-vaqt yangilash */
+  emitChatDeleted(recipientId: string, messageId: string, peerId: string) {
+    this.ws.server.to(`user:${recipientId}`).emit('chat_message_deleted', {
+      type: 'chat_message_deleted',
+      payload: { messageId, peerId },
+    });
+  }
 }

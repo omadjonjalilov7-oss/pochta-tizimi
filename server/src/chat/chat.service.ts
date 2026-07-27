@@ -58,15 +58,20 @@ export class ChatService {
       const last = await this.prisma.chatMessage.findFirst({
         where: {
           OR: [
-            { fromUserId: userId, toUserId: partner_id },
-            { fromUserId: partner_id, toUserId: userId },
+            { fromUserId: userId, toUserId: partner_id, deletedForFrom: false },
+            { fromUserId: partner_id, toUserId: userId, deletedForTo: false },
           ],
         },
         orderBy: { sentAt: 'desc' },
         include: { attachments: { select: { filename: true } } },
       });
       const unread = await this.prisma.chatMessage.count({
-        where: { fromUserId: partner_id, toUserId: userId, readAt: null },
+        where: {
+          fromUserId: partner_id,
+          toUserId: userId,
+          readAt: null,
+          deletedForTo: false,
+        },
       });
       const partner = await this.prisma.user.findUnique({
         where: { id: partner_id },
@@ -96,8 +101,8 @@ export class ChatService {
     const msgs = await this.prisma.chatMessage.findMany({
       where: {
         OR: [
-          { fromUserId: userId, toUserId: partnerId },
-          { fromUserId: partnerId, toUserId: userId },
+          { fromUserId: userId, toUserId: partnerId, deletedForFrom: false },
+          { fromUserId: partnerId, toUserId: userId, deletedForTo: false },
         ],
       },
       orderBy: { sentAt: 'asc' },
@@ -196,6 +201,83 @@ export class ChatService {
     return { count };
   }
 
+  // ── Xabarni tahrirlash (faqat yuboruvchi) ─────────────────────────────
+  async editMessage(userId: string, msgId: string, body: string) {
+    const msg = await this.prisma.chatMessage.findUnique({
+      where: { id: msgId },
+    });
+    if (!msg) throw new NotFoundException('Xabar topilmadi');
+    if (msg.fromUserId !== userId) {
+      throw new ForbiddenException("Faqat o'zingiz yuborgan xabarni tahrirlashingiz mumkin");
+    }
+    if (msg.deletedForAll) {
+      throw new BadRequestException("O'chirilgan xabarni tahrirlab bo'lmaydi");
+    }
+    if (!body?.trim()) {
+      throw new BadRequestException("Xabar matni bo'sh bo'lishi mumkin emas");
+    }
+    const updated = await this.prisma.chatMessage.update({
+      where: { id: msgId },
+      data: { body: body.trim(), editedAt: new Date() },
+      include: { attachments: true },
+    });
+    return this.serializeMsg(updated);
+  }
+
+  // ── Xabarni o'chirish ─────────────────────────────────────────────────
+  //  scope='me'  → faqat o'zidan yashirish
+  //  scope='all' → hamma uchun o'chirish (faqat yuboruvchi)
+  async deleteMessage(
+    userId: string,
+    msgId: string,
+    scope: 'me' | 'all',
+  ) {
+    const msg = await this.prisma.chatMessage.findUnique({
+      where: { id: msgId },
+      include: { attachments: true },
+    });
+    if (!msg) throw new NotFoundException('Xabar topilmadi');
+    const isFrom = msg.fromUserId === userId;
+    const isTo = msg.toUserId === userId;
+    if (!isFrom && !isTo) {
+      throw new ForbiddenException("Sizda bu xabarni o'chirish huquqi yo'q");
+    }
+
+    if (scope === 'all') {
+      if (!isFrom) {
+        throw new ForbiddenException(
+          "Hamma uchun o'chirishni faqat xabarni yuborgan xodim qila oladi",
+        );
+      }
+      // Fayllarni diskdan va bazadan o'chiramiz
+      for (const a of msg.attachments) {
+        await fs
+          .unlink(path.join(this.attDir, a.storedPath))
+          .catch(() => undefined);
+      }
+      await this.prisma.chatAttachment.deleteMany({
+        where: { messageId: msgId },
+      });
+      await this.prisma.chatMessage.update({
+        where: { id: msgId },
+        data: {
+          body: '',
+          deletedForAll: true,
+          deletedForFrom: true,
+          deletedForTo: true,
+        },
+      });
+      return { ok: true, scope, partnerId: msg.toUserId, fromUserId: msg.fromUserId };
+    }
+
+    // scope === 'me'
+    await this.prisma.chatMessage.update({
+      where: { id: msgId },
+      data: isFrom ? { deletedForFrom: true } : { deletedForTo: true },
+    });
+    return { ok: true, scope, partnerId: isFrom ? msg.toUserId : msg.fromUserId };
+  }
+
   // ── Fayl yuklash ──────────────────────────────────────────────────────
   async downloadAttachment(userId: string, attId: string) {
     const att = await this.prisma.chatAttachment.findUnique({
@@ -222,6 +304,8 @@ export class ChatService {
       body: m.body,
       sentAt: m.sentAt,
       readAt: m.readAt ?? null,
+      editedAt: m.editedAt ?? null,
+      deleted: !!m.deletedForAll,
       attachments: (m.attachments || []).map((a: any) => ({
         id: a.id,
         filename: a.filename,

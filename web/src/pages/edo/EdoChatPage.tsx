@@ -50,6 +50,24 @@ export function EdoChatPage() {
       qc.invalidateQueries({ queryKey: ['chat-conversations'] });
     };
 
+    const onChatEdited = (data: { payload: ChatMsg }) => {
+      const msg = data.payload;
+      qc.setQueryData<ChatMsg[]>(['chat-messages', msg.fromUserId], (old) =>
+        old?.map((m) => (m.id === msg.id ? msg : m)),
+      );
+      qc.invalidateQueries({ queryKey: ['chat-conversations'] });
+    };
+
+    const onChatDeleted = (data: { payload: { messageId: string; peerId: string } }) => {
+      const { messageId, peerId } = data.payload;
+      qc.setQueryData<ChatMsg[]>(['chat-messages', peerId], (old) =>
+        old?.map((m) =>
+          m.id === messageId ? { ...m, deleted: true, body: '', attachments: [] } : m,
+        ),
+      );
+      qc.invalidateQueries({ queryKey: ['chat-conversations'] });
+    };
+
     const onTyping = (data: { payload: { fromUserId: string; typing: boolean } }) => {
       const { fromUserId, typing } = data.payload;
       if (typing) {
@@ -65,10 +83,14 @@ export function EdoChatPage() {
     socket.on('chat_message', onChatMsg);
     socket.on('chat_read', onChatRead);
     socket.on('chat_typing', onTyping);
+    socket.on('chat_message_edited', onChatEdited);
+    socket.on('chat_message_deleted', onChatDeleted);
     return () => {
       socket.off('chat_message', onChatMsg);
       socket.off('chat_read', onChatRead);
       socket.off('chat_typing', onTyping);
+      socket.off('chat_message_edited', onChatEdited);
+      socket.off('chat_message_deleted', onChatDeleted);
       if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     };
   }, [user, partnerId, qc]);
@@ -292,6 +314,24 @@ export function EdoChatPage() {
               qc.setQueryData<ChatMsg[]>(
                 ['chat-messages', partnerId],
                 (old) => [...(old ?? []), msg],
+              );
+              qc.invalidateQueries({ queryKey: ['chat-conversations'] });
+            }}
+            onEdit={async (id, body) => {
+              const updated = (await api.patch<ChatMsg>(`/chat/messages/${id}`, { body })).data;
+              qc.setQueryData<ChatMsg[]>(['chat-messages', partnerId], (old) =>
+                old?.map((m) => (m.id === id ? updated : m)),
+              );
+              qc.invalidateQueries({ queryKey: ['chat-conversations'] });
+            }}
+            onDelete={async (id, scope) => {
+              await api.delete(`/chat/messages/${id}`, { params: { scope } });
+              qc.setQueryData<ChatMsg[]>(['chat-messages', partnerId], (old) =>
+                scope === 'me'
+                  ? old?.filter((m) => m.id !== id)
+                  : old?.map((m) =>
+                      m.id === id ? { ...m, deleted: true, body: '', attachments: [] } : m,
+                    ),
               );
               qc.invalidateQueries({ queryKey: ['chat-conversations'] });
             }}

@@ -861,7 +861,14 @@
       "no_conversations": "Suhbatlar yo'q",
       "no_users": "Foydalanuvchi topilmadi",
       "select_conversation": "Suhbatni tanlang yoki yangi suhbat boshlang",
-      "typing": "yozmoqda..."
+      "typing": "yozmoqda...",
+      "edit": "Tahrirlash",
+      "editing": "Xabar tahrirlanmoqda",
+      "edited": "tahrirlangan",
+      "delete_me": "O'zimdan o'chirish",
+      "delete_all": "Hamma uchun o'chirish",
+      "delete_all_confirm": "Xabar hamma uchun o'chiriladi. Davom etilsinmi?",
+      "deleted_msg": "Xabar o'chirildi"
     }
   }
 }

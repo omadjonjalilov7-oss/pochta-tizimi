@@ -1,6 +1,8 @@
 import {
   type ChangeEvent,
   type KeyboardEvent,
+  type ReactNode,
+  type RefObject,
   useEffect,
   useMemo,
   useRef,
@@ -16,6 +18,8 @@ import {
   X,
   FileText,
   Download,
+  MoreVertical,
+  Trash2,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Avatar } from '../Avatar';
@@ -44,6 +48,8 @@ export interface ChatMsg {
   body: string;
   sentAt: string;
   readAt: string | null;
+  editedAt?: string | null;
+  deleted?: boolean;
   attachments: ChatAttachment[];
 }
 
@@ -87,6 +93,8 @@ export function ConversationView({
   messages,
   onBack,
   onSend,
+  onEdit,
+  onDelete,
   partnerTyping = false,
   onTyping,
 }: {
@@ -95,6 +103,8 @@ export function ConversationView({
   messages: ChatMsg[];
   onBack?: () => void;
   onSend: (body: string, file?: File) => Promise<void>;
+  onEdit?: (id: string, body: string) => Promise<void>;
+  onDelete?: (id: string, scope: 'me' | 'all') => Promise<void>;
   partnerTyping?: boolean;
   onTyping?: (typing: boolean) => void;
 }) {
@@ -103,8 +113,23 @@ export function ConversationView({
   const [file, setFile] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const startEdit = (m: ChatMsg) => {
+    setEditingId(m.id);
+    setText(m.body);
+    setFile(null);
+    setError(null);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setText('');
+  };
 
   // "yozmoqda..." holatini suhbatdoshga bildirish (throttled + avto-to'xtash).
   const typingRef = useRef(false);
@@ -146,6 +171,23 @@ export function ConversationView({
   }, [messages, partnerTyping]);
 
   const handleSend = async () => {
+    if (editingId) {
+      if (!text.trim()) return;
+      stopTyping();
+      setSending(true);
+      setError(null);
+      try {
+        await onEdit?.(editingId, text.trim());
+        setEditingId(null);
+        setText('');
+      } catch (e: any) {
+        const msg = e?.response?.data?.message;
+        setError(Array.isArray(msg) ? msg.join(', ') : msg || e?.message || 'Xatolik');
+      } finally {
+        setSending(false);
+      }
+      return;
+    }
     if (!text.trim() && !file) return;
     stopTyping();
     setSending(true);
@@ -231,15 +273,37 @@ export function ConversationView({
               {group.date}
             </div>
             {group.msgs.map((m) => (
-              <MessageBubble key={m.id} msg={m} myId={myId} />
+              <MessageBubble
+                key={m.id}
+                msg={m}
+                myId={myId}
+                onStartEdit={onEdit ? startEdit : undefined}
+                onDelete={onDelete}
+              />
             ))}
           </div>
         ))}
         <div ref={bottomRef} />
       </div>
 
+      {/* Tahrirlash rejimi */}
+      {editingId && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border-t border-amber-100 shrink-0">
+          <Pencil size={14} className="text-amber-600 shrink-0" />
+          <span className="text-xs text-slate-700 truncate flex-1">
+            {t('edo.chat.editing')}
+          </span>
+          <button
+            onClick={cancelEdit}
+            className="p-0.5 text-slate-400 hover:text-red-500 rounded"
+          >
+            <X size={13} />
+          </button>
+        </div>
+      )}
+
       {/* Fayl preview */}
-      {file && (
+      {file && !editingId && (
         <div className="flex items-center gap-2 px-3 py-2 bg-brand-50 border-t border-brand-100 shrink-0">
           <FileText size={14} className="text-brand-600 shrink-0" />
           <span className="text-xs text-slate-700 truncate flex-1">{file.name}</span>
@@ -260,14 +324,16 @@ export function ConversationView({
 
       {/* Input */}
       <div className="flex items-end gap-2 px-3 py-2.5 border-t border-slate-200 bg-white shrink-0">
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          className="p-1.5 text-slate-400 hover:text-brand-600 rounded-lg hover:bg-brand-50"
-          title="Fayl biriktirish (max 50 MB)"
-        >
-          <Paperclip size={18} />
-        </button>
+        {!editingId && (
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="p-1.5 text-slate-400 hover:text-brand-600 rounded-lg hover:bg-brand-50"
+            title="Fayl biriktirish (max 50 MB)"
+          >
+            <Paperclip size={18} />
+          </button>
+        )}
         <input
           ref={fileRef}
           type="file"
@@ -275,6 +341,7 @@ export function ConversationView({
           onChange={handleFileChange}
         />
         <textarea
+          ref={inputRef}
           value={text}
           onChange={(e) => {
             setText(e.target.value);
@@ -301,42 +368,126 @@ export function ConversationView({
 }
 
 // ─── Bitta xabar pufagi ───────────────────────────────────────────────────────
-export function MessageBubble({ msg, myId }: { msg: ChatMsg; myId: string }) {
+export function MessageBubble({
+  msg,
+  myId,
+  onStartEdit,
+  onDelete,
+}: {
+  msg: ChatMsg;
+  myId: string;
+  onStartEdit?: (m: ChatMsg) => void;
+  onDelete?: (id: string, scope: 'me' | 'all') => Promise<void>;
+}) {
+  const { t } = useTranslation();
   const isMine = msg.fromUserId === myId;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [menuOpen]);
+
+  const hasActions = !msg.deleted && (onStartEdit || onDelete);
+
+  const doDelete = async (scope: 'me' | 'all') => {
+    setMenuOpen(false);
+    if (scope === 'all' && !window.confirm(t('edo.chat.delete_all_confirm'))) return;
+    await onDelete?.(msg.id, scope);
+  };
 
   return (
-    <div className={`flex mb-1 ${isMine ? 'justify-end' : 'justify-start'}`}>
+    <div className={`group flex mb-1 items-center gap-1 ${isMine ? 'justify-end' : 'justify-start'}`}>
+      {/* Menyu tugmasi (chapda — o'z xabarlar uchun) */}
+      {isMine && hasActions && (
+        <MessageMenu
+          open={menuOpen}
+          setOpen={setMenuOpen}
+          menuRef={menuRef}
+          side="right"
+        >
+          {onStartEdit && (
+            <button
+              onClick={() => {
+                setMenuOpen(false);
+                onStartEdit(msg);
+              }}
+              className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-100 text-left"
+            >
+              <Pencil size={13} /> {t('edo.chat.edit')}
+            </button>
+          )}
+          <button
+            onClick={() => doDelete('me')}
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-100 text-left"
+          >
+            <Trash2 size={13} /> {t('edo.chat.delete_me')}
+          </button>
+          <button
+            onClick={() => doDelete('all')}
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 text-left"
+          >
+            <Trash2 size={13} /> {t('edo.chat.delete_all')}
+          </button>
+        </MessageMenu>
+      )}
+
       <div
         className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm shadow-sm ${
-          isMine
-            ? 'bg-brand-600 text-white rounded-br-sm'
-            : 'bg-white text-slate-800 rounded-bl-sm border border-slate-200'
+          msg.deleted
+            ? isMine
+              ? 'bg-brand-500/60 text-brand-50 rounded-br-sm italic'
+              : 'bg-slate-100 text-slate-400 rounded-bl-sm border border-slate-200 italic'
+            : isMine
+              ? 'bg-brand-600 text-white rounded-br-sm'
+              : 'bg-white text-slate-800 rounded-bl-sm border border-slate-200'
         }`}
       >
-        {/* Biriktirilgan fayllar */}
-        {msg.attachments.length > 0 && (
-          <div className="mb-1 space-y-1">
-            {msg.attachments.map((a) => (
-              <a
-                key={a.id}
-                href={`/api/chat/attachments/${a.id}/download`}
-                target="_blank"
-                rel="noreferrer"
-                className={`flex items-center gap-1.5 text-xs underline ${
-                  isMine ? 'text-brand-100 hover:text-white' : 'text-brand-600 hover:text-brand-800'
-                }`}
-              >
-                <Download size={11} />
-                <span className="truncate max-w-[180px]">{a.filename}</span>
-                <span className="opacity-70 shrink-0">({formatBytes(a.sizeBytes)})</span>
-              </a>
-            ))}
-          </div>
+        {msg.deleted ? (
+          <p className="leading-snug flex items-center gap-1.5">
+            <Trash2 size={12} className="opacity-70 shrink-0" />
+            {t('edo.chat.deleted_msg')}
+          </p>
+        ) : (
+          <>
+            {/* Biriktirilgan fayllar */}
+            {msg.attachments.length > 0 && (
+              <div className="mb-1 space-y-1">
+                {msg.attachments.map((a) => (
+                  <a
+                    key={a.id}
+                    href={`/api/chat/attachments/${a.id}/download`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={`flex items-center gap-1.5 text-xs underline ${
+                      isMine ? 'text-brand-100 hover:text-white' : 'text-brand-600 hover:text-brand-800'
+                    }`}
+                  >
+                    <Download size={11} />
+                    <span className="truncate max-w-[180px]">{a.filename}</span>
+                    <span className="opacity-70 shrink-0">({formatBytes(a.sizeBytes)})</span>
+                  </a>
+                ))}
+              </div>
+            )}
+
+            {msg.body && <p className="leading-snug whitespace-pre-wrap break-words">{msg.body}</p>}
+          </>
         )}
 
-        {msg.body && <p className="leading-snug whitespace-pre-wrap break-words">{msg.body}</p>}
-
         <div className="flex items-center gap-1 mt-0.5 justify-end">
+          {msg.editedAt && !msg.deleted && (
+            <span className={`text-[10px] italic ${isMine ? 'text-brand-200' : 'text-slate-400'}`}>
+              {t('edo.chat.edited')}
+            </span>
+          )}
           <span
             className={`text-[10px] ${isMine ? 'text-brand-200' : 'text-slate-400'}`}
           >
@@ -345,13 +496,67 @@ export function MessageBubble({ msg, myId }: { msg: ChatMsg; myId: string }) {
               minute: '2-digit',
             })}
           </span>
-          {isMine && (
+          {isMine && !msg.deleted && (
             <span className="text-brand-200">
               <Ticks readAt={msg.readAt} />
             </span>
           )}
         </div>
       </div>
+
+      {/* Menyu tugmasi (o'ngda — qabul qilingan xabarlar uchun) */}
+      {!isMine && hasActions && onDelete && (
+        <MessageMenu
+          open={menuOpen}
+          setOpen={setMenuOpen}
+          menuRef={menuRef}
+          side="left"
+        >
+          <button
+            onClick={() => doDelete('me')}
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-100 text-left"
+          >
+            <Trash2 size={13} /> {t('edo.chat.delete_me')}
+          </button>
+        </MessageMenu>
+      )}
+    </div>
+  );
+}
+
+// ─── Xabar menyusi (uch nuqta) ────────────────────────────────────────────────
+function MessageMenu({
+  open,
+  setOpen,
+  menuRef,
+  side,
+  children,
+}: {
+  open: boolean;
+  setOpen: (v: boolean) => void;
+  menuRef: RefObject<HTMLDivElement | null>;
+  side: 'left' | 'right';
+  children: ReactNode;
+}) {
+  return (
+    <div className="relative shrink-0" ref={menuRef}>
+      <button
+        onClick={() => setOpen(!open)}
+        className={`p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-opacity ${
+          open ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+        }`}
+      >
+        <MoreVertical size={15} />
+      </button>
+      {open && (
+        <div
+          className={`absolute z-20 bottom-full mb-1 min-w-[160px] bg-white rounded-lg shadow-lg border border-slate-200 py-1 overflow-hidden ${
+            side === 'right' ? 'right-0' : 'left-0'
+          }`}
+        >
+          {children}
+        </div>
+      )}
     </div>
   );
 }
