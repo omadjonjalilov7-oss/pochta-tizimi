@@ -38,3 +38,10 @@ api.interceptors.response.use(
     return Promise.reject(err);
   },
 );
+
+// Login/parolsiz OMMAVIY so'rovlar uchun (QR skaner). Auth header ham,
+// 401 redirect ham yo'q — foydalanuvchi tizimga kirmagan bo'lishi mumkin.
+export const publicApi = axios.create({
+  baseURL: API_BASE,
+  timeout: 30_000,
+});

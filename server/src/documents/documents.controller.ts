@@ -246,6 +246,15 @@ export class DocumentsController {
     return this.docs.findOne(user.id, id);
   }
 
+  // Hujjat uchun QR kod (PNG data URL) + ommaviy skaner linki
+  @Get(':id/qr')
+  getQr(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Query('base') base?: string,
+  ) {
+    return this.docs.generateQr(id, base);
+  }
+
   @Patch(':id')
   update(
     @CurrentUser() user: CurrentUserPayload,

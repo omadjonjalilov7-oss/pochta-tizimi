@@ -543,6 +543,36 @@
       "k_overdue": "Muddati o'tgan",
       "k_on_approval": "Tasdiqlashda"
     },
+    "scan": {
+      "title": "Hujjat holati",
+      "subtitle": "ASAKA MOTORS — elektron hujjat aylanishi",
+      "loading": "Yuklanmoqda...",
+      "not_found": "Hujjat topilmadi yoki QR kod yaroqsiz",
+      "no_token": "QR kodni skanerlab, hujjat holatini ko'ring",
+      "number": "Hujjat raqami",
+      "no_number": "Raqam berilmagan (qoralama)",
+      "doc_type": "Hujjat turi",
+      "subject": "Mavzu",
+      "status": "Holat",
+      "signed": "Imzolangan",
+      "not_signed": "Imzolanmagan",
+      "created_by": "Yaratuvchi",
+      "department": "Bo'lim",
+      "created_at": "Yaratilgan sana",
+      "deadline": "Ijro muddati",
+      "closed_at": "Yopilgan sana",
+      "updated_at": "Oxirgi yangilanish",
+      "footer": "Ushbu ma'lumot ASAKA MOTORS EDO tizimi tomonidan tasdiqlangan",
+      "retry": "Qayta urinish"
+    },
+    "qr": {
+      "title": "QR kod",
+      "loading": "QR kod yaratilmoqda...",
+      "error": "QR kodni yaratib bo'lmadi",
+      "hint": "Skanerlab, hujjat holatini login/parolsiz ko'ring",
+      "download": "Yuklab olish",
+      "print": "Chop etish"
+    },
     "status": {
       "draft": "Qoralama",
       "in_review": "Tasdiqlashda",

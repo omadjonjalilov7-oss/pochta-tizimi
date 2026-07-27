@@ -2,6 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DocumentsController } from './documents.controller';
+import { PublicController } from './public.controller';
 import { DocumentsService } from './documents.service';
 import { DocumentsCron } from './documents.cron';
 import { QrApprovalService } from './qr-approval.service';
@@ -24,7 +25,7 @@ import { SettingsModule } from '../settings/settings.module';
     UsersModule,
     SettingsModule,
   ],
-  controllers: [DocumentsController],
+  controllers: [DocumentsController, PublicController],
   providers: [DocumentsService, DocumentsCron, QrApprovalService, PdfGeneratorService, ReportService],
   exports: [DocumentsService, QrApprovalService, PdfGeneratorService, ReportService],
 })

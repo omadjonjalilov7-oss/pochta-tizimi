@@ -22,6 +22,8 @@ import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { SendDocumentDto } from './dto/send-document.dto';
 import { sanitizeRichHtml } from '../common/sanitize';
+import { randomBytes } from 'crypto';
+import * as QRCode from 'qrcode';
 import {
   ApproveDocumentDto,
   ApproveOverdueDocumentDto,
@@ -219,6 +221,7 @@ export class DocumentsService {
           number: draftNumber,
           docUid,
           numberCategory: category,
+          publicToken: randomBytes(16).toString('hex'), // 32 belgili ommaviy QR token
           year,
           type: dto.type,
           internalKind:
@@ -1572,6 +1575,82 @@ export class DocumentsService {
       .sort((x, y) => y.orders - x.orders);
 
     return { byType, total, managers };
+  }
+
+  // ── OMMAVIY QR / SKANER ────────────────────────────────────────────────
+  // Login/parolsiz foydalanuvchi uchun hujjatning qisqacha holati (public_token orqali).
+  // 1-etap: faqat holat. Keyingi etapda ichki ma'lumotlar ham qo'shiladi.
+  async getPublicSnapshot(token: string) {
+    const doc = await this.prisma.document.findUnique({
+      where: { publicToken: token },
+      select: {
+        number: true,
+        docUid: true,
+        type: true,
+        internalKind: true,
+        subject: true,
+        status: true,
+        isSigned: true,
+        deadline: true,
+        createdAt: true,
+        updatedAt: true,
+        closedAt: true,
+        createdBy: {
+          select: {
+            fullName: true,
+            department: { select: { name: true } },
+          },
+        },
+      },
+    });
+    if (!doc) {
+      throw new NotFoundException('Hujjat topilmadi yoki QR kod yaroqsiz');
+    }
+    return {
+      number: doc.number.startsWith('DRAFT-') ? null : doc.number,
+      docUid: doc.docUid,
+      type: doc.type,
+      internalKind: doc.internalKind,
+      subject: doc.subject,
+      status: doc.status,
+      isSigned: doc.isSigned,
+      deadline: doc.deadline,
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
+      closedAt: doc.closedAt,
+      createdByName: doc.createdBy?.fullName ?? null,
+      createdByDept: doc.createdBy?.department?.name ?? null,
+    };
+  }
+
+  // Hujjat uchun QR kod (data URL PNG) va ommaviy skaner linkini qaytaradi.
+  async generateQr(id: string, baseOverride?: string) {
+    const doc = await this.prisma.document.findUnique({
+      where: { id },
+      select: { publicToken: true },
+    });
+    if (!doc) throw new NotFoundException('Hujjat topilmadi');
+    // Eski hujjatlarda token bo'lmasa — shu yerda yaratamiz
+    let token = doc.publicToken;
+    if (!token) {
+      token = randomBytes(16).toString('hex');
+      await this.prisma.document.update({
+        where: { id },
+        data: { publicToken: token },
+      });
+    }
+    const base = (
+      baseOverride ||
+      process.env.PUBLIC_BASE_URL ||
+      'https://edo.asaka-motors.uz'
+    ).replace(/\/+$/, '');
+    const url = `${base}/skaner/${token}`;
+    const dataUrl = await QRCode.toDataURL(url, {
+      errorCorrectionLevel: 'M',
+      margin: 1,
+      width: 320,
+    });
+    return { url, token, dataUrl };
   }
 
   // ── YORDAMCHILAR ──────────────────────────────────────────────────────

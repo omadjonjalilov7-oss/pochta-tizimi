@@ -35,6 +35,7 @@ import {
   EdoDepartmentPage,
 } from './pages/edo/EdoDocList';
 import { EdoControlPage } from './pages/edo/EdoControlPage';
+import { EdoScanPage } from './pages/edo/EdoScanPage';
 
 export function App() {
   const { loading } = useAuth();
@@ -51,6 +52,9 @@ export function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<Navigate to="/login" replace />} />
+      {/* Ommaviy QR skaner — login/parolsiz */}
+      <Route path="/skaner/:token" element={<EdoScanPage />} />
+      <Route path="/skaner" element={<EdoScanPage />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
           <Route index element={<Navigate to="/inbox" replace />} />

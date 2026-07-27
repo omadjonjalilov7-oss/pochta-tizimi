@@ -384,6 +384,8 @@ model Document {
   number          String          @unique @db.VarChar(64)             // xodimlar uchun tartib raqami: tartib-bo'lim (masalan 01-05)
   docUid          String?         @unique @map("doc_uid") @db.VarChar(32) // tizim uchun yagona ID: asaka-YYYYMMDDNN
   numberCategory  String          @map("number_category") @db.VarChar(16)  // IN / OUT / INT / BUYRUQ
+  // Ommaviy QR kod uchun tasodifiy token — login/parolsiz hujjat holatini ko'rish
+  publicToken     String?         @unique @map("public_token") @db.VarChar(40)
   year            Int
   type            DocumentType
   internalKind    String?         @map("internal_kind") @db.VarChar(32)      // ichki hujjat turi: service_letter | order

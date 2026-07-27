@@ -22,6 +22,9 @@ import {
   Paperclip,
   FileDown,
   ArrowLeft,
+  QrCode,
+  Printer,
+  X,
 } from 'lucide-react';
 import { EimzoSignModal } from '../../components/edo/EimzoSignModal';
 import { api } from '../../lib/api';
@@ -225,6 +228,7 @@ export function EdoDocumentViewPage() {
                   doc={doc}
                   disabled={doc.status === 'draft'}
                 />
+                <QrButton docId={doc.id} docNumber={doc.number} />
               </div>
             </div>
             {doc.shortInfo && (
@@ -932,6 +936,135 @@ function StatusBadge({ status }: { status: DocumentStatus }) {
     <span className={cn('text-xs font-medium px-2 py-0.5 rounded', map[status])}>
       {t(`edo.status.${status}`)}
     </span>
+  );
+}
+
+function QrButton({ docId, docNumber }: { docId: string; docNumber: string }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [qr, setQr] = useState<{ url: string; dataUrl: string } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const openModal = async () => {
+    setOpen(true);
+    if (qr) return;
+    setLoading(true);
+    setErr(null);
+    try {
+      const base =
+        typeof window !== 'undefined' ? window.location.origin : undefined;
+      const res = await api.get<{ url: string; dataUrl: string }>(
+        `/documents/${docId}/qr`,
+        { params: base ? { base } : undefined },
+      );
+      setQr(res.data);
+    } catch {
+      setErr(t('edo.qr.error'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const download = () => {
+    if (!qr) return;
+    const a = document.createElement('a');
+    a.href = qr.dataUrl;
+    a.download = `QR-${docNumber}.png`;
+    a.click();
+  };
+
+  const print = () => {
+    if (!qr) return;
+    const w = window.open('', '_blank', 'width=480,height=640');
+    if (!w) return;
+    w.document.write(
+      `<html><head><title>QR ${docNumber}</title></head><body style="text-align:center;font-family:sans-serif;padding:24px">` +
+        `<h3 style="color:#334155">${docNumber}</h3>` +
+        `<img src="${qr.dataUrl}" style="width:280px;height:280px" />` +
+        `<p style="font-size:11px;color:#94a3b8;word-break:break-all">${qr.url}</p>` +
+        `</body></html>`,
+    );
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 300);
+  };
+
+  return (
+    <>
+      <button
+        onClick={openModal}
+        title={t('edo.qr.title')}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+      >
+        <QrCode size={16} />
+        <span className="hidden sm:inline">QR</span>
+      </button>
+
+      {open && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+          onClick={() => setOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl w-full max-w-xs overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+              <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                <QrCode size={16} className="text-asaka-600" />
+                {t('edo.qr.title')}
+              </h3>
+              <button
+                onClick={() => setOpen(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-5 flex flex-col items-center">
+              {loading && (
+                <div className="h-[240px] flex items-center justify-center text-sm text-slate-400">
+                  {t('edo.qr.loading')}
+                </div>
+              )}
+              {err && <div className="text-sm text-red-600 py-8">{err}</div>}
+              {qr && !loading && (
+                <>
+                  <img
+                    src={qr.dataUrl}
+                    alt="QR"
+                    className="w-56 h-56 rounded-lg border border-slate-100"
+                  />
+                  <p className="text-xs text-slate-500 mt-3 text-center">
+                    {t('edo.qr.hint')}
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-1 break-all text-center">
+                    {qr.url}
+                  </p>
+                  <div className="flex gap-2 mt-4 w-full">
+                    <button
+                      onClick={download}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-asaka-600 hover:bg-asaka-700 rounded-lg transition"
+                    >
+                      <Download size={15} />
+                      {t('edo.qr.download')}
+                    </button>
+                    <button
+                      onClick={print}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+                    >
+                      <Printer size={15} />
+                      {t('edo.qr.print')}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
