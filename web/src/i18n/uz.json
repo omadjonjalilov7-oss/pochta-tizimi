@@ -638,6 +638,7 @@
       "body": "Hujjat matni",
       "attachments": "Biriktirilgan fayllar ({{count}})",
       "holder": "Hozir kimda",
+      "executed_on": "Ijro sanasi",
       "edit": "Tahrirlash",
       "send_for_approval": "Tasdiqlashga yuborish",
       "approvers_label": "Tasdiqlovchi xodimlar",
@@ -738,6 +739,7 @@
     },
     "settings": {
       "title": "EDO sozlamalari",
+      "no_settings": "Hozircha sozlanadigan parametrlar yo'q. Ijro muddati har bir hujjatda qo'lda kiritiladi.",
       "internal_deadline_label": "Ichki hujjat muddati (kun)",
       "internal_deadline_placeholder": "masalan: 3",
       "internal_deadline_hint": "Son kiritilsa — har bir ichki hujjat shu kunga avtomatik belgilanadi va xodim o'zgartira olmaydi. Bo'sh qoldirilsa — xodim muddatni o'zi tanlaydi.",

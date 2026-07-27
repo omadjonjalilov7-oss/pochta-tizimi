@@ -209,15 +209,8 @@ export class DocumentsService {
     });
     const numberDeptId = creator?.departmentId ?? null;
 
-    // Ichki hujjat muddati: admin sozlamasi bo'lsa (kun soni) — avtomatik hisoblanadi,
-    // aks holda xodim kiritgan sana ishlatiladi.
-    let deadline: Date | null = dto.deadline ? new Date(dto.deadline) : null;
-    if (dto.type === 'internal') {
-      const days = await this.settings.getInternalDeadlineDays();
-      if (days && days > 0) {
-        deadline = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-      }
-    }
+    // Ijro muddati faqat xodim qo'lda kiritganda o'rnatiladi (avtomatik 3/5/7 kun yo'q).
+    const deadline: Date | null = dto.deadline ? new Date(dto.deadline) : null;
 
     const doc = await this.prisma.$transaction(async (tx) => {
       const docUid = await this.allocateDocUid(tx);

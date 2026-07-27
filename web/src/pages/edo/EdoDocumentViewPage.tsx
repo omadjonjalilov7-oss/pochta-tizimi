@@ -240,6 +240,12 @@ export function EdoDocumentViewPage() {
               {doc.deadline && (
                 <DeadlineBadge deadline={doc.deadline} status={doc.status} lang={lang} />
               )}
+              {doc.status === 'done' && doc.closedAt && (
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <CheckCircle2 size={12} />
+                  {t('edo.view.executed_on')}: {new Date(doc.closedAt).toLocaleString(lang)}
+                </span>
+              )}
               {doc.currentHolder && doc.status === 'in_review' && (
                 <span className="flex items-center gap-1 text-asaka-700">
                   <ChevronRight size={12} />
@@ -795,7 +801,7 @@ function WordExportButton({
     <tr>
       <td style="width: 33%;">Ijrochi: ${approvers[0]?.user?.fullName || '-'}</td>
       <td style="width: 33%;">Telefon: -</td>
-      <td style="width: 34%; text-align: right;">Ijro sanasi: ${formatDate(doc.deadline || new Date().toISOString())}</td>
+      <td style="width: 34%; text-align: right;">Ijro sanasi: ${doc.closedAt ? formatDate(doc.closedAt) : '-'}</td>
     </tr>
   </table>
 </body>

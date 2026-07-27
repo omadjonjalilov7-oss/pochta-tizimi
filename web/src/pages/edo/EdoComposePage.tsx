@@ -73,17 +73,6 @@ export function EdoComposePage() {
     staleTime: 60_000,
   });
 
-  const { data: docDefaults } = useQuery({
-    queryKey: ['document-defaults'],
-    queryFn: async () =>
-      (
-        await api.get<{ internalDeadlineDays: number | null }>('/settings/document-defaults')
-      ).data,
-    staleTime: 60_000,
-  });
-  // Admin ichki hujjat muddatini sozlagan bo'lsa — xodim sana tanlay olmaydi
-  const lockInternalDeadline =
-    type === 'internal' && !!docDefaults?.internalDeadlineDays && docDefaults.internalDeadlineDays > 0;
 
   const { data: doc } = useQuery({
     queryKey: ['edo-doc', currentDocId],
@@ -754,16 +743,9 @@ export function EdoComposePage() {
                     type="datetime-local"
                     value={deadline}
                     onChange={(e) => setDeadline(e.target.value)}
-                    disabled={!isDraft || lockInternalDeadline}
+                    disabled={!isDraft}
                     className={fieldCls}
                   />
-                  {lockInternalDeadline && (
-                    <p className="mt-1 text-xs text-slate-500">
-                      {t('edo.compose.deadline_auto_hint', {
-                        days: docDefaults?.internalDeadlineDays,
-                      })}
-                    </p>
-                  )}
                 </div>
               </div>
               <p className="text-xs text-slate-500">{t('edo.compose.approvers_moved_hint')}</p>
