@@ -868,7 +868,18 @@
       "delete_me": "O'zimdan o'chirish",
       "delete_all": "Hamma uchun o'chirish",
       "delete_all_confirm": "Xabar hamma uchun o'chiriladi. Davom etilsinmi?",
-      "deleted_msg": "Xabar o'chirildi"
+      "deleted_msg": "Xabar o'chirildi",
+      "create_group": "Guruh ochish",
+      "group_name": "Guruh nomi",
+      "selected_count": "{{count}} ta tanlandi",
+      "members_count": "{{count}} a'zo",
+      "group_info": "Guruh ma'lumoti",
+      "no_messages": "Xabarlar yo'q. Birinchi xabarni yuboring!",
+      "you": "Siz",
+      "admin": "admin",
+      "leave_group": "Guruhdan chiqish",
+      "delete_group": "Guruhni o'chirish",
+      "leave_confirm": "Guruhdan chiqmoqchimisiz?"
     }
   }
 }

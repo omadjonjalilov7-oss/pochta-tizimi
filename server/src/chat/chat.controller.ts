@@ -18,6 +18,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { createReadStream } from 'fs';
 import type { Response } from 'express';
 import { ChatService } from './chat.service';
+import { ChatGroupService } from './chat-group.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import {
   CurrentUser,
@@ -48,6 +49,7 @@ export class ChatController {
   constructor(
     private readonly chat: ChatService,
     private readonly gateway: ChatGateway,
+    private readonly groups: ChatGroupService,
   ) {}
 
   @Get('contacts')
@@ -69,8 +71,10 @@ export class ChatController {
   }
 
   @Get('unread')
-  unread(@CurrentUser() user: CurrentUserPayload) {
-    return this.chat.unreadCount(user.id);
+  async unread(@CurrentUser() user: CurrentUserPayload) {
+    const dm = await this.chat.unreadCount(user.id);
+    const groups = await this.groups.totalUnread(user.id);
+    return { count: dm.count + groups };
   }
 
   @Post('messages')

@@ -6,7 +6,8 @@ import {
   useState,
 } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { MessageCircle, Search, X } from 'lucide-react';
+import { MessageCircle, Search, X, Users, Plus, ChevronLeft } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api';
 import { getSocket } from '../lib/socket';
 import { useAuth } from '../context/AuthContext';
@@ -16,20 +17,28 @@ import {
   type ChatUser,
   type ChatMsg,
   type Conversation,
+  type GroupSummaryItem,
+  type GroupMsg,
   ConversationView,
+  GroupConversationView,
+  GroupCreatePanel,
+  GroupAvatar,
   Ticks,
   formatTime,
 } from './chat/shared';
 
 // ─── Asosiy widget ────────────────────────────────────────────────────────────
 export function FloatingChatWidget() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [partnerId, setPartnerId] = useState<string | null>(null);
+  const [groupId, setGroupId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [newConvSearch, setNewConvSearch] = useState('');
   const [showContacts, setShowContacts] = useState(false);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [typingFrom, setTypingFrom] = useState<string | null>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -75,6 +84,40 @@ export function FloatingChatWidget() {
       qc.invalidateQueries({ queryKey: ['chat-conversations'] });
     };
 
+    // ── Guruh eventlari ──
+    const onGroupCreated = () => {
+      qc.invalidateQueries({ queryKey: ['chat-groups'] });
+      qc.invalidateQueries({ queryKey: ['chat-unread'] });
+    };
+    const onGroupMsg = (data: { payload: GroupMsg }) => {
+      const msg = data.payload;
+      if (groupId === msg.groupId && open) {
+        api.post(`/chat/groups/${msg.groupId}/read`).catch(() => {});
+      }
+      qc.invalidateQueries({ queryKey: ['chat-groups'] });
+      qc.invalidateQueries({ queryKey: ['chat-group-messages', msg.groupId] });
+      qc.invalidateQueries({ queryKey: ['chat-unread'] });
+    };
+    const onGroupEdited = (data: { payload: GroupMsg }) => {
+      const msg = data.payload;
+      qc.setQueryData<GroupMsg[]>(['chat-group-messages', msg.groupId], (old) =>
+        old?.map((m) => (m.id === msg.id ? msg : m)),
+      );
+      qc.invalidateQueries({ queryKey: ['chat-groups'] });
+    };
+    const onGroupDeleted = (data: { payload: { groupId: string; messageId: string } }) => {
+      const { groupId: gid, messageId } = data.payload;
+      qc.setQueryData<GroupMsg[]>(['chat-group-messages', gid], (old) =>
+        old?.map((m) =>
+          m.id === messageId ? { ...m, deleted: true, body: '', attachments: [] } : m,
+        ),
+      );
+      qc.invalidateQueries({ queryKey: ['chat-groups'] });
+    };
+    const onGroupUpdated = () => {
+      qc.invalidateQueries({ queryKey: ['chat-groups'] });
+    };
+
     const onTyping = (data: { payload: { fromUserId: string; typing: boolean } }) => {
       const { fromUserId, typing } = data.payload;
       if (typing) {
@@ -91,15 +134,25 @@ export function FloatingChatWidget() {
     socket.on('chat_typing', onTyping);
     socket.on('chat_message_edited', onChatEdited);
     socket.on('chat_message_deleted', onChatDeleted);
+    socket.on('chat_group_created', onGroupCreated);
+    socket.on('chat_group_message', onGroupMsg);
+    socket.on('chat_group_message_edited', onGroupEdited);
+    socket.on('chat_group_message_deleted', onGroupDeleted);
+    socket.on('chat_group_updated', onGroupUpdated);
     return () => {
       socket.off('chat_message', onChatMsg);
       socket.off('chat_read', onChatRead);
       socket.off('chat_typing', onTyping);
       socket.off('chat_message_edited', onChatEdited);
       socket.off('chat_message_deleted', onChatDeleted);
+      socket.off('chat_group_created', onGroupCreated);
+      socket.off('chat_group_message', onGroupMsg);
+      socket.off('chat_group_message_edited', onGroupEdited);
+      socket.off('chat_group_message_deleted', onGroupDeleted);
+      socket.off('chat_group_updated', onGroupUpdated);
       if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     };
-  }, [user, partnerId, open, qc]);
+  }, [user, partnerId, groupId, open, qc]);
 
   // ── Ma'lumotlar ───────────────────────────────────────────────────────────
   const { data: unreadData } = useQuery({
@@ -117,10 +170,17 @@ export function FloatingChatWidget() {
     refetchInterval: open ? 15_000 : false,
   });
 
+  const { data: groups = [] } = useQuery({
+    queryKey: ['chat-groups'],
+    queryFn: async () => (await api.get<GroupSummaryItem[]>('/chat/groups')).data,
+    enabled: open,
+    refetchInterval: open ? 15_000 : false,
+  });
+
   const { data: contacts = [] } = useQuery({
     queryKey: ['chat-contacts'],
     queryFn: async () => (await api.get<ChatUser[]>('/chat/contacts')).data,
-    enabled: showContacts,
+    enabled: showContacts || showCreateGroup,
     staleTime: 60_000,
   });
 
@@ -130,6 +190,14 @@ export function FloatingChatWidget() {
       (await api.get<ChatMsg[]>(`/chat/messages/${partnerId}`)).data,
     enabled: !!partnerId,
     refetchInterval: partnerId ? 10_000 : false,
+  });
+
+  const { data: groupMessages = [] } = useQuery({
+    queryKey: ['chat-group-messages', groupId],
+    queryFn: async () =>
+      (await api.get<GroupMsg[]>(`/chat/groups/${groupId}/messages`)).data,
+    enabled: !!groupId,
+    refetchInterval: groupId ? 10_000 : false,
   });
 
   // Suhbat ochilganda o'qildi
@@ -143,13 +211,38 @@ export function FloatingChatWidget() {
     }
   }, [partnerId, open, qc]);
 
-  const openConversation = useCallback(
-    (id: string) => {
-      setPartnerId(id);
-      setShowContacts(false);
-      setNewConvSearch('');
+  useEffect(() => {
+    if (groupId && open) {
+      api.post(`/chat/groups/${groupId}/read`).then(() => {
+        qc.invalidateQueries({ queryKey: ['chat-groups'] });
+        qc.invalidateQueries({ queryKey: ['chat-unread'] });
+      });
+    }
+  }, [groupId, open, groupMessages.length, qc]);
+
+  const openConversation = useCallback((id: string) => {
+    setPartnerId(id);
+    setGroupId(null);
+    setShowContacts(false);
+    setShowCreateGroup(false);
+    setNewConvSearch('');
+  }, []);
+
+  const openGroup = useCallback((id: string) => {
+    setGroupId(id);
+    setPartnerId(null);
+    setShowContacts(false);
+    setShowCreateGroup(false);
+  }, []);
+
+  const createGroup = useCallback(
+    async (name: string, memberIds: string[]) => {
+      const res = (await api.post<{ groupId: string }>('/chat/groups', { name, memberIds })).data;
+      await qc.invalidateQueries({ queryKey: ['chat-groups'] });
+      setShowCreateGroup(false);
+      openGroup(res.groupId);
     },
-    [],
+    [qc, openGroup],
   );
 
   const totalUnread = unreadData?.count ?? 0;
@@ -161,6 +254,17 @@ export function FloatingChatWidget() {
       c.partner.fullName.toLowerCase().includes(q),
     );
   }, [conversations, search]);
+
+  const filteredGroups = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return groups;
+    return groups.filter((g) => g.group.name.toLowerCase().includes(q));
+  }, [groups, search]);
+
+  const activeGroup = useMemo(
+    () => (groupId ? groups.find((g) => g.group.id === groupId)?.group ?? null : null),
+    [groupId, groups],
+  );
 
   const filteredContacts = useMemo(() => {
     const q = newConvSearch.trim().toLowerCase();
@@ -188,7 +292,68 @@ export function FloatingChatWidget() {
       {open && (
         <div className="w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden"
           style={{ height: '520px' }}>
-          {partnerId && activePartner ? (
+          {showCreateGroup ? (
+            <>
+              <div className="flex items-center justify-between px-4 py-3 bg-brand-600 text-white shrink-0">
+                <button
+                  onClick={() => setShowCreateGroup(false)}
+                  className="p-1 rounded hover:bg-brand-500"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <span className="font-semibold text-sm">{t('edo.chat.create_group')}</span>
+                <span className="w-6" />
+              </div>
+              <div className="flex-1 min-h-0">
+                <GroupCreatePanel
+                  contacts={contacts}
+                  onCreate={createGroup}
+                  onCancel={() => setShowCreateGroup(false)}
+                />
+              </div>
+            </>
+          ) : groupId && activeGroup ? (
+            <GroupConversationView
+              key={groupId}
+              myId={user.id}
+              group={{
+                id: activeGroup.id,
+                name: activeGroup.name,
+                memberCount: activeGroup.memberCount,
+              }}
+              messages={groupMessages}
+              onBack={() => setGroupId(null)}
+              onSend={async (body, file) => {
+                const form = new FormData();
+                form.append('body', body);
+                if (file) form.append('file', file);
+                const msg = (await api.post<GroupMsg>(`/chat/groups/${groupId}/messages`, form, {
+                  headers: { 'Content-Type': 'multipart/form-data' },
+                })).data;
+                qc.setQueryData<GroupMsg[]>(
+                  ['chat-group-messages', groupId],
+                  (old) => [...(old ?? []), msg],
+                );
+                qc.invalidateQueries({ queryKey: ['chat-groups'] });
+              }}
+              onEdit={async (id, body) => {
+                const updated = (await api.patch<GroupMsg>(`/chat/groups/messages/${id}`, { body })).data;
+                qc.setQueryData<GroupMsg[]>(['chat-group-messages', groupId], (old) =>
+                  old?.map((m) => (m.id === id ? updated : m)),
+                );
+                qc.invalidateQueries({ queryKey: ['chat-groups'] });
+              }}
+              onDelete={async (id) => {
+                await api.delete(`/chat/groups/messages/${id}`);
+                qc.setQueryData<GroupMsg[]>(['chat-group-messages', groupId], (old) =>
+                  old?.map((m) =>
+                    m.id === id ? { ...m, deleted: true, body: '', attachments: [] } : m,
+                  ),
+                );
+                qc.invalidateQueries({ queryKey: ['chat-groups'] });
+              }}
+            />
+          ) : partnerId && activePartner ? (
             <ConversationView
               myId={user.id}
               partner={activePartner}
@@ -234,13 +399,20 @@ export function FloatingChatWidget() {
           ) : (
             <ConversationList
               conversations={filteredConversations}
+              groups={filteredGroups}
+              myId={user.id}
               search={search}
               onSearch={setSearch}
               onOpen={openConversation}
+              onOpenGroup={openGroup}
               showContacts={showContacts}
               onToggleContacts={() => {
                 setShowContacts((v) => !v);
                 setNewConvSearch('');
+              }}
+              onCreateGroup={() => {
+                setShowCreateGroup(true);
+                setShowContacts(false);
               }}
               contacts={filteredContacts}
               newConvSearch={newConvSearch}
@@ -306,27 +478,36 @@ export function FloatingChatWidget() {
 // ─── Suhbatlar ro'yxati ───────────────────────────────────────────────────────
 function ConversationList({
   conversations,
+  groups,
+  myId,
   search,
   onSearch,
   onOpen,
+  onOpenGroup,
   showContacts,
   onToggleContacts,
+  onCreateGroup,
   contacts,
   newConvSearch,
   onNewConvSearch,
   onClose,
 }: {
   conversations: Conversation[];
+  groups: GroupSummaryItem[];
+  myId: string;
   search: string;
   onSearch: (v: string) => void;
   onOpen: (id: string) => void;
+  onOpenGroup: (id: string) => void;
   showContacts: boolean;
   onToggleContacts: () => void;
+  onCreateGroup: () => void;
   contacts: ChatUser[];
   newConvSearch: string;
   onNewConvSearch: (v: string) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <>
       {/* Header */}
@@ -334,14 +515,18 @@ function ConversationList({
         <span className="font-semibold text-sm">Chat</span>
         <div className="flex items-center gap-2">
           <button
+            onClick={onCreateGroup}
+            className="p-1 rounded hover:bg-brand-500"
+            title={t('edo.chat.create_group')}
+          >
+            <Users size={16} />
+          </button>
+          <button
             onClick={onToggleContacts}
             className="p-1 rounded hover:bg-brand-500"
-            title="Yangi suhbat"
+            title={t('edo.chat.new_conversation')}
           >
-            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"
-              viewBox="0 0 24 24">
-              <path d="M12 5v14M5 12h14" strokeLinecap="round" />
-            </svg>
+            <Plus size={16} />
           </button>
           <button onClick={onClose} className="p-1 rounded hover:bg-brand-500">
             <X size={16} />
@@ -391,19 +576,63 @@ function ConversationList({
               ))
             )}
           </>
-        ) : conversations.length === 0 ? (
+        ) : conversations.length === 0 && groups.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-2 text-slate-400 py-8">
             <MessageCircle size={32} className="opacity-40" />
-            <p className="text-xs">Suhbatlar yo'q</p>
+            <p className="text-xs">{t('edo.chat.no_conversations')}</p>
             <button
               onClick={onToggleContacts}
               className="text-xs text-brand-600 hover:underline"
             >
-              Yangi suhbat boshlash
+              {t('edo.chat.start_conversation')}
             </button>
           </div>
         ) : (
-          conversations.map((c) => (
+          <>
+          {/* Guruhlar */}
+          {groups.map((g) => (
+            <button
+              key={g.group.id}
+              onClick={() => onOpenGroup(g.group.id)}
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 text-left border-b border-slate-50"
+            >
+              <div className="relative shrink-0">
+                <GroupAvatar size="sm" />
+                {g.unread > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-brand-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                    {g.unread > 9 ? '9+' : g.unread}
+                  </span>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="text-sm font-medium text-slate-900 truncate">
+                    {g.group.name}
+                  </span>
+                  {g.lastMessage && (
+                    <span className="text-[10px] text-slate-400 shrink-0 ml-2">
+                      {formatTime(g.lastMessage.sentAt)}
+                    </span>
+                  )}
+                </div>
+                <span
+                  className={`text-xs truncate block ${g.unread > 0 ? 'font-semibold text-slate-800' : 'text-slate-500'}`}
+                >
+                  {g.lastMessage
+                    ? g.lastMessage.deleted
+                      ? t('edo.chat.deleted_msg')
+                      : `${g.lastMessage.fromUserId === myId ? t('edo.chat.you') : g.lastMessage.fromName}: ${
+                          g.lastMessage.attachments.length > 0 && !g.lastMessage.body
+                            ? `📎 ${g.lastMessage.attachments[0].filename}`
+                            : g.lastMessage.body || '—'
+                        }`
+                    : t('edo.chat.members_count', { count: g.group.memberCount })}
+                </span>
+              </div>
+            </button>
+          ))}
+          {/* Shaxsiy suhbatlar */}
+          {conversations.map((c) => (
             <button
               key={c.partner.id}
               onClick={() => onOpen(c.partner.id)}
@@ -444,7 +673,8 @@ function ConversationList({
                 </div>
               </div>
             </button>
-          ))
+          ))}
+          </>
         )}
       </div>
     </>

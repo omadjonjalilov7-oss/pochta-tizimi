@@ -123,6 +123,11 @@ model User {
   chatSent        ChatMessage[] @relation("ChatSender")
   chatReceived    ChatMessage[] @relation("ChatReceiver")
 
+  // Guruh chat
+  ownedChatGroups    ChatGroup[]        @relation("ChatGroupOwner")
+  chatGroupMembers   ChatGroupMember[]
+  chatGroupMessages  ChatGroupMessage[] @relation("ChatGroupSender")
+
   // Kontakt guruhlari (foydalanuvchi o'zi yaratgan guruhlar)
   ownedContactGroups      ContactGroup[]       @relation("ContactGroupOwner")
   groupMemberships        ContactGroupMember[] @relation("GroupMember")
@@ -638,6 +643,68 @@ model ChatAttachment {
   message ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@map("chat_attachments")
+}
+
+// ─── Guruh chat ─────────────────────────────────────────────────────────────
+model ChatGroup {
+  id         String   @id @default(uuid()) @db.Uuid
+  name       String   @db.VarChar(255)
+  avatarPath String?  @map("avatar_path") @db.VarChar(512)
+  ownerId    String   @map("owner_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  owner    User               @relation("ChatGroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members  ChatGroupMember[]
+  messages ChatGroupMessage[]
+
+  @@map("chat_groups")
+}
+
+model ChatGroupMember {
+  id         String    @id @default(uuid()) @db.Uuid
+  groupId    String    @map("group_id") @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  isAdmin    Boolean   @default(false) @map("is_admin")
+  lastReadAt DateTime? @map("last_read_at") @db.Timestamptz(3)
+  joinedAt   DateTime  @default(now()) @map("joined_at") @db.Timestamptz(3)
+
+  group ChatGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId])
+  @@map("chat_group_members")
+}
+
+model ChatGroupMessage {
+  id            String    @id @default(uuid()) @db.Uuid
+  groupId       String    @map("group_id") @db.Uuid
+  fromUserId    String    @map("from_user_id") @db.Uuid
+  body          String    @db.Text
+  sentAt        DateTime  @default(now()) @map("sent_at") @db.Timestamptz(3)
+  editedAt      DateTime? @map("edited_at") @db.Timestamptz(3)
+  deletedForAll Boolean   @default(false) @map("deleted_for_all")
+
+  group       ChatGroup               @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  fromUser    User                    @relation("ChatGroupSender", fields: [fromUserId], references: [id], onDelete: Cascade)
+  attachments ChatGroupAttachment[]
+
+  @@index([groupId, sentAt])
+  @@map("chat_group_messages")
+}
+
+model ChatGroupAttachment {
+  id         String   @id @default(uuid()) @db.Uuid
+  messageId  String   @map("message_id") @db.Uuid
+  filename   String   @db.VarChar(512)
+  storedPath String   @map("stored_path") @db.VarChar(512)
+  sizeBytes  BigInt   @map("size_bytes")
+  mimeType   String   @map("mime_type") @db.VarChar(128)
+
+  message ChatGroupMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@map("chat_group_attachments")
 }
 
 // ============================================================

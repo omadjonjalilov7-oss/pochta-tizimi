@@ -870,7 +870,18 @@
       "delete_me": "Удалить у себя",
       "delete_all": "Удалить у всех",
       "delete_all_confirm": "Сообщение будет удалено у всех. Продолжить?",
-      "deleted_msg": "Сообщение удалено"
+      "deleted_msg": "Сообщение удалено",
+      "create_group": "Создать группу",
+      "group_name": "Название группы",
+      "selected_count": "Выбрано: {{count}}",
+      "members_count": "{{count}} участн.",
+      "group_info": "О группе",
+      "no_messages": "Сообщений нет. Отправьте первое сообщение!",
+      "you": "Вы",
+      "admin": "админ",
+      "leave_group": "Выйти из группы",
+      "delete_group": "Удалить группу",
+      "leave_confirm": "Выйти из группы?"
     }
   }
 }

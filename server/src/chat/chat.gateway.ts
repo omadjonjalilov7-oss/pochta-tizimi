@@ -40,4 +40,39 @@ export class ChatGateway {
       payload: { messageId, peerId },
     });
   }
+
+  // ─── Guruh chat eventlari ────────────────────────────────────────────────
+  private emitToMembers(memberIds: string[], event: string, payload: any) {
+    for (const uid of memberIds) {
+      this.ws.server.to(`user:${uid}`).emit(event, { type: event, payload });
+    }
+  }
+
+  /** Yangi guruh yaratildi — a'zolar ro'yxatini yangilash */
+  emitGroupCreated(memberIds: string[], groupId: string) {
+    this.emitToMembers(memberIds, 'chat_group_created', { groupId });
+  }
+
+  /** Guruhga yangi xabar */
+  emitGroupMessage(memberIds: string[], message: any) {
+    this.emitToMembers(memberIds, 'chat_group_message', message);
+  }
+
+  /** Guruh xabari tahrirlandi */
+  emitGroupEdited(memberIds: string[], message: any) {
+    this.emitToMembers(memberIds, 'chat_group_message_edited', message);
+  }
+
+  /** Guruh xabari o'chirildi */
+  emitGroupDeleted(memberIds: string[], groupId: string, messageId: string) {
+    this.emitToMembers(memberIds, 'chat_group_message_deleted', {
+      groupId,
+      messageId,
+    });
+  }
+
+  /** Guruh a'zolari yoki nomi o'zgardi */
+  emitGroupUpdated(memberIds: string[], groupId: string) {
+    this.emitToMembers(memberIds, 'chat_group_updated', { groupId });
+  }
 }
