@@ -11,11 +11,13 @@ import {
   CheckCheck,
   ChevronLeft,
   Paperclip,
+  Pencil,
   Send,
   X,
   FileText,
   Download,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Avatar } from '../Avatar';
 
 // ─── Turlar ───────────────────────────────────────────────────────────────────
@@ -85,13 +87,18 @@ export function ConversationView({
   messages,
   onBack,
   onSend,
+  partnerTyping = false,
+  onTyping,
 }: {
   myId: string;
   partner: ChatUser;
   messages: ChatMsg[];
   onBack?: () => void;
   onSend: (body: string, file?: File) => Promise<void>;
+  partnerTyping?: boolean;
+  onTyping?: (typing: boolean) => void;
 }) {
+  const { t } = useTranslation();
   const [text, setText] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
@@ -99,12 +106,48 @@ export function ConversationView({
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // "yozmoqda..." holatini suhbatdoshga bildirish (throttled + avto-to'xtash).
+  const typingRef = useRef(false);
+  const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const stopTyping = () => {
+    if (stopTimerRef.current) {
+      clearTimeout(stopTimerRef.current);
+      stopTimerRef.current = null;
+    }
+    if (typingRef.current) {
+      typingRef.current = false;
+      onTyping?.(false);
+    }
+  };
+
+  const signalTyping = () => {
+    if (!onTyping) return;
+    if (!typingRef.current) {
+      typingRef.current = true;
+      onTyping(true);
+    }
+    if (stopTimerRef.current) clearTimeout(stopTimerRef.current);
+    stopTimerRef.current = setTimeout(() => {
+      typingRef.current = false;
+      onTyping(false);
+      stopTimerRef.current = null;
+    }, 2500);
+  };
+
+  // Suhbat almashsa yoki komponent yo'qolsa — "yozmoqda"ni to'xtatamiz.
+  useEffect(() => {
+    return () => stopTyping();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, partnerTyping]);
 
   const handleSend = async () => {
     if (!text.trim() && !file) return;
+    stopTyping();
     setSending(true);
     setError(null);
     try {
@@ -162,8 +205,15 @@ export function ConversationView({
         <Avatar fullName={partner.fullName} avatarPath={partner.avatarPath ?? undefined} size="sm" />
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold truncate">{partner.fullName}</div>
-          {partner.position?.name && (
-            <div className="text-[10px] text-brand-100 truncate">{partner.position.name}</div>
+          {partnerTyping ? (
+            <div className="flex items-center gap-1 text-[11px] text-brand-50 truncate">
+              <Pencil size={11} className="animate-pulse shrink-0" />
+              <span className="truncate">{t('edo.chat.typing')}</span>
+            </div>
+          ) : (
+            partner.position?.name && (
+              <div className="text-[10px] text-brand-100 truncate">{partner.position.name}</div>
+            )
           )}
         </div>
       </div>
@@ -226,7 +276,11 @@ export function ConversationView({
         />
         <textarea
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            setText(e.target.value);
+            if (e.target.value.trim()) signalTyping();
+            else stopTyping();
+          }}
           onKeyDown={handleKeyDown}
           rows={1}
           placeholder="Xabar yozing... (Enter — yuborish)"

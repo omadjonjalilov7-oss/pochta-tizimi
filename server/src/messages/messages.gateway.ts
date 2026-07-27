@@ -1,7 +1,9 @@
 import {
   ConnectedSocket,
+  MessageBody,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
@@ -56,6 +58,20 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
     if (client.data.userId) {
       this.logger.log(`Foydalanuvchi uzildi: ${client.data.userId}`);
     }
+  }
+
+  // Chatda "yozmoqda..." holatini suhbatdoshga real-vaqt uzatamiz.
+  @SubscribeMessage('chat_typing')
+  handleChatTyping(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { toUserId?: string; typing?: boolean },
+  ) {
+    const fromUserId = client.data.userId as string | undefined;
+    if (!fromUserId || !data?.toUserId) return;
+    this.server.to(`user:${data.toUserId}`).emit('chat_typing', {
+      type: 'chat_typing',
+      payload: { fromUserId, typing: !!data.typing },
+    });
   }
 
   notifyNewMessage(recipientIds: string[], message: any) {

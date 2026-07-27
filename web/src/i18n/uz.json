@@ -860,7 +860,8 @@
       "start_conversation": "Yangi suhbat boshlash",
       "no_conversations": "Suhbatlar yo'q",
       "no_users": "Foydalanuvchi topilmadi",
-      "select_conversation": "Suhbatni tanlang yoki yangi suhbat boshlang"
+      "select_conversation": "Suhbatni tanlang yoki yangi suhbat boshlang",
+      "typing": "yozmoqda..."
     }
   }
 }

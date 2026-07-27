@@ -862,7 +862,8 @@
       "start_conversation": "Начать новый чат",
       "no_conversations": "Нет диалогов",
       "no_users": "Пользователь не найден",
-      "select_conversation": "Выберите диалог или начните новый"
+      "select_conversation": "Выберите диалог или начните новый",
+      "typing": "печатает..."
     }
   }
 }

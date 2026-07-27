@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -29,6 +30,8 @@ export function FloatingChatWidget() {
   const [search, setSearch] = useState('');
   const [newConvSearch, setNewConvSearch] = useState('');
   const [showContacts, setShowContacts] = useState(false);
+  const [typingFrom, setTypingFrom] = useState<string | null>(null);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Socket ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -37,6 +40,7 @@ export function FloatingChatWidget() {
 
     const onChatMsg = (data: { payload: ChatMsg }) => {
       const msg = data.payload;
+      setTypingFrom((cur) => (cur === msg.fromUserId ? null : cur));
       // Aktiv suhbatga kelsa — o'qildi deb belgilaymiz
       if (partnerId === msg.fromUserId && open) {
         api.post(`/chat/read/${msg.fromUserId}`).catch(() => {});
@@ -53,11 +57,25 @@ export function FloatingChatWidget() {
       qc.invalidateQueries({ queryKey: ['chat-conversations'] });
     };
 
+    const onTyping = (data: { payload: { fromUserId: string; typing: boolean } }) => {
+      const { fromUserId, typing } = data.payload;
+      if (typing) {
+        setTypingFrom(fromUserId);
+        if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+        typingTimerRef.current = setTimeout(() => setTypingFrom(null), 4000);
+      } else {
+        setTypingFrom((cur) => (cur === fromUserId ? null : cur));
+      }
+    };
+
     socket.on('chat_message', onChatMsg);
     socket.on('chat_read', onChatRead);
+    socket.on('chat_typing', onTyping);
     return () => {
       socket.off('chat_message', onChatMsg);
       socket.off('chat_read', onChatRead);
+      socket.off('chat_typing', onTyping);
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     };
   }, [user, partnerId, open, qc]);
 
@@ -153,6 +171,10 @@ export function FloatingChatWidget() {
               myId={user.id}
               partner={activePartner}
               messages={messages}
+              partnerTyping={typingFrom === partnerId}
+              onTyping={(typing) =>
+                getSocket().emit('chat_typing', { toUserId: partnerId, typing })
+              }
               onBack={() => setPartnerId(null)}
               onSend={async (body, file) => {
                 const form = new FormData();
