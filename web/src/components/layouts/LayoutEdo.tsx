@@ -30,6 +30,8 @@ import {
   Users,
   Search,
   Settings,
+  Menu,
+  X,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Avatar } from '../Avatar';
@@ -214,18 +216,32 @@ export function LayoutEdo() {
   const { openTheme, openDesign, openLanguage, modals } = useAppearanceModals();
   // Menu har doim ochiq turadi (compose sahifasida ham kichraymaydi)
   const collapsed = false;
+  // Mobil: chap menyu drawer sifatida ochiladi/yopiladi
+  const [mobileNav, setMobileNav] = useState(false);
+  const location = useLocation();
+  // Sahifa (oyna) ochilganda mobil menyu avtomatik yopilsin
+  useEffect(() => {
+    setMobileNav(false);
+  }, [location.pathname]);
 
   return (
     <div className="flex h-full flex-col bg-slate-50">
-      <header className="h-16 bg-white border-b border-slate-200 flex items-center gap-4 px-4">
-        <Link to="/edo" className="flex items-center gap-2.5 font-semibold text-xl text-slate-700 px-2 min-w-[220px]">
+      <header className="h-16 bg-white border-b border-slate-200 flex items-center gap-2 md:gap-4 px-2 md:px-4">
+        <button
+          onClick={() => setMobileNav((v) => !v)}
+          className="md:hidden p-2 rounded-lg hover:bg-slate-100 text-slate-600 shrink-0"
+          aria-label="Menu"
+        >
+          {mobileNav ? <X size={22} /> : <Menu size={22} />}
+        </button>
+        <Link to="/edo" className="flex items-center gap-2.5 font-semibold text-xl text-slate-700 px-1 md:px-2 md:min-w-[220px]">
           <AsakaLogo size={34} />
-          <div className="flex flex-col leading-tight">
+          <div className="hidden sm:flex flex-col leading-tight">
             <span className="text-base">{t('edo.app_name')}</span>
             <span className="text-xs font-normal text-slate-500">{t('edo.app_tagline')}</span>
           </div>
         </Link>
-        <AppSwitcher className="ml-2" />
+        <AppSwitcher className="ml-2 hidden md:block" />
         <div className="flex items-center gap-2 ml-auto">
           {notification && (
             <div className="flex items-center gap-2 bg-asaka-50 text-asaka-700 px-3 py-1.5 rounded-full text-xs animate-pulse">
@@ -246,11 +262,23 @@ export function LayoutEdo() {
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Mobil backdrop */}
+        {mobileNav && (
+          <div
+            className="md:hidden fixed inset-x-0 bottom-0 top-16 z-30 bg-black/40"
+            onClick={() => setMobileNav(false)}
+          />
+        )}
         <aside
           className={cn(
-            'bg-edonav-900 flex flex-col p-4 gap-1 overflow-y-auto transition-[width] duration-200',
-            collapsed ? 'w-[68px]' : 'w-64',
+            'bg-edonav-900 flex flex-col p-4 gap-1 overflow-y-auto transition-transform duration-200',
+            // Mobil: chapdan chiquvchi drawer
+            'fixed top-16 bottom-0 left-0 w-72 z-40 shadow-2xl',
+            mobileNav ? 'translate-x-0' : '-translate-x-full',
+            // Desktop: doimiy ochiq, oddiy ustun
+            'md:static md:top-auto md:bottom-auto md:z-auto md:shadow-none md:translate-x-0',
+            collapsed ? 'md:w-[68px]' : 'md:w-64',
           )}
         >
           <NewDocButton collapsed={collapsed} showIncoming={isStaff} />
