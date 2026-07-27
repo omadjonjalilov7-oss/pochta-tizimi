@@ -475,19 +475,27 @@ export function EdoChatPage() {
                           </span>
                         </div>
                         <div className="flex items-center gap-1">
-                          {c.lastMessage.fromUserId !== c.partner.id && (
-                            <Ticks readAt={c.lastMessage.readAt} />
+                          {typingFrom === c.partner.id ? (
+                            <span className="text-xs truncate font-medium text-brand-600 animate-pulse">
+                              {t('edo.chat.typing')}
+                            </span>
+                          ) : (
+                            <>
+                              {c.lastMessage.fromUserId !== c.partner.id && (
+                                <Ticks readAt={c.lastMessage.readAt} />
+                              )}
+                              <span
+                                className={cn(
+                                  'text-xs truncate',
+                                  c.unread > 0 ? 'font-semibold text-slate-800' : 'text-slate-500',
+                                )}
+                              >
+                                {c.lastMessage.attachments.length > 0 && !c.lastMessage.body
+                                  ? `📎 ${c.lastMessage.attachments[0].filename}`
+                                  : c.lastMessage.body || '—'}
+                              </span>
+                            </>
                           )}
-                          <span
-                            className={cn(
-                              'text-xs truncate',
-                              c.unread > 0 ? 'font-semibold text-slate-800' : 'text-slate-500',
-                            )}
-                          >
-                            {c.lastMessage.attachments.length > 0 && !c.lastMessage.body
-                              ? `📎 ${c.lastMessage.attachments[0].filename}`
-                              : c.lastMessage.body || '—'}
-                          </span>
                         </div>
                       </div>
                     </button>
