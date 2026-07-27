@@ -437,6 +437,11 @@
   "edo": {
     "app_name": "Hujjat aylanmasi",
     "app_tagline": "Elektron hujjat aylanmasi tizimi",
+    "topnav": {
+      "assignments": "Topshiriqlar",
+      "chancellery": "Kanselyariya",
+      "control": "Nazorat"
+    },
     "nav": {
       "compose": "Yangi hujjat",
       "home": "Bosh sahifa",

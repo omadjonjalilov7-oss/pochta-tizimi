@@ -42,6 +42,25 @@ import { useLayoutData } from './useLayoutData';
 import { useAppearanceModals } from '../AppearanceModals';
 import { FloatingChatWidget } from '../FloatingChatWidget';
 
+function TopNav({ to, icon: Icon, label }: { to: string; icon: typeof Inbox; label: string }) {
+  return (
+    <NavLink
+      to={to}
+      className={({ isActive }) =>
+        cn(
+          'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
+          isActive
+            ? 'bg-asaka-50 text-asaka-700'
+            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+        )
+      }
+    >
+      <Icon size={16} />
+      <span>{label}</span>
+    </NavLink>
+  );
+}
+
 function EdoNav({
   to,
   icon: Icon,
@@ -242,6 +261,14 @@ export function LayoutEdo() {
           </div>
         </Link>
         <AppSwitcher className="ml-2 hidden md:block" />
+        {/* Kanselyariya/admin uchun yuqori tugmalar (34-rasm) */}
+        {isStaff && (
+          <nav className="hidden md:flex items-center gap-1 ml-3">
+            <TopNav to="/edo/tasks" icon={Handshake} label={t('edo.topnav.assignments')} />
+            <TopNav to="/edo/stats/overview" icon={LayoutGrid} label={t('edo.topnav.chancellery')} />
+            <TopNav to="/edo/control" icon={ShieldCheck} label={t('edo.topnav.control')} />
+          </nav>
+        )}
         <div className="flex items-center gap-2 ml-auto">
           {notification && (
             <div className="flex items-center gap-2 bg-asaka-50 text-asaka-700 px-3 py-1.5 rounded-full text-xs animate-pulse">
