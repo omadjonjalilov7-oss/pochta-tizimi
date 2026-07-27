@@ -9,7 +9,7 @@ import type { DocumentStatus, EdoDocument } from '../../lib/types';
 import { Avatar } from '../../components/Avatar';
 import { cn } from '../../lib/utils';
 
-interface DocListProps {
+export interface DocListProps {
   queryKey: string;
   endpoint: string;
   titleKey: string;
@@ -34,7 +34,7 @@ function StatusPill({ status }: { status: DocumentStatus }) {
   );
 }
 
-function DocList({ queryKey, endpoint, titleKey, emptyKey, showHolder }: DocListProps) {
+export function DocList({ queryKey, endpoint, titleKey, emptyKey, showHolder }: DocListProps) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
@@ -282,18 +282,6 @@ export function EdoToSignPage() {
       endpoint="/documents/to-sign"
       titleKey="edo.nav.to_sign"
       emptyKey="edo.list.empty_to_sign"
-    />
-  );
-}
-
-export function EdoControlPage() {
-  return (
-    <DocList
-      queryKey="edo-control"
-      endpoint="/documents/control"
-      titleKey="edo.nav.control"
-      emptyKey="edo.list.empty_control"
-      showHolder
     />
   );
 }

@@ -324,7 +324,9 @@ export function LayoutEdo() {
           <EdoNav to="/edo/chat" icon={MessagesSquare} label={t('edo.nav.chat')} collapsed={collapsed} />
           <EdoNav to="/edo/outgoing" icon={Send} label={t('edo.nav.outgoing')} collapsed={collapsed} />
           <EdoNav to="/edo/incoming" icon={Inbox} label={t('edo.nav.incoming')} collapsed={collapsed} />
-          <EdoNav to="/edo/control" icon={ShieldCheck} label={t('edo.nav.control')} collapsed={collapsed} />
+          {isStaff && (
+            <EdoNav to="/edo/control" icon={ShieldCheck} label={t('edo.nav.control')} collapsed={collapsed} />
+          )}
           <EdoNav to="/edo/tasks" icon={Handshake} label={t('edo.nav.tasks_approval')} collapsed={collapsed} />
           <EdoNav to="/edo/signing" icon={FileSignature} label={t('edo.nav.to_sign')} collapsed={collapsed} />
           <EdoNav to="/edo/department" icon={Building2} label={t('edo.nav.department')} collapsed={collapsed} />

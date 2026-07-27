@@ -88,6 +88,43 @@ export class DocumentsController {
     return this.docs.listControl(user.id);
   }
 
+  // ── Nazorat oynalari (faqat admin/kanselyariya) ──
+  private ensureStaff(user: CurrentUserPayload) {
+    if (user.role !== 'admin' && user.role !== 'chancellery') {
+      throw new ForbiddenException('Nazorat oynalari faqat administrator yoki kanselyariya uchun');
+    }
+  }
+
+  @Get('control/stats')
+  controlStats(@CurrentUser() user: CurrentUserPayload) {
+    this.ensureStaff(user);
+    return this.docs.getControlStats();
+  }
+
+  @Get('control/incoming')
+  controlIncoming(@CurrentUser() user: CurrentUserPayload) {
+    this.ensureStaff(user);
+    return this.docs.listControlByType('incoming');
+  }
+
+  @Get('control/outgoing')
+  controlOutgoing(@CurrentUser() user: CurrentUserPayload) {
+    this.ensureStaff(user);
+    return this.docs.listControlByType('outgoing');
+  }
+
+  @Get('control/internal')
+  controlInternal(@CurrentUser() user: CurrentUserPayload) {
+    this.ensureStaff(user);
+    return this.docs.listControlByType('internal');
+  }
+
+  @Get('control/ready-internal')
+  controlReadyInternal(@CurrentUser() user: CurrentUserPayload) {
+    this.ensureStaff(user);
+    return this.docs.listControlReadyInternal();
+  }
+
   @Get('department')
   listDepartment(@CurrentUser() user: CurrentUserPayload) {
     return this.docs.listDepartment(user.id);

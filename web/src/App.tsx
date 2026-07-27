@@ -32,9 +32,9 @@ import {
   EdoOutgoingPage,
   EdoArchivePage,
   EdoToSignPage,
-  EdoControlPage,
   EdoDepartmentPage,
 } from './pages/edo/EdoDocList';
+import { EdoControlPage } from './pages/edo/EdoControlPage';
 
 export function App() {
   const { loading } = useAuth();

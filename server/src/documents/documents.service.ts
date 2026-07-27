@@ -1423,6 +1423,157 @@ export class DocumentsService {
     return docs.map((d) => this.serialize(d));
   }
 
+  // ── NAZORAT (Kanselyariya) ─────────────────────────────────────────────
+  // Nazorat oynalari faqat admin/kanselyariya uchun — barcha hujjatlar (ochiq/yopiq)
+  // ko'rinadi (participantScope qo'llanmaydi).
+
+  async listControlByType(type: DocumentType) {
+    const docs = await this.prisma.document.findMany({
+      where: { type, status: { not: 'draft' } },
+      include: FULL_INCLUDE,
+      orderBy: { updatedAt: 'desc' },
+    });
+    return docs.map((d) => this.serialize(d));
+  }
+
+  // Tayyor ichki hujjatlar — bajarilgan (done) ichki hujjatlar
+  async listControlReadyInternal() {
+    const docs = await this.prisma.document.findMany({
+      where: { type: 'internal', status: 'done' },
+      include: FULL_INCLUDE,
+      orderBy: { closedAt: 'desc' },
+    });
+    return docs.map((d) => this.serialize(d));
+  }
+
+  // Topshiriqlar (rezolyutsiya ijrochilari) bo'yicha ijro statistikasi.
+  // "Статус выполнения поручений" dashboard'i uchun.
+  async getControlStats() {
+    const targets = await this.prisma.resolutionTarget.findMany({
+      include: {
+        resolution: {
+          select: {
+            authorId: true,
+            author: {
+              select: {
+                id: true,
+                fullName: true,
+                avatarPath: true,
+                position: { select: { name: true } },
+                department: { select: { name: true } },
+              },
+            },
+            document: { select: { id: true, type: true } },
+          },
+        },
+      },
+    });
+
+    const now = Date.now();
+    // Har bir topshiriqni bir "savat"ga ajratamiz
+    type Bucket = 'inProgress' | 'notDone' | 'done' | 'doneLate';
+    const classify = (t: (typeof targets)[number]): Bucket => {
+      const dl = t.deadline ? new Date(t.deadline).getTime() : null;
+      if (t.status === 'done') {
+        const late = dl && t.doneAt ? new Date(t.doneAt).getTime() > dl : false;
+        return late ? 'doneLate' : 'done';
+      }
+      // Bajarilmagan: muddati o'tgan bo'lsa — "не выполненные", aks holda "выполняются"
+      if (t.status === 'overdue' || (dl !== null && now > dl)) return 'notDone';
+      return 'inProgress';
+    };
+
+    // ── Hujjat turi bo'yicha kesim ──
+    const typeAgg = new Map<
+      string,
+      { docs: Set<string>; orders: number; inProgress: number; notDone: number; done: number; doneLate: number }
+    >();
+    const ensureType = (ty: string) => {
+      let a = typeAgg.get(ty);
+      if (!a) {
+        a = { docs: new Set(), orders: 0, inProgress: 0, notDone: 0, done: 0, doneLate: 0 };
+        typeAgg.set(ty, a);
+      }
+      return a;
+    };
+
+    // ── Rahbarlar (rezolyutsiya mualliflari) bo'yicha kesim ──
+    const mgrAgg = new Map<
+      string,
+      {
+        id: string;
+        fullName: string;
+        avatarPath: string | null;
+        position: string | null;
+        department: string | null;
+        orders: number;
+        inProgress: number;
+        notDone: number;
+        done: number;
+        doneLate: number;
+      }
+    >();
+
+    for (const t of targets) {
+      const ty = t.resolution.document.type;
+      const a = ensureType(ty);
+      a.docs.add(t.resolution.document.id);
+      a.orders += 1;
+      const b = classify(t);
+      a[b] += 1;
+
+      const author = t.resolution.author;
+      let m = mgrAgg.get(author.id);
+      if (!m) {
+        m = {
+          id: author.id,
+          fullName: author.fullName,
+          avatarPath: author.avatarPath ?? null,
+          position: author.position?.name ?? null,
+          department: author.department?.name ?? null,
+          orders: 0,
+          inProgress: 0,
+          notDone: 0,
+          done: 0,
+          doneLate: 0,
+        };
+        mgrAgg.set(author.id, m);
+      }
+      m.orders += 1;
+      m[b] += 1;
+    }
+
+    const byType = [...typeAgg.entries()].map(([type, a]) => ({
+      type,
+      documents: a.docs.size,
+      orders: a.orders,
+      inProgress: a.inProgress,
+      notDone: a.notDone,
+      done: a.done,
+      doneLate: a.doneLate,
+      renewed: 0, // "Возобновленные" — hozircha tushuncha yo'q
+    }));
+
+    const total = byType.reduce(
+      (acc, r) => {
+        acc.documents += r.documents;
+        acc.orders += r.orders;
+        acc.inProgress += r.inProgress;
+        acc.notDone += r.notDone;
+        acc.done += r.done;
+        acc.doneLate += r.doneLate;
+        return acc;
+      },
+      { documents: 0, orders: 0, inProgress: 0, notDone: 0, done: 0, doneLate: 0, renewed: 0 },
+    );
+
+    const managers = [...mgrAgg.values()]
+      .map((m) => ({ ...m, onApproval: 0 }))
+      .sort((x, y) => y.orders - x.orders);
+
+    return { byType, total, managers };
+  }
+
   // ── YORDAMCHILAR ──────────────────────────────────────────────────────
 
   private async buildManagerChain(userId: string): Promise<string[]> {
