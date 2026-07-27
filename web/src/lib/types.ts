@@ -212,6 +212,7 @@ export interface EdoDocument {
   numberCategory: string;
   year: number;
   type: DocumentType;
+  internalKind?: 'service_letter' | 'order' | null;
   subject: string;
   shortInfo?: string | null;
   body: string;

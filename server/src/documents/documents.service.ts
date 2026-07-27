@@ -221,6 +221,8 @@ export class DocumentsService {
           numberCategory: category,
           year,
           type: dto.type,
+          internalKind:
+            dto.type === 'internal' ? (dto.internalKind ?? 'service_letter') : null,
           subject: dto.subject,
           shortInfo: dto.shortInfo,
           body: sanitizeRichHtml(dto.body ?? ''),
@@ -321,6 +323,17 @@ export class DocumentsService {
       data.formApproversAfterSign =
         effType === 'internal' ? dto.formApproversAfterSign : false;
     }
+    // Ichki hujjat turi (xizmat xati / buyruq)
+    if (effType === 'internal') {
+      if (dto.internalKind !== undefined) {
+        data.internalKind = dto.internalKind;
+      } else if (dto.type !== undefined && doc.type !== 'internal') {
+        // internal'ga o'zgardi, lekin kind kelmadi — default xizmat xati
+        data.internalKind = 'service_letter';
+      }
+    } else if (dto.type !== undefined) {
+      data.internalKind = null;
+    }
 
     await this.prisma.$transaction(async (tx) => {
       await tx.document.update({ where: { id }, data });
@@ -376,11 +389,15 @@ export class DocumentsService {
       );
     }
 
-    // Shablon tanlanmagan bo'lsa — hujjat "ichki" shabloniga avtomat solinadi va
-    // qat'iy zanjir (aziza → raxmatjon → abduxalil → mirzaxid) qo'yiladi.
+    // "Buyruq" turidagi ichki hujjatda tasdiqlovchilar qo'lda tanlanadi —
+    // avtomatik ichki zanjir (aziza → ... → mirzaxid) ishlamaydi.
+    const isOrder = doc.type === 'internal' && doc.internalKind === 'order';
+
+    // Shablon tanlanmagan bo'lsa (va "buyruq" bo'lmasa) — hujjat "ichki" shabloniga
+    // avtomat solinadi va qat'iy zanjir (aziza → raxmatjon → abduxalil → mirzaxid) qo'yiladi.
     let autoIchkiTemplateId: string | null = null;
     let autoIchkiChain: string[] | null = null;
-    if (!doc.templateId) {
+    if (!doc.templateId && !isOrder) {
       const tpl = await this.prisma.documentTemplate.findFirst({
         where: { name: { equals: 'ichki', mode: 'insensitive' } },
         select: { id: true },
@@ -638,6 +655,13 @@ export class DocumentsService {
       });
       // Yaratuvchini xabardor qilamiz
       await this.notifyCreator(doc.createdById, userId, id, doc.number, doc.subject, 'completed');
+      // Ichki "xizmat xati" (avtomatik zanjir) tugagach — barcha kanselyariya
+      // xodimlariga ijrochi biriktirish uchun xabar yuboriladi.
+      const isServiceLetter =
+        doc.type === 'internal' && (doc.internalKind ?? 'service_letter') === 'service_letter';
+      if (isServiceLetter && doc.autoFilled) {
+        await this.notifyChancelleryForResolution(userId, id, doc.number, doc.subject);
+      }
     }
 
     return this.findOne(userId, id);
@@ -1930,6 +1954,41 @@ export class DocumentsService {
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error('[EDO] creator notify failed:', e);
+    }
+  }
+
+  /**
+   * Ichki "xizmat xati" avtomatik zanjiri (mirzaxid) tugagach, barcha
+   * kanselyariya rolidagi xodimlarni xabardor qiladi. Ular ijrochi
+   * biriktirib, rezolyutsiya yozib xabar yubora oladi.
+   */
+  private async notifyChancelleryForResolution(
+    actorId: string,
+    docId: string,
+    number: string,
+    subject: string,
+  ) {
+    try {
+      const staff = await this.prisma.user.findMany({
+        where: { role: 'chancellery', isActive: true },
+        select: { id: true },
+      });
+      const recipientIds = staff.map((u) => u.id).filter((rid) => rid !== actorId);
+      if (recipientIds.length === 0) return;
+      const link = `/edo/documents/${docId}`;
+      const result = await this.messages.send(actorId, {
+        recipientIds,
+        subject: `[EDO ${number}] Ijro uchun: ${subject}`,
+        body:
+          `Xizmat xati imzo zanjiri yakunlandi. Ijrochi biriktiring.\n\n` +
+          `Mavzu: ${subject}\nRaqam: ${number}\n\n` +
+          `Hujjat sahifasi: ${link}`,
+        importance: 'important',
+      });
+      this.gateway.notifyNewMessage(recipientIds, result);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('[EDO] chancellery notify failed:', e);
     }
   }
 

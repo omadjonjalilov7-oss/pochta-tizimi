@@ -39,6 +39,8 @@ export function EdoComposePage() {
 
   const initialType = (searchParams.get('type') as DocumentType) || 'internal';
   const [type, setType] = useState<DocumentType>(initialType);
+  // Ichki hujjat turi: xizmat xati (avtomatik zanjir) | buyruq (qo'lda tasdiqlovchilar)
+  const [internalKind, setInternalKind] = useState<'service_letter' | 'order'>('service_letter');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [numberDeptId, setNumberDeptId] = useState<string>('');
@@ -97,6 +99,7 @@ export function EdoComposePage() {
   useEffect(() => {
     if (!doc) return;
     setType(doc.type);
+    setInternalKind((doc.internalKind as 'service_letter' | 'order') || 'service_letter');
     setSubject(doc.subject);
     setBody(doc.body || '');
     setNumberDeptId(doc.numberDeptId || '');
@@ -139,6 +142,7 @@ export function EdoComposePage() {
     mutationFn: async () => {
       const payload = {
         type,
+        internalKind: type === 'internal' ? internalKind : undefined,
         subject: subject.trim(),
         // Reference'dagi "Qisqacha mazmuni" asosiy maydon; matn bo'sh bo'lsa uni matnga ham yozamiz
         body: body.trim() ? body : subject.trim(),
@@ -486,6 +490,34 @@ export function EdoComposePage() {
                   className={`${fieldCls} bg-slate-50 font-mono text-asaka-700`}
                 />
               </div>
+            </div>
+          )}
+
+          {/* Ichki hujjat turi: xizmat xati / buyruq */}
+          {type === 'internal' && (
+            <div>
+              <label className={labelCls}>
+                {t('edo.compose.label_internal_kind')} <span className="text-red-500">*</span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <KindChip
+                  active={internalKind === 'service_letter'}
+                  disabled={!isDraft}
+                  onClick={() => setInternalKind('service_letter')}
+                  label={t('edo.internal_kind.service_letter')}
+                />
+                <KindChip
+                  active={internalKind === 'order'}
+                  disabled={!isDraft}
+                  onClick={() => setInternalKind('order')}
+                  label={t('edo.internal_kind.order')}
+                />
+              </div>
+              <p className="mt-1.5 text-xs text-slate-500">
+                {internalKind === 'service_letter'
+                  ? t('edo.compose.internal_kind_hint_service')
+                  : t('edo.compose.internal_kind_hint_order')}
+              </p>
             </div>
           )}
 
@@ -937,6 +969,34 @@ function OptCheck({
       />
       {label}
     </label>
+  );
+}
+
+function KindChip({
+  active,
+  disabled,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        'px-4 py-2 rounded-full text-sm font-medium border transition-colors disabled:opacity-60',
+        active
+          ? 'bg-asaka-600 text-white border-asaka-600'
+          : 'bg-white text-slate-600 border-slate-300 hover:border-asaka-400 hover:text-asaka-700',
+      )}
+    >
+      {label}
+    </button>
   );
 }
 

@@ -386,6 +386,7 @@ model Document {
   numberCategory  String          @map("number_category") @db.VarChar(16)  // IN / OUT / INT / BUYRUQ
   year            Int
   type            DocumentType
+  internalKind    String?         @map("internal_kind") @db.VarChar(32)      // ichki hujjat turi: service_letter | order
   templateId      String?         @map("template_id") @db.Uuid
   subject         String          @db.VarChar(500)
   shortInfo       String?         @map("short_info") @db.VarChar(1000) // shapkada ko'rinadigan qisqa ma'lumot

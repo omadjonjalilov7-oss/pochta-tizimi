@@ -204,6 +204,11 @@ export function EdoDocumentViewPage() {
               )}
               <StatusBadge status={doc.status} />
               <span className="text-xs text-slate-400">{t(`edo.doc_type.${doc.type}`)}</span>
+              {doc.type === 'internal' && doc.internalKind && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-asaka-50 text-asaka-700 border border-asaka-200">
+                  {t(`edo.internal_kind.${doc.internalKind}`)}
+                </span>
+              )}
             </div>
             <div className="flex items-start gap-2">
               <h1 className="text-xl font-semibold text-slate-900 flex-1">{doc.subject}</h1>

@@ -4,6 +4,7 @@ import {
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsIn,
   IsOptional,
   IsString,
   IsUUID,
@@ -15,6 +16,12 @@ import { DocumentType } from '@prisma/client';
 export class CreateDocumentDto {
   @IsEnum(DocumentType)
   type: DocumentType;
+
+  // Ichki hujjat turi: service_letter (xizmat xati) | order (buyruq).
+  // Faqat type === 'internal' uchun ma'noli.
+  @IsOptional()
+  @IsIn(['service_letter', 'order'])
+  internalKind?: 'service_letter' | 'order';
 
   @IsString()
   @MinLength(2)
