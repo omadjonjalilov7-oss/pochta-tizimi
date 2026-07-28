@@ -1315,13 +1315,11 @@ export class DocumentsService {
             margin: 1,
             width: 160,
           });
-          // QR o'z markazlashgan bloki bilan chiqadi — atrofdagi matnga aralashib
-          // ketmasligi uchun (foydalanuvchi {{qr_kod}}ni alohida qatorga qo'yadi).
+          // QR — inline rasm: "Бош директор  {{qr_kod}}  Жалилов.А.А" kabi bir
+          // qatorda, matn bilan yonma-yon (vertikal markazda) chiqadi.
           qrHtml =
-            `<div style="text-align:center;margin:14px auto;">` +
             `<img src="${qrDataUrl}" alt="QR" title="Hujjatni skanerlab ko'rish" ` +
-            `style="width:110px;height:110px;display:inline-block;" />` +
-            `</div>`;
+            `style="width:96px;height:96px;display:inline-block;vertical-align:middle;" />`;
         } catch {
           qrHtml = ''; // QR yaratilmasa — bo'sh qoladi
         }
