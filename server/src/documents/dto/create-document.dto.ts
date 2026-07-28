@@ -72,6 +72,11 @@ export class CreateDocumentDto {
   @IsUUID()
   senderOrgId?: string;
 
+  // Ro'yxatga olish jurnali (kategoriya) — Journal id
+  @IsOptional()
+  @IsUUID()
+  journalId?: string;
+
   // Bajarish muddati — ISO sanasi (frontend datetime-local'dan keladi)
   @IsOptional()
   @IsDateString()

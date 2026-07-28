@@ -216,6 +216,17 @@ export interface Organization {
   updatedAt?: string;
 }
 
+export interface Journal {
+  id: string;
+  name: string;
+  prefix?: string | null;
+  kind: string;
+  seq: number;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface EdoDocument {
   id: string;
   number: string;
@@ -231,6 +242,7 @@ export interface EdoDocument {
   isExternal: boolean;
   externalRecipient?: string | null;
   senderOrgId?: string | null;
+  journalId?: string | null;
   createdById: string;
   currentHolderId?: string | null;
   numberDeptId?: string | null;
@@ -257,6 +269,7 @@ export interface EdoDocument {
   numberDept?: { id: string; name: string; code?: string | null } | null;
   targetDept?: { id: string; name: string; code?: string | null } | null;
   senderOrg?: Organization | null;
+  journal?: { id: string; name: string; prefix?: string | null; kind: string } | null;
   participants: EdoParticipant[];
   comments: EdoComment[];
   audit: EdoAuditEntry[];

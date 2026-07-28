@@ -359,6 +359,27 @@ model Organization {
 }
 
 // ============================================================
+// RO'YXATGA OLISH JURNALLARI — eski ishxonalardagi daftar jurnallari kabi.
+// Har bir jurnal turi alohida shakllanadi (masalan: kiruvchi, buyruqlar, shartnomalar).
+// ============================================================
+model Journal {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(255)
+  prefix    String?  @db.VarChar(32)                        // raqam prefiksi
+  kind      String   @default("general") @db.VarChar(32)    // jurnal turi: incoming | outgoing | internal | general
+  seq       Int      @default(0)                            // tartib raqami (ro'yxatdagi o'rni)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  documents Document[] @relation("DocJournal")
+
+  @@index([kind])
+  @@index([seq])
+  @@map("journals")
+}
+
+// ============================================================
 // EDO — HUJJAT AYLANMASI (Electronic Document Workflow)
 // ============================================================
 
@@ -419,6 +440,8 @@ model Document {
   externalRecipient String?   @map("external_recipient") @db.VarChar(255)
   // Kiruvchi/tashqi hujjat yuboruvchi tashkiloti (Organization)
   senderOrgId       String?   @map("sender_org_id") @db.Uuid
+  // Ro'yxatga olish jurnali (kategoriya) — xodim bo'limi o'rniga tanlanadi
+  journalId         String?   @map("journal_id") @db.Uuid
 
   createdById       String    @map("created_by_id") @db.Uuid
   currentHolderId   String?   @map("current_holder_id") @db.Uuid    // hozir kimda ko'rib chiqishda turibdi
@@ -465,6 +488,7 @@ model Document {
   numberDept    Department?       @relation("DocNumberDept", fields: [numberDeptId], references: [id], onDelete: SetNull)
   targetDept    Department?       @relation("DocTargetDept", fields: [targetDeptId], references: [id], onDelete: SetNull)
   senderOrg     Organization?     @relation("DocSenderOrg", fields: [senderOrgId], references: [id], onDelete: SetNull)
+  journal       Journal?          @relation("DocJournal", fields: [journalId], references: [id], onDelete: SetNull)
 
   participants DocumentParticipant[]
   resolutions  Resolution[]

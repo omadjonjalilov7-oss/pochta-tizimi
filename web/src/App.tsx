@@ -19,6 +19,7 @@ import { EdoTemplatesPage } from './pages/edo/EdoTemplatesPage';
 import { EdoReportsPage } from './pages/edo/EdoReportsPage';
 import { EdoStatsPage } from './pages/edo/EdoStatsPage';
 import { EdoHisobotlarPage } from './pages/edo/EdoHisobotlarPage';
+import { EdoJurnalPage } from './pages/edo/EdoJurnalPage';
 import { EdoChatPage } from './pages/edo/EdoChatPage';
 import { EdoApprovalPage } from './pages/edo/EdoApprovalPage';
 import { EdoCalendarPage } from './pages/edo/EdoCalendarPage';
@@ -95,6 +96,7 @@ export function App() {
           <Route path="settings" element={<EdoSettingsPage />} />
           <Route path="reports" element={<EdoReportsPage />} />
           <Route path="hisobotlar" element={<EdoHisobotlarPage />} />
+          <Route path="jurnal" element={<EdoJurnalPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/inbox" replace />} />

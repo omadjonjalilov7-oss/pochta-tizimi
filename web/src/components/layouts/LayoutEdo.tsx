@@ -30,6 +30,7 @@ import {
   Users,
   Search,
   Settings,
+  BookText,
   Menu,
   X,
 } from 'lucide-react';
@@ -367,6 +368,7 @@ export function LayoutEdo() {
             <div className="mt-4 border-t border-white/10" />
           )}
           <EdoNav to="/edo/search" icon={Search} label={t('edo.nav.search')} collapsed={collapsed} />
+          <EdoNav to="/edo/jurnal" icon={BookText} label={t('edo.nav.jurnal')} collapsed={collapsed} />
           <EdoNav to="/edo/templates" icon={Files} label={t('edo.nav.templates')} collapsed={collapsed} />
           <EdoNav to="/edo/approval" icon={CheckCircle2} label={t('edo.nav.approval_status')} collapsed={collapsed} />
           <EdoNav to="/edo/archive" icon={FileSearch} label={t('edo.nav.archive')} collapsed={collapsed} />

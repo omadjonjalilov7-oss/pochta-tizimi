@@ -97,6 +97,7 @@ const FULL_INCLUDE = {
   numberDept: { select: { id: true, name: true, code: true } },
   targetDept: { select: { id: true, name: true, code: true } },
   senderOrg: { select: { id: true, name: true, inn: true, address: true, phone: true, note: true } },
+  journal: { select: { id: true, name: true, prefix: true, kind: true } },
   attachments: {
     orderBy: { createdAt: 'asc' as const },
     include: {
@@ -234,6 +235,7 @@ export class DocumentsService {
           isExternal: dto.type === 'outgoing',
           externalRecipient: dto.type === 'outgoing' ? dto.externalRecipient : null,
           senderOrgId: dto.type !== 'internal' ? (dto.senderOrgId ?? null) : null,
+          journalId: dto.journalId ?? null,
           deadline,
           createdById: userId,
           currentHolderId: userId,
@@ -296,6 +298,11 @@ export class DocumentsService {
         effTypeForSender !== 'internal' && dto.senderOrgId
           ? { connect: { id: dto.senderOrgId } }
           : { disconnect: true };
+    }
+    if (dto.journalId !== undefined) {
+      data.journal = dto.journalId
+        ? { connect: { id: dto.journalId } }
+        : { disconnect: true };
     }
     if (dto.type !== undefined && dto.type !== doc.type) {
       // Qoralama bo'lgani uchun tipni o'zgartirishga ruxsat berishimiz mumkin

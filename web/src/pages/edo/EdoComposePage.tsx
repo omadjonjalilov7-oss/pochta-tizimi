@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { cn } from '../../lib/utils';
-import type { Department, DocumentType, EdoDocument, Organization } from '../../lib/types';
+import type { Department, DocumentType, EdoDocument, Organization, Journal } from '../../lib/types';
 import { useAuth } from '../../context/AuthContext';
 import { Avatar } from '../../components/Avatar';
 import { TemplatePickerModal } from '../../components/edo/TemplatePickerModal';
@@ -60,6 +60,7 @@ export function EdoComposePage() {
   const [targetDeptId, setTargetDeptId] = useState<string>('');
   const [externalRecipient, setExternalRecipient] = useState('');
   const [senderOrgId, setSenderOrgId] = useState('');
+  const [journalId, setJournalId] = useState('');
   const [showOrgModal, setShowOrgModal] = useState(false);
   const [deadline, setDeadline] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -97,6 +98,12 @@ export function EdoComposePage() {
     staleTime: 60_000,
   });
 
+  const { data: journals = [] } = useQuery({
+    queryKey: ['journals'],
+    queryFn: async () => (await api.get<Journal[]>('/journals')).data,
+    staleTime: 60_000,
+  });
+
   const { data: doc } = useQuery({
     queryKey: ['edo-doc', currentDocId],
     queryFn: async () => (await api.get<EdoDocument>(`/documents/${currentDocId}`)).data,
@@ -127,6 +134,7 @@ export function EdoComposePage() {
     setTargetDeptId(doc.targetDeptId || '');
     setExternalRecipient(doc.externalRecipient || '');
     setSenderOrgId(doc.senderOrgId || '');
+    setJournalId(doc.journalId || '');
     setDeadline(doc.deadline ? toLocalDatetimeInputValue(doc.deadline) : '');
     setIssueGroup(doc.issueGroup || '');
     setIssues(doc.issues || '');
@@ -174,6 +182,7 @@ export function EdoComposePage() {
         externalRecipient:
           type === 'outgoing' ? externalRecipient.trim() || undefined : undefined,
         senderOrgId: type !== 'internal' ? senderOrgId || undefined : undefined,
+        journalId: journalId || undefined,
         deadline: deadline ? new Date(deadline).toISOString() : undefined,
         // Yaratish formasidagi qo'shimcha maydonlar
         issueGroup: issueGroup.trim() || undefined,
@@ -414,21 +423,21 @@ export function EdoComposePage() {
                   {t('edo.compose.label_journal')} <span className="text-red-500">*</span>
                 </label>
                 <select
-                  value={numberDeptId}
-                  onChange={(e) => setNumberDeptId(e.target.value)}
-                  disabled
+                  value={journalId}
+                  onChange={(e) => setJournalId(e.target.value)}
+                  disabled={!isDraft}
                   className={fieldCls}
                 >
                   <option value="">{t('edo.compose.ph_journal')}</option>
-                  {departments.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.code ? `[${d.code}] ` : ''}
-                      {d.name}
+                  {journals.map((j) => (
+                    <option key={j.id} value={j.id}>
+                      {j.prefix ? `[${j.prefix}] ` : ''}
+                      {j.name}
                     </option>
                   ))}
                 </select>
                 <p className="mt-1 text-xs text-slate-500">
-                  {t('edo.compose.journal_locked_hint')}
+                  {t('edo.compose.journal_category_hint')}
                 </p>
               </div>
               <div>
@@ -486,21 +495,21 @@ export function EdoComposePage() {
                   {t('edo.compose.label_journal')} <span className="text-red-500">*</span>
                 </label>
                 <select
-                  value={numberDeptId}
-                  onChange={(e) => setNumberDeptId(e.target.value)}
-                  disabled
+                  value={journalId}
+                  onChange={(e) => setJournalId(e.target.value)}
+                  disabled={!isDraft}
                   className={fieldCls}
                 >
                   <option value="">{t('edo.compose.ph_journal')}</option>
-                  {departments.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.code ? `[${d.code}] ` : ''}
-                      {d.name}
+                  {journals.map((j) => (
+                    <option key={j.id} value={j.id}>
+                      {j.prefix ? `[${j.prefix}] ` : ''}
+                      {j.name}
                     </option>
                   ))}
                 </select>
                 <p className="mt-1 text-xs text-slate-500">
-                  {t('edo.compose.journal_locked_hint')}
+                  {t('edo.compose.journal_category_hint')}
                 </p>
               </div>
               <div>
