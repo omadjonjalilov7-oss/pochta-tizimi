@@ -135,4 +135,71 @@ export class CreateDocumentDto {
   @IsOptional()
   @IsBoolean()
   formApproversAfterSign?: boolean;
+
+  // ── Kiruvchi korrespondensiyani ro'yxatga olish maydonlari ──
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  deliveryType?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  incomingDocKind?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  docName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  higherOrder?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  predmet?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  incomingNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  outgoingNumber?: string;
+
+  @IsOptional()
+  @IsDateString()
+  incomingDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  outgoingDate?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  signatory?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  executor?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  contactPhone?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  directRouting?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  urgent?: boolean;
 }

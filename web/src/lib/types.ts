@@ -259,6 +259,21 @@ export interface EdoDocument {
   deliverAsAppeal?: boolean;
   replyRequired?: boolean;
   formApproversAfterSign?: boolean;
+  // Kiruvchi korrespondensiyani ro'yxatga olish maydonlari
+  deliveryType?: string | null;
+  incomingDocKind?: string | null;
+  docName?: string | null;
+  higherOrder?: string | null;
+  predmet?: string | null;
+  incomingNumber?: string | null;
+  outgoingNumber?: string | null;
+  incomingDate?: string | null;
+  outgoingDate?: string | null;
+  signatory?: string | null;
+  executor?: string | null;
+  contactPhone?: string | null;
+  directRouting?: boolean;
+  urgent?: boolean;
   signatureChainPosition: number;
   isSigned: boolean;
   createdAt: string;

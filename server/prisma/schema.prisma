@@ -461,6 +461,22 @@ model Document {
   replyRequired          Boolean  @default(false) @map("reply_required")          // Javob xati talab qilinadi (outgoing)
   formApproversAfterSign Boolean  @default(false) @map("form_approvers_after_sign") // Imzodan so'ng kelishuvchilar ro'yxatini shakllantirish (internal)
 
+  // ── Kiruvchi korrespondensiyani ro'yxatga olish maydonlari ──
+  deliveryType     String?   @map("delivery_type") @db.VarChar(32)       // Yetkazish turi (pochta/email/kuryer...)
+  incomingDocKind  String?   @map("incoming_doc_kind") @db.VarChar(64)   // Hujjat turi (xat/buyruq/so'rov...)
+  docName          String?   @map("doc_name") @db.VarChar(500)           // Hujjat nomi
+  higherOrder      String?   @map("higher_order") @db.VarChar(500)       // Yuqori tashkilot topshirig'i
+  predmet          String?   @map("predmet") @db.VarChar(500)            // Mavzu/predmet
+  incomingNumber   String?   @map("incoming_number") @db.VarChar(64)     // Kiruvchi raqam
+  outgoingNumber   String?   @map("outgoing_number") @db.VarChar(64)     // Chiquvchi raqam
+  incomingDate     DateTime? @map("incoming_date") @db.Timestamptz(3)    // Kiruvchi sana
+  outgoingDate     DateTime? @map("outgoing_date") @db.Timestamptz(3)    // Chiquvchi sana
+  signatory        String?   @map("signatory") @db.VarChar(255)          // Imzolagan shaxs
+  executor         String?   @map("executor") @db.VarChar(255)           // Ijrochi
+  contactPhone     String?   @map("contact_phone") @db.VarChar(64)       // Telefon raqami
+  directRouting    Boolean   @default(false) @map("direct_routing")      // To'g'ridan yo'naltirish
+  urgent           Boolean   @default(false) @map("urgent")              // Shoshilinch
+
   // Imzo zanjiri holati
   signatureChainPosition Int  @default(0) @map("signature_chain_position")
   isSigned               Boolean @default(false) @map("is_signed")

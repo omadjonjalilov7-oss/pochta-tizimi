@@ -41,6 +41,21 @@ const INTERNAL_KINDS = [
   'joint_plan',
 ] as const;
 
+// Kiruvchi hujjat turlari (Тип документа) — combobox
+const INCOMING_DOC_KINDS = [
+  'letter',
+  'order',
+  'request',
+  'complaint',
+  'act',
+  'protocol',
+  'appeal',
+  'other',
+] as const;
+
+// Yetkazish turi (Доставка документа) — combobox
+const DELIVERY_TYPES = ['post', 'email', 'courier', 'hand', 'telegram', 'other'] as const;
+
 export function EdoComposePage() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
@@ -73,6 +88,22 @@ export function EdoComposePage() {
   // Reference dizaynidagi qo'shimcha maydonlar (hozircha UI holati)
   const [issueGroup, setIssueGroup] = useState('');
   const [issues, setIssues] = useState('');
+
+  // Kiruvchi korrespondensiyani ro'yxatga olish maydonlari
+  const [deliveryType, setDeliveryType] = useState('');
+  const [incomingDocKind, setIncomingDocKind] = useState('');
+  const [docName, setDocName] = useState('');
+  const [higherOrder, setHigherOrder] = useState('');
+  const [predmet, setPredmet] = useState('');
+  const [incomingNumber, setIncomingNumber] = useState('');
+  const [outgoingNumber, setOutgoingNumber] = useState('');
+  const [incomingDate, setIncomingDate] = useState('');
+  const [outgoingDate, setOutgoingDate] = useState('');
+  const [signatory, setSignatory] = useState('');
+  const [executor, setExecutor] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [directRouting, setDirectRouting] = useState(false);
+  const [urgent, setUrgent] = useState(false);
   const [xdfuDsp, setXdfuDsp] = useState(false);
   const [qrLess, setQrLess] = useState(false);
   const [asAppeal, setAsAppeal] = useState(false);
@@ -138,6 +169,20 @@ export function EdoComposePage() {
     setDeadline(doc.deadline ? toLocalDatetimeInputValue(doc.deadline) : '');
     setIssueGroup(doc.issueGroup || '');
     setIssues(doc.issues || '');
+    setDeliveryType(doc.deliveryType || '');
+    setIncomingDocKind(doc.incomingDocKind || '');
+    setDocName(doc.docName || '');
+    setHigherOrder(doc.higherOrder || '');
+    setPredmet(doc.predmet || '');
+    setIncomingNumber(doc.incomingNumber || '');
+    setOutgoingNumber(doc.outgoingNumber || '');
+    setIncomingDate(doc.incomingDate ? toLocalDateInputValue(doc.incomingDate) : '');
+    setOutgoingDate(doc.outgoingDate ? toLocalDateInputValue(doc.outgoingDate) : '');
+    setSignatory(doc.signatory || '');
+    setExecutor(doc.executor || '');
+    setContactPhone(doc.contactPhone || '');
+    setDirectRouting(!!doc.directRouting);
+    setUrgent(!!doc.urgent);
     setTags(doc.tags || []);
     setXdfuDsp(!!doc.xdfuDsp);
     setQrLess(!!doc.qrLess);
@@ -187,6 +232,27 @@ export function EdoComposePage() {
         // Yaratish formasidagi qo'shimcha maydonlar
         issueGroup: issueGroup.trim() || undefined,
         issues: issues.trim() || undefined,
+        // Kiruvchi korrespondensiyani ro'yxatga olish maydonlari
+        deliveryType: type === 'incoming' ? deliveryType || undefined : undefined,
+        incomingDocKind: type === 'incoming' ? incomingDocKind || undefined : undefined,
+        docName: type === 'incoming' ? docName.trim() || undefined : undefined,
+        higherOrder: type === 'incoming' ? higherOrder.trim() || undefined : undefined,
+        predmet: type === 'incoming' ? predmet.trim() || undefined : undefined,
+        incomingNumber: type === 'incoming' ? incomingNumber.trim() || undefined : undefined,
+        outgoingNumber: type === 'incoming' ? outgoingNumber.trim() || undefined : undefined,
+        incomingDate:
+          type === 'incoming' && incomingDate
+            ? new Date(incomingDate).toISOString()
+            : undefined,
+        outgoingDate:
+          type === 'incoming' && outgoingDate
+            ? new Date(outgoingDate).toISOString()
+            : undefined,
+        signatory: type === 'incoming' ? signatory.trim() || undefined : undefined,
+        executor: type === 'incoming' ? executor.trim() || undefined : undefined,
+        contactPhone: type === 'incoming' ? contactPhone.trim() || undefined : undefined,
+        directRouting: type === 'incoming' ? directRouting : undefined,
+        urgent: type === 'incoming' ? urgent : undefined,
         tags,
         xdfuDsp,
         qrLess,
@@ -307,7 +373,31 @@ export function EdoComposePage() {
       ? t('edo.compose.title_edit')
       : type === 'outgoing'
         ? t('edo.compose.title_new_outgoing')
-        : t('edo.compose.title_new_internal');
+        : type === 'incoming'
+          ? t('edo.compose.incoming.title')
+          : t('edo.compose.title_new_internal');
+
+  const clearIncoming = () => {
+    setDeliveryType('');
+    setIncomingDocKind('');
+    setDocName('');
+    setHigherOrder('');
+    setPredmet('');
+    setIncomingNumber('');
+    setOutgoingNumber('');
+    setIncomingDate('');
+    setOutgoingDate('');
+    setSignatory('');
+    setExecutor('');
+    setContactPhone('');
+    setDirectRouting(false);
+    setUrgent(false);
+    setSenderOrgId('');
+    setJournalId('');
+    setTargetDeptId('');
+    setSubject('');
+    setTags([]);
+  };
 
   const attachments = doc?.attachments ?? [];
 
@@ -347,53 +437,59 @@ export function EdoComposePage() {
         {/* Sarlavha + amal tugmalari (tepada) */}
         <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-slate-200">
           <h1 className="text-lg font-semibold text-slate-900">
-            {type === 'internal' || (doc && doc.status !== 'draft') ? headerTitle : ''}
+            {type === 'internal' || type === 'incoming' || (doc && doc.status !== 'draft')
+              ? headerTitle
+              : ''}
           </h1>
           <div className="flex flex-wrap items-center gap-2">
-            {type === 'internal' && (
-              <button
-                type="button"
-                onClick={handleAttachClick}
-                disabled={!isDraft || uploadFile.isPending || saveDraft.isPending}
-                className={secondaryBtnCls}
-              >
-                <Paperclip size={16} />
-                {t('edo.compose.btn_attach_file')}
-              </button>
+            {type !== 'incoming' && (
+              <>
+                {type === 'internal' && (
+                  <button
+                    type="button"
+                    onClick={handleAttachClick}
+                    disabled={!isDraft || uploadFile.isPending || saveDraft.isPending}
+                    className={secondaryBtnCls}
+                  >
+                    <Paperclip size={16} />
+                    {t('edo.compose.btn_attach_file')}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleAttachClick}
+                  disabled={!isDraft || uploadFile.isPending || saveDraft.isPending}
+                  className={secondaryBtnCls}
+                >
+                  <FileText size={16} />
+                  {t('edo.compose.btn_attachments')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowRecipients((v) => !v)}
+                  className={secondaryBtnCls}
+                >
+                  <Users size={16} />
+                  {t('edo.compose.btn_recipients')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowRelated((v) => !v)}
+                  className={secondaryBtnCls}
+                >
+                  <Link2 size={16} />
+                  {t('edo.compose.btn_related')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowTemplatePicker(true)}
+                  className={secondaryBtnCls}
+                >
+                  <Files size={16} />
+                  {t('edo.compose.pick_template')}
+                </button>
+              </>
             )}
-            <button
-              type="button"
-              onClick={handleAttachClick}
-              disabled={!isDraft || uploadFile.isPending || saveDraft.isPending}
-              className={secondaryBtnCls}
-            >
-              <FileText size={16} />
-              {t('edo.compose.btn_attachments')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowRecipients((v) => !v)}
-              className={secondaryBtnCls}
-            >
-              <Users size={16} />
-              {t('edo.compose.btn_recipients')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowRelated((v) => !v)}
-              className={secondaryBtnCls}
-            >
-              <Link2 size={16} />
-              {t('edo.compose.btn_related')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowTemplatePicker(true)}
-              className={secondaryBtnCls}
-            >
-              <Files size={16} />
-              {t('edo.compose.pick_template')}
-            </button>
             <button
               type="button"
               onClick={() => handleSave()}
@@ -415,6 +511,455 @@ export function EdoComposePage() {
         </div>
 
         <form onSubmit={handleSave} className="p-6 space-y-5">
+          {type === 'incoming' ? (
+            <div className="space-y-5">
+              {/* Hujjat heshteglari */}
+              <div>
+                <label className={`${labelCls} flex items-center gap-2`}>
+                  {t('edo.compose.label_tags')}
+                  {isDraft && (
+                    <button
+                      type="button"
+                      onClick={() => addTag(tagInput)}
+                      className="inline-flex items-center justify-center h-5 w-5 rounded-full border border-asaka-300 text-asaka-600 hover:bg-asaka-50"
+                    >
+                      <Plus size={13} />
+                    </button>
+                  )}
+                </label>
+                <div
+                  className={`flex flex-wrap items-center gap-1.5 px-2.5 py-2 border border-slate-300 rounded-lg focus-within:border-asaka-500 focus-within:ring-2 focus-within:ring-asaka-100 ${
+                    !isDraft ? 'bg-slate-50' : ''
+                  }`}
+                >
+                  {tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center gap-1 bg-asaka-50 text-asaka-700 text-xs font-medium px-2 py-1 rounded-md"
+                    >
+                      #{tag}
+                      {isDraft && (
+                        <button
+                          type="button"
+                          onClick={() => setTags((p) => p.filter((x) => x !== tag))}
+                          className="hover:text-asaka-900"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                  <input
+                    type="text"
+                    value={tagInput}
+                    disabled={!isDraft}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ',') {
+                        e.preventDefault();
+                        addTag(tagInput);
+                      } else if (e.key === 'Backspace' && !tagInput && tags.length) {
+                        setTags((p) => p.slice(0, -1));
+                      }
+                    }}
+                    placeholder={tags.length === 0 ? t('edo.compose.ph_tag') : ''}
+                    className="flex-1 min-w-[120px] text-sm outline-none bg-transparent py-0.5"
+                  />
+                </div>
+              </div>
+
+              {/* Yuboruvchi tashkilot */}
+              <div>
+                <label className={labelCls}>{t('edo.compose.label_sender_org')}</label>
+                <div className="flex items-stretch gap-2">
+                  <select
+                    value={senderOrgId}
+                    onChange={(e) => setSenderOrgId(e.target.value)}
+                    disabled={!isDraft}
+                    className={fieldCls}
+                  >
+                    <option value="">{t('edo.compose.ph_sender_org')}</option>
+                    {organizations.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.name} — {o.inn}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setShowOrgModal(true)}
+                    disabled={!isDraft}
+                    className="shrink-0 inline-flex items-center gap-1.5 bg-asaka-600 hover:bg-asaka-700 text-white text-sm font-medium px-4 rounded-lg disabled:opacity-50"
+                  >
+                    <Building2 size={16} />
+                    {t('edo.compose.add_org')}
+                  </button>
+                </div>
+              </div>
+
+              {/* A qatori: Hujjat turi | Yetkazish | Jurnal */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className={labelCls}>
+                    {t('edo.compose.incoming.doc_kind')} <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={incomingDocKind}
+                    onChange={(e) => setIncomingDocKind(e.target.value)}
+                    disabled={!isDraft}
+                    className={fieldCls}
+                  >
+                    <option value="">{t('edo.compose.incoming.ph_doc_kind')}</option>
+                    {INCOMING_DOC_KINDS.map((k) => (
+                      <option key={k} value={k}>
+                        {t(`edo.compose.incoming.kind_${k}`)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>
+                    {t('edo.compose.incoming.delivery')} <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={deliveryType}
+                    onChange={(e) => setDeliveryType(e.target.value)}
+                    disabled={!isDraft}
+                    className={fieldCls}
+                  >
+                    <option value="">{t('edo.compose.incoming.ph_delivery')}</option>
+                    {DELIVERY_TYPES.map((d) => (
+                      <option key={d} value={d}>
+                        {t(`edo.compose.incoming.delivery_${d}`)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>
+                    {t('edo.compose.label_journal')} <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={journalId}
+                    onChange={(e) => setJournalId(e.target.value)}
+                    disabled={!isDraft}
+                    className={fieldCls}
+                  >
+                    <option value="">{t('edo.compose.ph_journal')}</option>
+                    {journals.map((j) => (
+                      <option key={j.id} value={j.id}>
+                        {j.prefix ? `[${j.prefix}] ` : ''}
+                        {j.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* B qatori: Hujjat nomi | Yuqori organ topshirig'i | Predmet */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className={labelCls}>{t('edo.compose.incoming.doc_name')}</label>
+                  <input
+                    type="text"
+                    value={docName}
+                    onChange={(e) => setDocName(e.target.value)}
+                    maxLength={500}
+                    disabled={!isDraft}
+                    placeholder={t('edo.compose.incoming.ph_doc_name')}
+                    className={fieldCls}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>{t('edo.compose.incoming.higher_order')}</label>
+                  <input
+                    type="text"
+                    value={higherOrder}
+                    onChange={(e) => setHigherOrder(e.target.value)}
+                    maxLength={500}
+                    disabled={!isDraft}
+                    placeholder={t('edo.compose.incoming.ph_higher_order')}
+                    className={fieldCls}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>{t('edo.compose.incoming.predmet')}</label>
+                  <input
+                    type="text"
+                    value={predmet}
+                    onChange={(e) => setPredmet(e.target.value)}
+                    maxLength={500}
+                    disabled={!isDraft}
+                    placeholder={t('edo.compose.incoming.ph_predmet')}
+                    className={fieldCls}
+                  />
+                </div>
+              </div>
+
+              {/* C qatori: raqamlar + sanalar | Qisqacha mazmuni */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2 grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>
+                      {t('edo.compose.incoming.in_number')}{' '}
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={incomingNumber}
+                      onChange={(e) => setIncomingNumber(e.target.value)}
+                      maxLength={64}
+                      disabled={!isDraft}
+                      placeholder={t('edo.compose.incoming.ph_in_number')}
+                      className={fieldCls}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>{t('edo.compose.incoming.out_number')}</label>
+                    <input
+                      type="text"
+                      value={outgoingNumber}
+                      onChange={(e) => setOutgoingNumber(e.target.value)}
+                      maxLength={64}
+                      disabled={!isDraft}
+                      placeholder={t('edo.compose.incoming.ph_out_number')}
+                      className={fieldCls}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>
+                      {t('edo.compose.incoming.in_date')} <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={incomingDate}
+                      onChange={(e) => setIncomingDate(e.target.value)}
+                      disabled={!isDraft}
+                      className={fieldCls}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>{t('edo.compose.incoming.out_date')}</label>
+                    <input
+                      type="date"
+                      value={outgoingDate}
+                      onChange={(e) => setOutgoingDate(e.target.value)}
+                      disabled={!isDraft}
+                      className={fieldCls}
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col">
+                  <label className={labelCls}>
+                    {t('edo.compose.label_summary')} <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    placeholder={t('edo.compose.ph_summary')}
+                    maxLength={500}
+                    required
+                    disabled={!isDraft}
+                    className={`${fieldCls} resize-none flex-1 min-h-[120px]`}
+                  />
+                </div>
+              </div>
+
+              {/* D qatori: Imzolagan shaxs | Ijrochi | Telefon */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className={labelCls}>{t('edo.compose.incoming.signatory')}</label>
+                  <input
+                    type="text"
+                    value={signatory}
+                    onChange={(e) => setSignatory(e.target.value)}
+                    maxLength={255}
+                    disabled={!isDraft}
+                    placeholder={t('edo.compose.incoming.ph_signatory')}
+                    className={fieldCls}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>{t('edo.compose.incoming.executor')}</label>
+                  <input
+                    type="text"
+                    value={executor}
+                    onChange={(e) => setExecutor(e.target.value)}
+                    maxLength={255}
+                    disabled={!isDraft}
+                    placeholder={t('edo.compose.incoming.ph_executor')}
+                    className={fieldCls}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>{t('edo.compose.incoming.phone')}</label>
+                  <input
+                    type="text"
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value)}
+                    maxLength={64}
+                    disabled={!isDraft}
+                    placeholder={t('edo.compose.incoming.ph_phone')}
+                    className={fieldCls}
+                  />
+                </div>
+              </div>
+
+              {/* E qatori: Rezolyutsiya | To'g'ridan | Shoshilinch/DSP */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:items-end">
+                <div>
+                  <label className={labelCls}>
+                    {t('edo.compose.incoming.resolution_to')}{' '}
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={targetDeptId}
+                    onChange={(e) => setTargetDeptId(e.target.value)}
+                    disabled={!isDraft}
+                    className={fieldCls}
+                  >
+                    <option value="">{t('edo.compose.incoming.ph_resolution_to')}</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.code ? `[${d.code}] ` : ''}
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="md:pb-2">
+                  <OptToggle
+                    checked={directRouting}
+                    onChange={() => setDirectRouting((v) => !v)}
+                    disabled={!isDraft}
+                    label={t('edo.compose.incoming.direct_routing')}
+                  />
+                </div>
+                <div className="flex items-center gap-6 md:pb-2">
+                  <OptToggle
+                    checked={urgent}
+                    onChange={() => setUrgent((v) => !v)}
+                    disabled={!isDraft}
+                    label={t('edo.compose.incoming.urgent')}
+                  />
+                  <OptToggle
+                    checked={xdfuDsp}
+                    onChange={() => setXdfuDsp((v) => !v)}
+                    disabled={!isDraft}
+                    label={t('edo.compose.incoming.dsp')}
+                  />
+                </div>
+              </div>
+
+              {/* Biriktirilgan fayllar */}
+              {attachments.length > 0 && (
+                <div className="space-y-1">
+                  {attachments.map((a) => (
+                    <div
+                      key={a.id}
+                      className="flex items-center gap-2 px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg"
+                    >
+                      <FileText size={15} className="text-slate-400 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs font-medium text-slate-800 truncate block">
+                          {a.filename}
+                        </span>
+                        <span className="text-[11px] text-slate-400">
+                          {formatBytes(a.sizeBytes)}
+                        </span>
+                      </div>
+                      {isDraft && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(t('common.delete'))) deleteFile.mutate(a.id);
+                          }}
+                          disabled={deleteFile.isPending}
+                          className="p-1 text-slate-400 hover:text-red-600 rounded disabled:opacity-40"
+                          title={t('common.delete')}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Pastki amal havolalari */}
+              <div className="flex flex-wrap items-center gap-x-8 gap-y-3 border-t border-slate-100 pt-4 text-sm">
+                <button
+                  type="button"
+                  onClick={handleAttachClick}
+                  disabled={!isDraft || uploadFile.isPending || saveDraft.isPending}
+                  className="inline-flex items-center gap-2 text-asaka-700 hover:text-asaka-800 font-medium disabled:opacity-50"
+                >
+                  <FileText size={16} />
+                  {t('edo.compose.incoming.main_file')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAttachClick}
+                  disabled={!isDraft || uploadFile.isPending || saveDraft.isPending}
+                  className="inline-flex items-center gap-2 text-asaka-700 hover:text-asaka-800 font-medium disabled:opacity-50"
+                >
+                  <Paperclip size={16} />
+                  {t('edo.compose.incoming.attachments')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowRelated((v) => !v)}
+                  className="inline-flex items-center gap-2 text-asaka-700 hover:text-asaka-800 font-medium"
+                >
+                  <Link2 size={16} />
+                  {t('edo.compose.incoming.related')}
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-400">{t('edo.compose.incoming.pdf_note')}</p>
+
+              {/* Tozalash / Saqlash */}
+              <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+                <button
+                  type="button"
+                  onClick={clearIncoming}
+                  disabled={!isDraft}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg disabled:opacity-50"
+                >
+                  <X size={15} />
+                  {t('edo.compose.incoming.clear')}
+                </button>
+                <button
+                  type="submit"
+                  disabled={saveDraft.isPending || !isDraft}
+                  className="inline-flex items-center gap-2 bg-asaka-600 hover:bg-asaka-700 text-white font-semibold px-6 py-2 rounded-lg disabled:opacity-50"
+                >
+                  <Save size={16} />
+                  {saveDraft.isPending ? t('common.saving') : t('edo.compose.save')}
+                </button>
+              </div>
+
+              {/* Aloqador hujjatlar paneli */}
+              {showRelated && (
+                <div className="border border-slate-200 rounded-xl p-4 space-y-2 bg-slate-50/60">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-slate-700">
+                      {t('edo.compose.related_panel_title')}
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => setShowRelated(false)}
+                      className="text-slate-400 hover:text-slate-600"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                  <p className="text-sm text-slate-400">{t('edo.compose.related_empty')}</p>
+                </div>
+              )}
+            </div>
+          ) : (
+          <>
           {/* Yuqori maydonlar qatori */}
           {type === 'outgoing' ? (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -863,6 +1408,8 @@ export function EdoComposePage() {
               <p className="text-sm text-slate-400">{t('edo.compose.related_empty')}</p>
             </div>
           )}
+          </>
+          )}
         </form>
       </div>
 
@@ -1210,4 +1757,10 @@ function toLocalDatetimeInputValue(iso: string): string {
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function toLocalDateInputValue(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }

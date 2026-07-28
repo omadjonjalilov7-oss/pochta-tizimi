@@ -251,6 +251,21 @@ export class DocumentsService {
           replyRequired: dto.type === 'outgoing' ? (dto.replyRequired ?? false) : false,
           formApproversAfterSign:
             dto.type === 'internal' ? (dto.formApproversAfterSign ?? false) : false,
+          // Kiruvchi korrespondensiyani ro'yxatga olish maydonlari
+          deliveryType: dto.deliveryType ?? null,
+          incomingDocKind: dto.incomingDocKind ?? null,
+          docName: dto.docName ?? null,
+          higherOrder: dto.higherOrder ?? null,
+          predmet: dto.predmet ?? null,
+          incomingNumber: dto.incomingNumber ?? null,
+          outgoingNumber: dto.outgoingNumber ?? null,
+          incomingDate: dto.incomingDate ? new Date(dto.incomingDate) : null,
+          outgoingDate: dto.outgoingDate ? new Date(dto.outgoingDate) : null,
+          signatory: dto.signatory ?? null,
+          executor: dto.executor ?? null,
+          contactPhone: dto.contactPhone ?? null,
+          directRouting: dto.directRouting ?? false,
+          urgent: dto.urgent ?? false,
         },
       });
       await tx.documentParticipant.create({
@@ -342,6 +357,25 @@ export class DocumentsService {
       data.formApproversAfterSign =
         effType === 'internal' ? dto.formApproversAfterSign : false;
     }
+    // Kiruvchi korrespondensiyani ro'yxatga olish maydonlari
+    if (dto.deliveryType !== undefined) data.deliveryType = dto.deliveryType || null;
+    if (dto.incomingDocKind !== undefined) data.incomingDocKind = dto.incomingDocKind || null;
+    if (dto.docName !== undefined) data.docName = dto.docName || null;
+    if (dto.higherOrder !== undefined) data.higherOrder = dto.higherOrder || null;
+    if (dto.predmet !== undefined) data.predmet = dto.predmet || null;
+    if (dto.incomingNumber !== undefined) data.incomingNumber = dto.incomingNumber || null;
+    if (dto.outgoingNumber !== undefined) data.outgoingNumber = dto.outgoingNumber || null;
+    if (dto.incomingDate !== undefined) {
+      data.incomingDate = dto.incomingDate ? new Date(dto.incomingDate) : null;
+    }
+    if (dto.outgoingDate !== undefined) {
+      data.outgoingDate = dto.outgoingDate ? new Date(dto.outgoingDate) : null;
+    }
+    if (dto.signatory !== undefined) data.signatory = dto.signatory || null;
+    if (dto.executor !== undefined) data.executor = dto.executor || null;
+    if (dto.contactPhone !== undefined) data.contactPhone = dto.contactPhone || null;
+    if (dto.directRouting !== undefined) data.directRouting = dto.directRouting;
+    if (dto.urgent !== undefined) data.urgent = dto.urgent;
     // Ichki hujjat turi (xizmat xati / buyruq)
     if (effType === 'internal') {
       if (dto.internalKind !== undefined) {
