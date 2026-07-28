@@ -28,6 +28,7 @@ interface ReportRow {
   number: string;
   subject: string;
   type: string;
+  typeRaw: string;
   status: string;
   createdBy: string;
   department: string;
@@ -41,6 +42,7 @@ export interface ReportPreviewRow {
   number: string;
   subject: string;
   type: string;
+  typeRaw: string;
   status: string;
   createdBy: string;
   department: string;
@@ -84,11 +86,15 @@ export class ReportService {
     canSeeAll: boolean,
     from: Date,
     to: Date,
+    type?: string,
   ): Promise<ReportRow[]> {
     const where: Prisma.DocumentWhereInput = {
       createdAt: { gte: from, lte: to },
       status: { not: 'draft' },
     };
+    if (type && ['internal', 'incoming', 'outgoing'].includes(type)) {
+      where.type = type as Prisma.DocumentWhereInput['type'];
+    }
     if (!canSeeAll) {
       where.OR = [
         { createdById: userId },
@@ -119,6 +125,7 @@ export class ReportService {
       number: d.number,
       subject: d.subject,
       type: TYPE_LABELS[d.type] ?? d.type,
+      typeRaw: d.type,
       status: STATUS_LABELS[d.status] ?? d.status,
       createdBy: d.createdBy?.fullName ?? '-',
       department: d.createdBy?.department?.name ?? '-',
@@ -276,12 +283,13 @@ export class ReportService {
     canSeeAll: boolean,
     fromIso?: string,
     toIso?: string,
+    type?: string,
   ): Promise<ReportPreviewResult> {
     const from = fromIso ? new Date(fromIso) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const to = toIso ? new Date(toIso) : new Date();
     from.setHours(0, 0, 0, 0);
     to.setHours(23, 59, 59, 999);
-    const rows = await this.fetchRows(userId, canSeeAll, from, to);
+    const rows = await this.fetchRows(userId, canSeeAll, from, to, type);
     return {
       from: from.toISOString(),
       to: to.toISOString(),
@@ -301,13 +309,14 @@ export class ReportService {
     format: 'excel' | 'pdf',
     fromIso?: string,
     toIso?: string,
+    type?: string,
   ): Promise<{ filename: string; mime: string; buffer: Buffer }> {
     const from = fromIso ? new Date(fromIso) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const to = toIso ? new Date(toIso) : new Date();
     from.setHours(0, 0, 0, 0);
     to.setHours(23, 59, 59, 999);
 
-    const rows = await this.fetchRows(userId, canSeeAll, from, to);
+    const rows = await this.fetchRows(userId, canSeeAll, from, to, type);
     const stamp = `${fmtDate(from)}_${fmtDate(to)}`.replace(/\./g, '-');
 
     if (format === 'excel') {

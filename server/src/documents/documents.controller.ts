@@ -179,9 +179,10 @@ export class DocumentsController {
     @CurrentUser() user: CurrentUserPayload,
     @Query('from') from?: string,
     @Query('to') to?: string,
+    @Query('type') type?: string,
   ) {
     const canSeeAll = user.role === 'admin' || user.role === 'chancellery';
-    return this.reports.preview(user.id, canSeeAll, from, to);
+    return this.reports.preview(user.id, canSeeAll, from, to, type);
   }
 
   @Get('report')
@@ -191,6 +192,7 @@ export class DocumentsController {
     @Query('format') format?: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
+    @Query('type') type?: string,
   ) {
     const fmt = format === 'pdf' ? 'pdf' : 'excel';
     const canSeeAll = user.role === 'admin' || user.role === 'chancellery';
@@ -200,6 +202,7 @@ export class DocumentsController {
       fmt,
       from,
       to,
+      type,
     );
     res.setHeader('Content-Type', mime);
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);

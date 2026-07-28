@@ -12,12 +12,22 @@ interface ReportRow {
   number: string;
   subject: string;
   type: string;
+  typeRaw: string;
   status: string;
   createdBy: string;
   department: string;
   createdAt: string;
   deadline: string | null;
 }
+
+type ReportTab = 'all' | 'internal' | 'outgoing' | 'incoming';
+
+const REPORT_TABS: { key: ReportTab; label: string }[] = [
+  { key: 'all', label: 'edo.hisobotlar.tab_all' },
+  { key: 'internal', label: 'edo.hisobotlar.tab_internal' },
+  { key: 'outgoing', label: 'edo.hisobotlar.tab_outgoing' },
+  { key: 'incoming', label: 'edo.hisobotlar.tab_incoming' },
+];
 
 interface ReportPreview {
   from: string;
@@ -40,6 +50,7 @@ function defaultRange() {
 export function EdoHisobotlarPage() {
   const { t } = useTranslation();
   const [{ from, to }, setRange] = useState(defaultRange);
+  const [tab, setTab] = useState<ReportTab>('all');
   const [downloading, setDownloading] = useState<'excel' | 'pdf' | null>(null);
   const [rowDownloading, setRowDownloading] = useState<string | null>(null);
 
@@ -51,8 +62,9 @@ export function EdoHisobotlarPage() {
       d.setHours(23, 59, 59, 999);
       p.set('to', d.toISOString());
     }
+    if (tab !== 'all') p.set('type', tab);
     return p.toString();
-  }, [from, to]);
+  }, [from, to, tab]);
 
   const previewQ = useQuery({
     queryKey: ['edo-report-preview', params],
@@ -161,6 +173,23 @@ export function EdoHisobotlarPage() {
             {t('edo.hisobotlar.export_pdf')}
           </button>
         </div>
+      </div>
+
+      {/* Turi bo'yicha bo'limlar */}
+      <div className="flex flex-wrap gap-2">
+        {REPORT_TABS.map((tb) => (
+          <button
+            key={tb.key}
+            onClick={() => setTab(tb.key)}
+            className={
+              tab === tb.key
+                ? 'px-4 py-1.5 text-sm font-medium rounded-lg bg-asaka-600 text-white'
+                : 'px-4 py-1.5 text-sm font-medium rounded-lg bg-white text-slate-600 border border-slate-200 hover:border-asaka-400 hover:text-asaka-700'
+            }
+          >
+            {t(tb.label)}
+          </button>
+        ))}
       </div>
 
       {/* Ko'rish jadvali */}

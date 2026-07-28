@@ -923,6 +923,10 @@
     "hisobotlar": {
       "title": "Отчёты",
       "subtitle": "Скачайте список документов в формате Excel или PDF",
+      "tab_all": "Общий",
+      "tab_internal": "Внутренние",
+      "tab_outgoing": "Исходящие",
+      "tab_incoming": "Входящие",
       "export_hint": "Выберите формат и скачайте отчёт",
       "export_excel": "Excel (.xlsx)",
       "export_pdf": "PDF",

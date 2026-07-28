@@ -921,6 +921,10 @@
     "hisobotlar": {
       "title": "Hisobotlar",
       "subtitle": "Hujjatlar ro'yxatini Excel yoki PDF formatda yuklab oling",
+      "tab_all": "Umumiy",
+      "tab_internal": "Ichki",
+      "tab_outgoing": "Tashqi",
+      "tab_incoming": "Kiruvchi",
       "export_hint": "Formatni tanlang va hisobotni yuklab oling",
       "export_excel": "Excel (.xlsx)",
       "export_pdf": "PDF",
