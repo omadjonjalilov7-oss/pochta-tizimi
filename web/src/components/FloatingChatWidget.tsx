@@ -10,6 +10,7 @@ import { MessageCircle, Search, X, Users, Plus, ChevronLeft } from 'lucide-react
 import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api';
 import { getSocket } from '../lib/socket';
+import { playChatDing } from '../lib/chatSound';
 import { useAuth } from '../context/AuthContext';
 import { Avatar } from './Avatar';
 import { cn } from '../lib/utils';
@@ -49,6 +50,7 @@ export function FloatingChatWidget() {
 
     const onChatMsg = (data: { payload: ChatMsg }) => {
       const msg = data.payload;
+      if (msg.fromUserId !== user.id) playChatDing();
       setTypingFrom((cur) => (cur === msg.fromUserId ? null : cur));
       // Aktiv suhbatga kelsa — o'qildi deb belgilaymiz
       if (partnerId === msg.fromUserId && open) {
@@ -91,6 +93,7 @@ export function FloatingChatWidget() {
     };
     const onGroupMsg = (data: { payload: GroupMsg }) => {
       const msg = data.payload;
+      if (msg.fromUserId !== user.id) playChatDing();
       if (groupId === msg.groupId && open) {
         api.post(`/chat/groups/${msg.groupId}/read`).catch(() => {});
       }
