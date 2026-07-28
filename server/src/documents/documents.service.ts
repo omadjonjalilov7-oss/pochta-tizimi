@@ -1613,6 +1613,27 @@ export class DocumentsService {
     }
     // Skaner ham HTML ko'rinish bilan bir xil to'ldirilgan shablonni ko'rsatadi.
     const renderedHtml = await this.renderTemplateHtml(doc);
+
+    // Tasdiqlash zanjiri (kim tasdiqladi / kim tasdiqlamadi) — QR sahifasidagi tugma uchun.
+    const chain = (doc.participants ?? [])
+      .filter((p: any) => p.role === ParticipantRole.approver)
+      .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
+      .map((p: any) => ({
+        fullName: p.user?.fullName ?? '—',
+        position: p.user?.position?.name ?? null,
+        status: p.status,
+        order: p.order ?? 0,
+        actedAt: p.actedAt ?? null,
+        rejectReason: p.rejectReason ?? null,
+      }));
+
+    // Hujjat tarixi (kim qanday reaksiya qildi) — QR sahifasidagi tugma uchun.
+    const history = (doc.audit ?? []).map((a: any) => ({
+      action: a.action,
+      actorName: a.actor?.fullName ?? null,
+      createdAt: a.createdAt,
+    }));
+
     return {
       number: doc.number.startsWith('DRAFT-') ? null : doc.number,
       docUid: doc.docUid,
@@ -1627,7 +1648,11 @@ export class DocumentsService {
       closedAt: doc.closedAt,
       createdByName: doc.createdBy?.fullName ?? null,
       createdByDept: doc.createdBy?.department?.name ?? null,
+      // Shablon bo'lmasa oddiy matnni ham beramiz (skaner to'g'ridan hujjatni ko'rsatadi).
+      body: renderedHtml ? null : (doc.body ?? null),
       renderedHtml,
+      chain,
+      history,
     };
   }
 
