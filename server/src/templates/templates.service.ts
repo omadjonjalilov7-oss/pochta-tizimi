@@ -22,7 +22,7 @@ function extractPlaceholders(body: string): string[] {
 }
 
 // Shablon HTML'ini xavfsiz teglar bilan cheklaymiz (XSS oldini olish).
-// Rasm (img) tashlab yuboriladi — Word rasmlarni base64 qilib bazani shishiradi.
+// Rasm (img) saqlanadi — firmenniy blanka sarlavha rasmi uchun zarur.
 function sanitizeBody(html: string): string {
   return sanitizeRichHtml(html);
 }

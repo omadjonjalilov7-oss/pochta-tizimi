@@ -20,7 +20,7 @@ export class CreateTemplateDto {
 
   @IsString()
   @MinLength(1)
-  @MaxLength(500000)
+  @MaxLength(20000000)
   bodyTemplate: string;
 
   @IsOptional()

@@ -6,13 +6,19 @@ const RICH_HTML_OPTS: sanitizeHtml.IOptions = {
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
     'ul', 'ol', 'li', 'blockquote', 'hr',
     'table', 'thead', 'tbody', 'tr', 'td', 'th',
-    'span', 'div', 'a',
+    'span', 'div', 'a', 'img',
   ],
   allowedAttributes: {
     a: ['href', 'target', 'rel'],
     td: ['colspan', 'rowspan'],
     th: ['colspan', 'rowspan'],
+    img: ['src', 'alt', 'title', 'width', 'height', 'style'],
     '*': ['style'],
+  },
+  // Rasm manbalari: base64 (data:) va tashqi http(s). Blanka/firmenniy
+  // sarlavha rasmlari uchun zarur.
+  allowedSchemesByTag: {
+    img: ['data', 'http', 'https'],
   },
   allowedStyles: {
     '*': {
@@ -21,6 +27,7 @@ const RICH_HTML_OPTS: sanitizeHtml.IOptions = {
       'font-style': [/^(italic|normal)$/],
       'text-decoration': [/^(underline|line-through|none)$/],
       width: [/^\d+(\.\d+)?(px|%|em)$/],
+      height: [/^\d+(\.\d+)?(px|%|em)$/],
     },
   },
   transformTags: {

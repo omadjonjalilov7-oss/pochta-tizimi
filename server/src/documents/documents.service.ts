@@ -1274,17 +1274,20 @@ export class DocumentsService {
   // jonli hisoblaydi (asl matn saqlanadi; sana tokenlari tasdiqlash bo'yicha
   // to'ladi, shu bois o'qishda hisoblaymiz).
   private async attachRenderedBody(doc: any): Promise<void> {
-    // "ichki" shablonli hujjat bo'lsa — to'ldirilgan HTML, aks holda oddiy matn.
-    const ichki = await this.renderTemplateHtml(doc);
-    const base = ichki ?? doc.body ?? null;
-    if (base == null) return;
-    // Foydalanuvchi shablonidagi {{xujjat_n}} / {{sana_soat}} o'zgaruvchilarini to'ldiramiz.
-    const filled = fillCustomPlaceholders(base, {
-      number: doc.number ?? '',
-      date: doc.createdAt,
-    });
-    // renderedBody'ni faqat asl body'dan farq qilsa yuboramiz (ortiqcha nusxa oldini olish).
-    if (ichki != null || filled !== doc.body) doc.renderedBody = filled;
+    // Shablon (ichki avto yoki foydalanuvchi blankasi) bo'lsa — to'liq render.
+    const rendered = await this.renderTemplateHtml(doc);
+    if (rendered != null) {
+      doc.renderedBody = rendered;
+      return;
+    }
+    // Shablon yo'q — matn ichida embedded {{xujjat_n}} / {{sana_soat}} bo'lsa to'ldiramiz.
+    if (doc.body) {
+      const filled = fillCustomPlaceholders(doc.body, {
+        number: doc.number ?? '',
+        date: doc.createdAt,
+      });
+      if (filled !== doc.body) doc.renderedBody = filled;
+    }
   }
 
   // "ichki" shabloniga solingan hujjatning to'ldirilgan HTML matnini quradi.
@@ -1292,12 +1295,23 @@ export class DocumentsService {
   // Shablon yo'q bo'lsa null qaytaradi. Bu metod HTML ko'rinishi, PDF/Word
   // eksporti va ommaviy QR skaneri uchun YAGONA manba — barchasi bir xil holat.
   private async renderTemplateHtml(doc: any): Promise<string | null> {
-    if (!doc?.autoFilled || !doc.templateId) return null;
+    if (!doc?.templateId) return null;
     const tpl = await this.prisma.documentTemplate.findUnique({
       where: { id: doc.templateId },
       select: { bodyTemplate: true },
     });
     if (!tpl?.bodyTemplate) return null;
+
+    // Foydalanuvchi tanlagan blanka (ichki avto-shablon emas): blanka ramka bo'lib,
+    // {{matn}} → hujjat matni, {{xujjat_n}} → raqam, {{sana_soat}} → sana.
+    if (!doc.autoFilled) {
+      return fillCustomPlaceholders(tpl.bodyTemplate, {
+        matn: doc.body ?? '',
+        number: doc.number ?? '',
+        date: doc.createdAt,
+      });
+    }
+
     const approvers = (doc.participants ?? [])
       .filter((p: any) => p.role === ParticipantRole.approver && p.user?.login)
       .map((p: any) => ({

@@ -723,6 +723,7 @@
       "deadline_hint": "(ixtiyoriy — keyin avtomatik 'Muddati o'tgan' belgilanadi)",
       "deadline_auto_hint": "Ichki hujjat muddati admin tomonidan {{days}} kun qilib belgilangan — avtomatik hisoblanadi.",
       "pick_template": "Shablon tanlash",
+      "template_selected": "Blanka tanlandi",
       "label_number_dept": "Hujjat raqami bo'limi",
       "label_target_dept": "Qabul qiluvchi bo'lim",
       "placeholder_select_dept": "— Bo'limni tanlang —",

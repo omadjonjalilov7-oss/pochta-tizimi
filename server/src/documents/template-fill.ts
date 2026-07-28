@@ -64,13 +64,17 @@ function fmtCyrDate(d: Date | null | undefined): string {
   return `${t.getUTCDate()} ${CYR_MONTHS[t.getUTCMonth()]} ${t.getUTCFullYear()} йил`;
 }
 
-// Chiquvchi (va boshqa) hujjat matnidagi {{xujjat_n}} → tartib raqami,
-// {{sana_soat}} → kirill sana. Faqat mavjud bo'lsagina almashadi.
+// Foydalanuvchi blankasidagi maxsus o'zgaruvchilar:
+//   {{xujjat_n}}  → hujjat tartib raqami (escape)
+//   {{sana_soat}} → kirill sana "28 июль 2026 йил" (escape)
+//   {{matn}}      → hujjat asosiy matni (xom HTML — escape qilinmaydi)
+// Faqat mavjud bo'lsagina almashadi.
 export function fillCustomPlaceholders(
   html: string,
-  input: { number: string; date: Date | null | undefined },
+  input: { number: string; date: Date | null | undefined; matn?: string },
 ): string {
   return html
+    .replace(/\{\{\s*matn\s*\}\}/g, input.matn ?? '')
     .replace(/\{\{\s*xujjat_n\s*\}\}/g, escapeHtml(input.number))
     .replace(/\{\{\s*sana_soat\s*\}\}/g, escapeHtml(fmtCyrDate(input.date)));
 }

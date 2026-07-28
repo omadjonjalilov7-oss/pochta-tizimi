@@ -502,6 +502,19 @@ export function EdoComposePage() {
                   <Files size={16} />
                   {t('edo.compose.pick_template')}
                 </button>
+                {pickedTemplateId && (
+                  <span className="inline-flex items-center gap-1.5 text-xs bg-asaka-50 text-asaka-700 border border-asaka-200 rounded-lg px-2.5 py-1">
+                    {t('edo.compose.template_selected')}
+                    <button
+                      type="button"
+                      onClick={() => setPickedTemplateId(null)}
+                      className="hover:text-asaka-900"
+                      title={t('common.remove')}
+                    >
+                      <X size={13} />
+                    </button>
+                  </span>
+                )}
               </>
             )}
             <button
@@ -1431,8 +1444,9 @@ export function EdoComposePage() {
       {showTemplatePicker && (
         <TemplatePickerModal
           onClose={() => setShowTemplatePicker(false)}
-          onPick={(picked, templateId) => {
-            setBody((prev) => (prev.trim() ? prev + picked : picked));
+          onPick={(_picked, templateId) => {
+            // Blanka ramka sifatida ishlatiladi — matnga qo'shilmaydi. {{matn}}
+            // hujjat matniga, {{xujjat_n}}/{{sana_soat}} raqam/sanaga to'ladi.
             setPickedTemplateId(templateId);
           }}
         />
