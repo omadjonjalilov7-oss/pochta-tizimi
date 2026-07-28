@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { FileSpreadsheet, FileText, Download, Loader2 } from 'lucide-react';
 import { api } from '../../lib/api';
+import type { EdoDocument } from '../../lib/types';
+import { openDocumentPrint } from '../../lib/printDoc';
 
 interface ReportRow {
   id: string;
@@ -83,20 +85,10 @@ export function EdoHisobotlarPage() {
   const downloadDoc = async (row: ReportRow) => {
     setRowDownloading(row.id);
     try {
-      const res = await api.get(`/documents/${row.id}/pdf`, { responseType: 'blob' });
-      const disposition = res.headers['content-disposition'] as string | undefined;
-      const match = disposition?.match(/filename="?([^"]+)"?/);
-      const filename = match?.[1] ?? `hujjat-${row.number}.pdf`;
-      const url = window.URL.createObjectURL(
-        new Blob([res.data], { type: 'application/pdf' }),
-      );
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      // Hujjatning to'liq holatini olamiz va aynan ko'rinayotgan shablonni
+      // (yoki matnni) chop etish/PDF oynasida ochamiz — o'zimiz jadval yasamaymiz.
+      const res = await api.get<EdoDocument>(`/documents/${row.id}`);
+      openDocumentPrint(res.data, true);
     } finally {
       setRowDownloading(null);
     }

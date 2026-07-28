@@ -1,4 +1,4 @@
-import { type FormEvent, useMemo, useState, useRef } from 'react';
+import { type FormEvent, type ReactNode, useMemo, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -34,6 +34,7 @@ import { useAuth } from '../../context/AuthContext';
 import { cn, formatBytes } from '../../lib/utils';
 import { SecretInput } from '../../components/SecretInput';
 import { ApproverChainPicker } from '../../components/edo/ApproverChainPicker';
+import { openDocumentPrint } from '../../lib/printDoc';
 
 export function EdoDocumentViewPage() {
   const { t, i18n } = useTranslation();
@@ -131,6 +132,8 @@ export function EdoDocumentViewPage() {
   const [extendDeadlineValue, setExtendDeadlineValue] = useState('');
   const [extendReasonValue, setExtendReasonValue] = useState('');
   const [sendApproverIds, setSendApproverIds] = useState<string[]>([]);
+  const [showChainModal, setShowChainModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (isLoading) {
@@ -218,8 +221,7 @@ export function EdoDocumentViewPage() {
               <div className="flex gap-2">
                 {doc.status !== 'draft' && (
                   <PdfDownloadButton
-                    docId={doc.id}
-                    docNumber={doc.number}
+                    doc={doc}
                     disabled={!canCreatePdf}
                     isCreator={isCreator}
                   />
@@ -230,6 +232,29 @@ export function EdoDocumentViewPage() {
                 />
                 <QrButton docId={doc.id} docNumber={doc.number} />
               </div>
+            </div>
+            {/* Zanjir va Tarix — tugmalar orqali ochiladi */}
+            <div className="flex flex-wrap gap-2 mt-3">
+              <button
+                type="button"
+                onClick={() => setShowChainModal(true)}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg"
+              >
+                <ShieldCheck size={14} />
+                {t('edo.view.chain')}
+                <span className="text-slate-400">
+                  ({doc.participants?.filter((p) => p.role === 'approver').length ?? 0})
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowHistoryModal(true)}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg"
+              >
+                <Clock size={14} />
+                {t('edo.view.history')}
+                <span className="text-slate-400">({doc.audit?.length ?? 0})</span>
+              </button>
             </div>
             {doc.shortInfo && (
               <p className="text-sm text-slate-600 mt-1">{doc.shortInfo}</p>
@@ -266,8 +291,8 @@ export function EdoDocumentViewPage() {
         </div>
       </header>
 
-      {/* Asosiy maydon: matn + yon panel */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
+      {/* Asosiy maydon: to'liq kenglikda */}
+      <div className="grid grid-cols-1 gap-4">
         {/* Asosiy ustun */}
         <div className="space-y-4 min-w-0">
           <section className="bg-white border border-slate-200 rounded-2xl p-6">
@@ -467,13 +492,21 @@ export function EdoDocumentViewPage() {
           {/* Izohlar va Audit */}
           <CommentsSection doc={doc} onComment={(t) => comment.mutate(t)} sending={comment.isPending} />
         </div>
-
-        {/* Yon panel — ishtirokchilar zanjiri */}
-        <aside className="space-y-4">
-          <ParticipantsPanel doc={doc} currentUserId={user?.id} />
-          <AuditPanel doc={doc} />
-        </aside>
       </div>
+
+      {/* Zanjir modali — kim tasdiqladi / kim tasdiqlamadi */}
+      {showChainModal && (
+        <PanelModal title={t('edo.view.chain')} onClose={() => setShowChainModal(false)}>
+          <ParticipantsPanel doc={doc} currentUserId={user?.id} />
+        </PanelModal>
+      )}
+
+      {/* Tarix modali — hujjatga kim qanday reaksiya qilmoqda */}
+      {showHistoryModal && (
+        <PanelModal title={t('edo.view.history')} onClose={() => setShowHistoryModal(false)}>
+          <AuditPanel doc={doc} />
+        </PanelModal>
+      )}
 
       {showSignModal && (
         <EimzoSignModal
@@ -564,46 +597,23 @@ export function EdoDocumentViewPage() {
 }
 
 function PdfDownloadButton({
-  docId,
-  docNumber,
+  doc,
   disabled,
   isCreator,
 }: {
-  docId: string;
-  docNumber: string;
+  doc: EdoDocument;
   disabled?: boolean;
   isCreator?: boolean;
 }) {
   const { t } = useTranslation();
-  const [busy, setBusy] = useState(false);
-
-  const handleClick = async () => {
-    setBusy(true);
-    try {
-      const res = await api.get(`/documents/${docId}/pdf`, { responseType: 'blob' });
-      const blob = new Blob([res.data], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${docNumber.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch {
-      // ignore
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const isDisabled = disabled && isCreator;
   const title = isDisabled ? t('edo.view.pdf_disabled_creator') : t('edo.view.download_pdf');
 
   return (
     <button
-      onClick={handleClick}
-      disabled={isDisabled || busy}
+      onClick={() => openDocumentPrint(doc, true)}
+      disabled={isDisabled}
       title={title}
       className="inline-flex items-center gap-1.5 text-xs font-medium text-asaka-700 hover:text-asaka-800 hover:bg-asaka-50 px-2 py-1 rounded-md disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
     >
@@ -622,212 +632,9 @@ function WordExportButton({
 }) {
   const { t } = useTranslation();
 
-  const handleClick = () => {
-    try {
-      // PDF'ga mutlaqo mos HTML jadval bilan yaratamiz
-      const formatDate = (d: string) => {
-        const dt = new Date(d);
-        const pad = (n: number) => String(n).padStart(2, '0');
-        return `${pad(dt.getDate())}.${pad(dt.getMonth() + 1)}.${dt.getFullYear()}`;
-      };
-
-      const approvers = doc.participants?.filter(p => p.role === 'approver').sort((a, b) => a.order - b.order) || [];
-
-      const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>${doc.number} - ${doc.subject}</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: "Calibri", "Arial", sans-serif;
-      margin: 1cm 1.5cm;
-      line-height: 1.3;
-      color: #000;
-      font-size: 10px;
-      max-width: 19cm;
-      margin-left: auto;
-      margin-right: auto;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 0.3cm;
-    }
-    td, th {
-      border: 1px solid #000;
-      padding: 5px 6px;
-      text-align: left;
-      vertical-align: top;
-      font-size: 10px;
-    }
-    th {
-      background-color: #f0f0f0;
-      font-weight: bold;
-      text-align: center;
-    }
-    .header-table td {
-      border: 1px solid #000;
-      padding: 5px 6px;
-      font-size: 10px;
-    }
-    .title-cell {
-      font-weight: bold;
-      font-size: 11px;
-    }
-    .subheader {
-      font-weight: bold;
-      background-color: #f9f9f9;
-      font-size: 10px;
-    }
-    .body-text {
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      line-height: 1.4;
-      font-size: 10px;
-    }
-    .body-text table {
-      border-collapse: collapse;
-      width: 100%;
-    }
-    .body-text td, .body-text th {
-      border: 1px solid #333;
-      padding: 3px 5px;
-      vertical-align: top;
-    }
-    .footer-table {
-      margin-top: 0.5cm;
-    }
-  </style>
-</head>
-<body>
-  <!-- ASOSIY JADVAL -->
-  <table class="header-table">
-    <tr>
-      <td colspan="2" style="font-weight: bold;">Xizmat xati</td>
-      <td style="font-weight: bold;">Ijrochi</td>
-      <td style="font-weight: bold;">Mas'ul</td>
-    </tr>
-    <tr>
-      <td colspan="2">${doc.createdBy?.fullName || 'Director'}</td>
-      <td>${approvers[0]?.user?.fullName || ''}</td>
-      <td>${approvers[approvers.length - 1]?.user?.fullName || ''}</td>
-    </tr>
-    <tr>
-      <td style="width: 40%;">Hujjat raqami: ${doc.number}</td>
-      <td style="width: 10%;"></td>
-      <td colspan="2" style="text-align: right;">Sana: ${formatDate(doc.createdAt)}</td>
-    </tr>
-    <tr>
-      <td>Bo'lim: ${doc.numberDept?.name || '-'}</td>
-      <td>Lavozim: ${doc.createdBy?.position?.name || '-'}</td>
-      <td colspan="2">Xodim: ${doc.createdBy?.fullName || '-'}</td>
-    </tr>
-    <tr>
-      <td>Bo'lim: -</td>
-      <td>Lavozim: -</td>
-      <td colspan="2">Xodim: -</td>
-    </tr>
-    <tr>
-      <td colspan="4">Bosh direktor _______________________ Imzo: ____________ Sana: ${formatDate(new Date().toISOString())}</td>
-    </tr>
-  </table>
-
-  <!-- MAVZU VA MATNI -->
-  <table>
-    <tr>
-      <td class="subheader">Mavzu:</td>
-      <td colspan="3">${doc.subject}</td>
-    </tr>
-    <tr>
-      <td style="vertical-align: top; min-height: 2cm;" colspan="4">
-        <div style="font-weight: bold; margin-bottom: 0.3cm;">Hujjat matni:</div>
-        <div class="body-text">${doc.body}</div>
-      </td>
-    </tr>
-  </table>
-
-  <!-- TASDIQLASH ZANJIRI (SIGNATURES) -->
-  ${doc.participants && doc.participants.length > 0 ? `
-  <table style="margin-top: 0.5cm;">
-    <tr>
-      <td colspan="4" style="font-weight: bold; background-color: #f0f0f0;">TASDIQLASH ZANJIRI</td>
-    </tr>
-    <tr>
-      <td style="font-weight: bold;">Tartib</td>
-      <td style="font-weight: bold;">Xodim</td>
-      <td style="font-weight: bold;">Lavozim</td>
-      <td style="font-weight: bold;">Tasdiqlash vaqti</td>
-    </tr>
-    ${doc.participants
-      .filter((p) => p.role === 'approver')
-      .sort((a, b) => a.order - b.order)
-      .map(
-        (p, idx) => `
-    <tr>
-      <td style="text-align: center;">${idx + 1}</td>
-      <td>${p.user?.fullName || '-'}</td>
-      <td>${p.user?.position?.name || '-'}</td>
-      <td>${p.status === 'approved' ? formatDate(p.actedAt || new Date().toISOString()) : 'Kutilmoqda'}</td>
-    </tr>
-    `
-      )
-      .join('')}
-  </table>
-  ` : ''}
-
-  <!-- IMZOLANGAN HUJJATLAR -->
-  ${doc.signatures && doc.signatures.length > 0 ? `
-  <table style="margin-top: 0.5cm;">
-    <tr>
-      <td colspan="4" style="font-weight: bold; background-color: #f0f0f0;">E-IMZOLAR</td>
-    </tr>
-    <tr>
-      <td style="font-weight: bold;">Imzolovchi</td>
-      <td style="font-weight: bold;">Imzo sanasi</td>
-      <td style="font-weight: bold;">Sertifikat</td>
-      <td style="font-weight: bold;">Holati</td>
-    </tr>
-    ${doc.signatures
-      .map(
-        (sig) => `
-    <tr>
-      <td>${sig.signer?.fullName || '-'}</td>
-      <td>${formatDate(sig.signedAt)}</td>
-      <td>${sig.certSubject || '-'}</td>
-      <td>${sig.verified ? '✓ Tasdiqlandi' : 'Tasdiqlanmadi'}</td>
-    </tr>
-    `
-      )
-      .join('')}
-  </table>
-  ` : ''}
-
-  <!-- FOOTER JADVAL -->
-  <table class="footer-table">
-    <tr>
-      <td style="width: 33%;">Ijrochi: ${approvers[0]?.user?.fullName || '-'}</td>
-      <td style="width: 33%;">Telefon: -</td>
-      <td style="width: 34%; text-align: right;">Ijro sanasi: ${doc.closedAt ? formatDate(doc.closedAt) : '-'}</td>
-    </tr>
-  </table>
-</body>
-</html>
-`;
-
-      const blob = new Blob([html], { type: 'text/html;charset=UTF-8' });
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-    } catch {
-      // ignore
-    }
-  };
-
   return (
     <button
-      onClick={handleClick}
+      onClick={() => openDocumentPrint(doc, false)}
       disabled={disabled}
       title={t('edo.view.preview_word')}
       className="inline-flex items-center justify-center text-slate-600 hover:text-slate-700 hover:bg-slate-50 p-1.5 rounded-md disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
@@ -1775,6 +1582,41 @@ function AuditPanel({ doc }: { doc: EdoDocument }) {
         })}
       </ol>
     </section>
+  );
+}
+
+// Zanjir/Tarix panellarini modal oynada ko'rsatadi.
+function PanelModal({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-xl max-w-2xl w-full my-8"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+          <h2 className="text-sm font-semibold text-slate-800">{title}</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-100"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <div className="p-4 max-h-[75vh] overflow-y-auto">{children}</div>
+      </div>
+    </div>
   );
 }
 

@@ -562,6 +562,7 @@
       "deadline": "Ijro muddati",
       "closed_at": "Yopilgan sana",
       "updated_at": "Oxirgi yangilanish",
+      "document_state": "Hujjat holati (to'ldirilgan shablon)",
       "footer": "Ushbu ma'lumot ASAKA MOTORS EDO tizimi tomonidan tasdiqlangan",
       "retry": "Qayta urinish"
     },

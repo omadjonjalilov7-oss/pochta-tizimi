@@ -1223,12 +1223,21 @@ export class DocumentsService {
   // jonli hisoblaydi (asl matn saqlanadi; sana tokenlari tasdiqlash bo'yicha
   // to'ladi, shu bois o'qishda hisoblaymiz).
   private async attachRenderedBody(doc: any): Promise<void> {
-    if (!doc?.autoFilled || !doc.templateId) return;
+    const html = await this.renderTemplateHtml(doc);
+    if (html != null) doc.renderedBody = html;
+  }
+
+  // "ichki" shabloniga solingan hujjatning to'ldirilgan HTML matnini quradi.
+  // FULL_INCLUDE bilan yuklangan doc kutiladi (participants, createdBy, dept...).
+  // Shablon yo'q bo'lsa null qaytaradi. Bu metod HTML ko'rinishi, PDF/Word
+  // eksporti va ommaviy QR skaneri uchun YAGONA manba — barchasi bir xil holat.
+  private async renderTemplateHtml(doc: any): Promise<string | null> {
+    if (!doc?.autoFilled || !doc.templateId) return null;
     const tpl = await this.prisma.documentTemplate.findUnique({
       where: { id: doc.templateId },
       select: { bodyTemplate: true },
     });
-    if (!tpl?.bodyTemplate) return;
+    if (!tpl?.bodyTemplate) return null;
     const approvers = (doc.participants ?? [])
       .filter((p: any) => p.role === ParticipantRole.approver && p.user?.login)
       .map((p: any) => ({
@@ -1262,7 +1271,7 @@ export class DocumentsService {
       approvers,
       qrDataUrl,
     });
-    doc.renderedBody = renderIchki(tpl.bodyTemplate, values, raw);
+    return renderIchki(tpl.bodyTemplate, values, raw);
   }
 
   // Mening barcha hujjatlarim (yaratganlarim + ishtirok etganlarim)
@@ -1594,31 +1603,16 @@ export class DocumentsService {
   // Login/parolsiz foydalanuvchi uchun hujjatning qisqacha holati (public_token orqali).
   // 1-etap: faqat holat. Keyingi etapda ichki ma'lumotlar ham qo'shiladi.
   async getPublicSnapshot(token: string) {
+    // To'liq yuklaymiz — shablon holatini (renderedHtml) ham hisoblash uchun.
     const doc = await this.prisma.document.findUnique({
       where: { publicToken: token },
-      select: {
-        number: true,
-        docUid: true,
-        type: true,
-        internalKind: true,
-        subject: true,
-        status: true,
-        isSigned: true,
-        deadline: true,
-        createdAt: true,
-        updatedAt: true,
-        closedAt: true,
-        createdBy: {
-          select: {
-            fullName: true,
-            department: { select: { name: true } },
-          },
-        },
-      },
+      include: FULL_INCLUDE,
     });
     if (!doc) {
       throw new NotFoundException('Hujjat topilmadi yoki QR kod yaroqsiz');
     }
+    // Skaner ham HTML ko'rinish bilan bir xil to'ldirilgan shablonni ko'rsatadi.
+    const renderedHtml = await this.renderTemplateHtml(doc);
     return {
       number: doc.number.startsWith('DRAFT-') ? null : doc.number,
       docUid: doc.docUid,
@@ -1633,6 +1627,7 @@ export class DocumentsService {
       closedAt: doc.closedAt,
       createdByName: doc.createdBy?.fullName ?? null,
       createdByDept: doc.createdBy?.department?.name ?? null,
+      renderedHtml,
     };
   }
 

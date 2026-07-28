@@ -27,6 +27,7 @@ interface Snapshot {
   closedAt: string | null;
   createdByName: string | null;
   createdByDept: string | null;
+  renderedHtml: string | null;
 }
 
 const STATUS_COLORS: Record<ScanStatus, string> = {
@@ -69,9 +70,11 @@ export function EdoScanPage() {
     return d.toLocaleString(lang);
   };
 
+  const hasTemplate = !!(data && data.renderedHtml);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 flex flex-col items-center px-4 py-8">
-      <div className="w-full max-w-md">
+      <div className={`w-full ${hasTemplate ? 'max-w-3xl' : 'max-w-md'}`}>
         {/* Sarlavha */}
         <div className="flex flex-col items-center text-center mb-6">
           <div className="h-14 w-14 rounded-2xl bg-asaka-600 text-white flex items-center justify-center shadow-lg shadow-asaka-600/30 mb-3">
@@ -178,6 +181,19 @@ export function EdoScanPage() {
             </div>
           )}
         </div>
+
+        {/* To'ldirilgan shablon holati — HTML ko'rinishi bilan bir xil */}
+        {hasTemplate && (
+          <div className="mt-6 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="px-5 py-3 border-b border-slate-100 text-[11px] uppercase tracking-wide text-slate-400">
+              {t('edo.scan.document_state')}
+            </div>
+            <div
+              className="edo-rendered p-5 overflow-x-auto text-sm text-slate-800"
+              dangerouslySetInnerHTML={{ __html: data!.renderedHtml as string }}
+            />
+          </div>
+        )}
 
         <p className="text-[11px] text-center text-slate-400 mt-6 px-6 leading-relaxed">
           {t('edo.scan.footer')}
