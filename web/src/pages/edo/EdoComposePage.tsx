@@ -16,10 +16,11 @@ import {
   Users,
   Link2,
   Files,
+  Building2,
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { cn } from '../../lib/utils';
-import type { Department, DocumentType, EdoDocument } from '../../lib/types';
+import type { Department, DocumentType, EdoDocument, Organization } from '../../lib/types';
 import { useAuth } from '../../context/AuthContext';
 import { Avatar } from '../../components/Avatar';
 import { TemplatePickerModal } from '../../components/edo/TemplatePickerModal';
@@ -58,6 +59,8 @@ export function EdoComposePage() {
   const [numberDeptId, setNumberDeptId] = useState<string>('');
   const [targetDeptId, setTargetDeptId] = useState<string>('');
   const [externalRecipient, setExternalRecipient] = useState('');
+  const [senderOrgId, setSenderOrgId] = useState('');
+  const [showOrgModal, setShowOrgModal] = useState(false);
   const [deadline, setDeadline] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
@@ -88,6 +91,12 @@ export function EdoComposePage() {
   });
 
 
+  const { data: organizations = [] } = useQuery({
+    queryKey: ['organizations'],
+    queryFn: async () => (await api.get<Organization[]>('/organizations')).data,
+    staleTime: 60_000,
+  });
+
   const { data: doc } = useQuery({
     queryKey: ['edo-doc', currentDocId],
     queryFn: async () => (await api.get<EdoDocument>(`/documents/${currentDocId}`)).data,
@@ -117,6 +126,7 @@ export function EdoComposePage() {
     setNumberDeptId(doc.numberDeptId || '');
     setTargetDeptId(doc.targetDeptId || '');
     setExternalRecipient(doc.externalRecipient || '');
+    setSenderOrgId(doc.senderOrgId || '');
     setDeadline(doc.deadline ? toLocalDatetimeInputValue(doc.deadline) : '');
     setIssueGroup(doc.issueGroup || '');
     setIssues(doc.issues || '');
@@ -163,6 +173,7 @@ export function EdoComposePage() {
         templateId: pickedTemplateId || undefined,
         externalRecipient:
           type === 'outgoing' ? externalRecipient.trim() || undefined : undefined,
+        senderOrgId: type !== 'internal' ? senderOrgId || undefined : undefined,
         deadline: deadline ? new Date(deadline).toISOString() : undefined,
         // Yaratish formasidagi qo'shimcha maydonlar
         issueGroup: issueGroup.trim() || undefined,
@@ -547,6 +558,37 @@ export function EdoComposePage() {
             </div>
           )}
 
+          {/* Yuboruvchi tashkilot (kiruvchi / chiquvchi) */}
+          {type !== 'internal' && (
+            <div>
+              <label className={labelCls}>{t('edo.compose.label_sender_org')}</label>
+              <div className="flex items-stretch gap-2">
+                <select
+                  value={senderOrgId}
+                  onChange={(e) => setSenderOrgId(e.target.value)}
+                  disabled={!isDraft}
+                  className={fieldCls}
+                >
+                  <option value="">{t('edo.compose.ph_sender_org')}</option>
+                  {organizations.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name} — {o.inn}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setShowOrgModal(true)}
+                  disabled={!isDraft}
+                  className="shrink-0 inline-flex items-center gap-1.5 bg-asaka-600 hover:bg-asaka-700 text-white text-sm font-medium px-4 rounded-lg disabled:opacity-50"
+                >
+                  <Building2 size={16} />
+                  {t('edo.compose.add_org')}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Qisqacha mazmuni */}
           <div>
             <label className={labelCls}>
@@ -839,6 +881,168 @@ export function EdoComposePage() {
           }}
         />
       )}
+
+      {showOrgModal && (
+        <OrgAddModal
+          onClose={() => setShowOrgModal(false)}
+          onCreated={(org) => {
+            queryClient.invalidateQueries({ queryKey: ['organizations'] });
+            setSenderOrgId(org.id);
+            setShowOrgModal(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function OrgAddModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (org: Organization) => void;
+}) {
+  const { t } = useTranslation();
+  const [name, setName] = useState('');
+  const [inn, setInn] = useState('');
+  const [address, setAddress] = useState('');
+  const [phone, setPhone] = useState('');
+  const [note, setNote] = useState('');
+  const [err, setErr] = useState<string | null>(null);
+
+  const create = useMutation({
+    mutationFn: async () =>
+      (
+        await api.post<Organization>('/organizations', {
+          name: name.trim(),
+          inn: inn.trim(),
+          address: address.trim() || undefined,
+          phone: phone.trim() || undefined,
+          note: note.trim() || undefined,
+        })
+      ).data,
+    onSuccess: (org) => onCreated(org),
+    onError: (e: any) => setErr(extractError(e)),
+  });
+
+  const fieldCls =
+    'w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none';
+  const labelCls = 'block text-sm font-medium text-slate-700 mb-1.5';
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    setErr(null);
+    if (name.trim().length < 2 || !inn.trim()) {
+      setErr(t('edo.compose.org_err_required'));
+      return;
+    }
+    create.mutate();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <form
+        onSubmit={submit}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-2xl shadow-xl max-w-lg w-full my-8"
+      >
+        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+          <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+            <Building2 size={16} className="text-asaka-600" />
+            {t('edo.compose.org_modal_title')}
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-100"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <div className="p-5 space-y-4">
+          {err && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2">
+              {err}
+            </div>
+          )}
+          <div>
+            <label className={labelCls}>
+              {t('edo.compose.org_name')} <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={255}
+              autoFocus
+              className={fieldCls}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>
+              {t('edo.compose.org_inn')} <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={inn}
+              onChange={(e) => setInn(e.target.value)}
+              maxLength={32}
+              className={fieldCls}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>{t('edo.compose.org_address')}</label>
+            <input
+              type="text"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              maxLength={500}
+              className={fieldCls}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>{t('edo.compose.org_phone')}</label>
+            <input
+              type="text"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              maxLength={64}
+              className={fieldCls}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>{t('edo.compose.org_note')}</label>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={2}
+              maxLength={2000}
+              className={`${fieldCls} resize-y`}
+            />
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg"
+          >
+            {t('edo.compose.cancel')}
+          </button>
+          <button
+            type="submit"
+            disabled={create.isPending}
+            className="inline-flex items-center gap-2 bg-asaka-600 hover:bg-asaka-700 text-white font-medium px-5 py-2 rounded-lg text-sm disabled:opacity-50"
+          >
+            <Save size={15} />
+            {create.isPending ? t('common.saving') : t('edo.compose.save')}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

@@ -96,6 +96,7 @@ const FULL_INCLUDE = {
   },
   numberDept: { select: { id: true, name: true, code: true } },
   targetDept: { select: { id: true, name: true, code: true } },
+  senderOrg: { select: { id: true, name: true, inn: true, address: true, phone: true, note: true } },
   attachments: {
     orderBy: { createdAt: 'asc' as const },
     include: {
@@ -232,6 +233,7 @@ export class DocumentsService {
           status: 'draft',
           isExternal: dto.type === 'outgoing',
           externalRecipient: dto.type === 'outgoing' ? dto.externalRecipient : null,
+          senderOrgId: dto.type !== 'internal' ? (dto.senderOrgId ?? null) : null,
           deadline,
           createdById: userId,
           currentHolderId: userId,
@@ -287,6 +289,13 @@ export class DocumentsService {
     if (dto.body !== undefined) data.body = sanitizeRichHtml(dto.body);
     if (dto.externalRecipient !== undefined && doc.type === 'outgoing') {
       data.externalRecipient = dto.externalRecipient;
+    }
+    if (dto.senderOrgId !== undefined) {
+      const effTypeForSender = dto.type ?? doc.type;
+      data.senderOrg =
+        effTypeForSender !== 'internal' && dto.senderOrgId
+          ? { connect: { id: dto.senderOrgId } }
+          : { disconnect: true };
     }
     if (dto.type !== undefined && dto.type !== doc.type) {
       // Qoralama bo'lgani uchun tipni o'zgartirishga ruxsat berishimiz mumkin

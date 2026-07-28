@@ -67,6 +67,11 @@ export class CreateDocumentDto {
   @MaxLength(255)
   externalRecipient?: string;
 
+  // Yuboruvchi tashkilot (kiruvchi/tashqi hujjat uchun) — Organization id
+  @IsOptional()
+  @IsUUID()
+  senderOrgId?: string;
+
   // Bajarish muddati — ISO sanasi (frontend datetime-local'dan keladi)
   @IsOptional()
   @IsDateString()

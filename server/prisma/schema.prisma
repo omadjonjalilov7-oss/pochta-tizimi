@@ -340,6 +340,25 @@ model MessageReadLog {
 }
 
 // ============================================================
+// TASHKILOTLAR — tashqi/kiruvchi hujjatlar uchun yuboruvchi/oluvchi tashkilotlar
+// ============================================================
+model Organization {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(255)
+  inn       String   @unique @db.VarChar(32)   // STIR/INN raqami — noyob
+  address   String?  @db.VarChar(500)
+  phone     String?  @db.VarChar(64)
+  note      String?  @db.Text                  // qo'shimcha ma'lumot
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  senderDocuments Document[] @relation("DocSenderOrg")
+
+  @@index([name])
+  @@map("organizations")
+}
+
+// ============================================================
 // EDO — HUJJAT AYLANMASI (Electronic Document Workflow)
 // ============================================================
 
@@ -398,6 +417,8 @@ model Document {
   // Tashqi yuborish bilan bog'liq
   isExternal        Boolean   @default(false) @map("is_external")
   externalRecipient String?   @map("external_recipient") @db.VarChar(255)
+  // Kiruvchi/tashqi hujjat yuboruvchi tashkiloti (Organization)
+  senderOrgId       String?   @map("sender_org_id") @db.Uuid
 
   createdById       String    @map("created_by_id") @db.Uuid
   currentHolderId   String?   @map("current_holder_id") @db.Uuid    // hozir kimda ko'rib chiqishda turibdi
@@ -443,6 +464,7 @@ model Document {
   template      DocumentTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   numberDept    Department?       @relation("DocNumberDept", fields: [numberDeptId], references: [id], onDelete: SetNull)
   targetDept    Department?       @relation("DocTargetDept", fields: [targetDeptId], references: [id], onDelete: SetNull)
+  senderOrg     Organization?     @relation("DocSenderOrg", fields: [senderOrgId], references: [id], onDelete: SetNull)
 
   participants DocumentParticipant[]
   resolutions  Resolution[]

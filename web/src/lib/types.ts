@@ -205,6 +205,17 @@ export interface EdoAttachment {
   uploadedBy: Pick<User, 'id' | 'fullName' | 'login' | 'avatarPath'>;
 }
 
+export interface Organization {
+  id: string;
+  name: string;
+  inn: string;
+  address?: string | null;
+  phone?: string | null;
+  note?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface EdoDocument {
   id: string;
   number: string;
@@ -212,13 +223,14 @@ export interface EdoDocument {
   numberCategory: string;
   year: number;
   type: DocumentType;
-  internalKind?: 'service_letter' | 'order' | null;
+  internalKind?: string | null;
   subject: string;
   shortInfo?: string | null;
   body: string;
   status: DocumentStatus;
   isExternal: boolean;
   externalRecipient?: string | null;
+  senderOrgId?: string | null;
   createdById: string;
   currentHolderId?: string | null;
   numberDeptId?: string | null;
@@ -244,6 +256,7 @@ export interface EdoDocument {
   currentHolder?: ShortUser | null;
   numberDept?: { id: string; name: string; code?: string | null } | null;
   targetDept?: { id: string; name: string; code?: string | null } | null;
+  senderOrg?: Organization | null;
   participants: EdoParticipant[];
   comments: EdoComment[];
   audit: EdoAuditEntry[];
