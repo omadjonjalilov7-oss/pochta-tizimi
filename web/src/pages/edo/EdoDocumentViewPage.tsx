@@ -238,6 +238,15 @@ export function EdoDocumentViewPage() {
                   {t(`edo.internal_kind.${doc.internalKind}`)}
                 </span>
               )}
+              {doc.journal && (
+                <span
+                  className="text-xs px-2 py-0.5 rounded-full bg-slate-50 text-slate-600 border border-slate-200"
+                  title={t('edo.compose.label_journal')}
+                >
+                  {doc.journal.prefix ? `[${doc.journal.prefix}] ` : ''}
+                  {doc.journal.name}
+                </span>
+              )}
             </div>
             <div className="flex items-start gap-2">
               <h1 className="text-xl font-semibold text-slate-900 flex-1">{doc.subject}</h1>
