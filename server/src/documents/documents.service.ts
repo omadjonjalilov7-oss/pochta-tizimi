@@ -39,6 +39,7 @@ import {
   AUTO_CHAIN_LOGINS,
   buildIchkiTokens,
   renderIchki,
+  fillCustomPlaceholders,
 } from './template-fill';
 import { ConfigService } from '@nestjs/config';
 import { QrApprovalService } from './qr-approval.service';
@@ -1273,8 +1274,17 @@ export class DocumentsService {
   // jonli hisoblaydi (asl matn saqlanadi; sana tokenlari tasdiqlash bo'yicha
   // to'ladi, shu bois o'qishda hisoblaymiz).
   private async attachRenderedBody(doc: any): Promise<void> {
-    const html = await this.renderTemplateHtml(doc);
-    if (html != null) doc.renderedBody = html;
+    // "ichki" shablonli hujjat bo'lsa — to'ldirilgan HTML, aks holda oddiy matn.
+    const ichki = await this.renderTemplateHtml(doc);
+    const base = ichki ?? doc.body ?? null;
+    if (base == null) return;
+    // Foydalanuvchi shablonidagi {{xujjat_n}} / {{sana_soat}} o'zgaruvchilarini to'ldiramiz.
+    const filled = fillCustomPlaceholders(base, {
+      number: doc.number ?? '',
+      date: doc.createdAt,
+    });
+    // renderedBody'ni faqat asl body'dan farq qilsa yuboramiz (ortiqcha nusxa oldini olish).
+    if (ichki != null || filled !== doc.body) doc.renderedBody = filled;
   }
 
   // "ichki" shabloniga solingan hujjatning to'ldirilgan HTML matnini quradi.

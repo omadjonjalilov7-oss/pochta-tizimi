@@ -122,13 +122,18 @@ export function formatBytes(n: number) {
 export function formatTime(iso: string) {
   const d = new Date(iso);
   const now = new Date();
-  const sameDay =
-    d.getDate() === now.getDate() &&
-    d.getMonth() === now.getMonth() &&
-    d.getFullYear() === now.getFullYear();
-  if (sameDay)
-    return d.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
-  return d.toLocaleDateString('uz-UZ', { day: 'numeric', month: 'short' });
+  const hm = d.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+  // Kalendar kunlar farqi (soatlar emas)
+  const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const dayDiff = Math.round((startOf(now) - startOf(d)) / 86_400_000);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  if (dayDiff === 0) return `Bugun ${hm}`;
+  if (dayDiff === 1) return `Kecha ${hm}`;
+  if (dayDiff === 2) return `Ilgari kun ${hm}`;
+  if (d.getFullYear() === now.getFullYear()) return `${dd}.${mm} ${hm}`;
+  const yy = String(d.getFullYear()).slice(-2);
+  return `${dd}.${mm}.${yy} ${hm}`;
 }
 
 // Oxirgi faollik vaqti: 2 daqiqa ichida bo'lsa "online", aks holda sana + vaqt.

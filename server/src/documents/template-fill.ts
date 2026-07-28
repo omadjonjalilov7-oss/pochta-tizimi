@@ -48,6 +48,33 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
+// Foydalanuvchi shabloniga (firmenniy blanka) qo'yadigan maxsus o'zgaruvchilar.
+// Kirill oy nomlari — "28 июль 2026 йил" ko'rinishi uchun.
+const CYR_MONTHS = [
+  'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
+  'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь',
+];
+
+// Sana Toshkent vaqti (UTC+5) bo'yicha: "28 июль 2026 йил".
+function fmtCyrDate(d: Date | null | undefined): string {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (Number.isNaN(dt.getTime())) return '';
+  const t = new Date(dt.getTime() + 5 * 60 * 60 * 1000);
+  return `${t.getUTCDate()} ${CYR_MONTHS[t.getUTCMonth()]} ${t.getUTCFullYear()} йил`;
+}
+
+// Chiquvchi (va boshqa) hujjat matnidagi {{xujjat_n}} → tartib raqami,
+// {{sana_soat}} → kirill sana. Faqat mavjud bo'lsagina almashadi.
+export function fillCustomPlaceholders(
+  html: string,
+  input: { number: string; date: Date | null | undefined },
+): string {
+  return html
+    .replace(/\{\{\s*xujjat_n\s*\}\}/g, escapeHtml(input.number))
+    .replace(/\{\{\s*sana_soat\s*\}\}/g, escapeHtml(fmtCyrDate(input.date)));
+}
+
 export function buildIchkiTokens(input: AutoFillInput): {
   values: Record<string, string>;
   raw: Set<string>;

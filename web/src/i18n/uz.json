@@ -685,6 +685,7 @@
       "internal_kind_hint_order": "Buyruq — tasdiqlovchilarni o'zingiz qo'lda tanlaysiz.",
       "label_summary": "Qisqacha mazmuni",
       "ph_summary": "Hujjatning qisqacha mazmunini yozing",
+      "outgoing_default_subject": "Chiquvchi hujjat",
       "ph_doc_number": "Yuborishda beriladi",
       "label_tags": "Hujjat heshteglari",
       "ph_tag": "Heshteg qo'shib Enter bosing",

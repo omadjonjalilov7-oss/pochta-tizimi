@@ -73,7 +73,6 @@ export function EdoComposePage() {
   const [body, setBody] = useState('');
   const [numberDeptId, setNumberDeptId] = useState<string>('');
   const [targetDeptId, setTargetDeptId] = useState<string>('');
-  const [externalRecipient, setExternalRecipient] = useState('');
   const [senderOrgId, setSenderOrgId] = useState('');
   const [journalId, setJournalId] = useState('');
   const [showOrgModal, setShowOrgModal] = useState(false);
@@ -163,7 +162,6 @@ export function EdoComposePage() {
     setBody(doc.body || '');
     setNumberDeptId(doc.numberDeptId || '');
     setTargetDeptId(doc.targetDeptId || '');
-    setExternalRecipient(doc.externalRecipient || '');
     setSenderOrgId(doc.senderOrgId || '');
     setJournalId(doc.journalId || '');
     setDeadline(doc.deadline ? toLocalDatetimeInputValue(doc.deadline) : '');
@@ -213,19 +211,35 @@ export function EdoComposePage() {
 
   const isDraft = !doc || doc.status === 'draft';
 
+  // Chiquvchi hujjatda "qisqacha mazmuni" maydoni yo'q — sarlavhani hujjat
+  // matnidan (HTML teglari va {{...}} o'zgaruvchilarsiz) ajratamiz, bo'sh bo'lsa
+  // standart nom qo'yiladi. Boshqa turlarda oddiy subject ishlatiladi.
+  function effectiveSubject(): string {
+    const s = subject.trim();
+    if (s) return s;
+    if (type === 'outgoing') {
+      const text = body
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\{\{[^}]*\}\}/g, ' ')
+        .replace(/&[a-z#0-9]+;/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      return text ? text.slice(0, 200) : t('edo.compose.outgoing_default_subject');
+    }
+    return s;
+  }
+
   const saveDraft = useMutation({
     mutationFn: async () => {
       const payload = {
         type,
         internalKind: type === 'internal' ? internalKind : undefined,
-        subject: subject.trim(),
+        subject: effectiveSubject(),
         // Reference'dagi "Qisqacha mazmuni" asosiy maydon; matn bo'sh bo'lsa uni matnga ham yozamiz
-        body: body.trim() ? body : subject.trim(),
+        body: body.trim() ? body : effectiveSubject(),
         numberDeptId: numberDeptId || undefined,
         targetDeptId: targetDeptId || undefined,
         templateId: pickedTemplateId || undefined,
-        externalRecipient:
-          type === 'outgoing' ? externalRecipient.trim() || undefined : undefined,
         senderOrgId: type !== 'internal' ? senderOrgId || undefined : undefined,
         journalId: journalId || undefined,
         deadline: deadline ? new Date(deadline).toISOString() : undefined,
@@ -309,7 +323,7 @@ export function EdoComposePage() {
   async function handleSave(e?: FormEvent) {
     e?.preventDefault();
     setError(null);
-    if (!subject.trim() || subject.trim().length < 2) {
+    if (type !== 'outgoing' && (!subject.trim() || subject.trim().length < 2)) {
       setError(t('edo.compose.err_subject'));
       return;
     }
@@ -328,7 +342,7 @@ export function EdoComposePage() {
     try {
       let docId = currentDocId;
       if (!docId) {
-        if (!subject.trim() || subject.trim().length < 2) {
+        if (type !== 'outgoing' && (!subject.trim() || subject.trim().length < 2)) {
           setError(t('edo.compose.err_subject_for_upload'));
           return;
         }
@@ -1096,22 +1110,6 @@ export function EdoComposePage() {
             </div>
           )}
 
-          {/* Tashqi qabul qiluvchi (chiquvchi) */}
-          {type === 'outgoing' && (
-            <div>
-              <label className={labelCls}>{t('edo.compose.label_external_recipient')}</label>
-              <input
-                type="text"
-                value={externalRecipient}
-                onChange={(e) => setExternalRecipient(e.target.value)}
-                placeholder={t('edo.compose.ph_external_recipient')}
-                maxLength={255}
-                disabled={!isDraft}
-                className={fieldCls}
-              />
-            </div>
-          )}
-
           {/* Yuboruvchi tashkilot (kiruvchi / chiquvchi) */}
           {type !== 'internal' && (
             <div>
@@ -1143,25 +1141,27 @@ export function EdoComposePage() {
             </div>
           )}
 
-          {/* Qisqacha mazmuni */}
-          <div>
-            <label className={labelCls}>
-              {t('edo.compose.label_summary')} <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <Languages size={18} className="absolute left-3 top-3 text-slate-300 pointer-events-none" />
-              <textarea
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                placeholder={t('edo.compose.ph_summary')}
-                maxLength={500}
-                rows={4}
-                required
-                disabled={!isDraft}
-                className={`${fieldCls} resize-y pl-10`}
-              />
+          {/* Qisqacha mazmuni — chiquvchi hujjatda kerak emas */}
+          {type !== 'outgoing' && (
+            <div>
+              <label className={labelCls}>
+                {t('edo.compose.label_summary')} <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <Languages size={18} className="absolute left-3 top-3 text-slate-300 pointer-events-none" />
+                <textarea
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  placeholder={t('edo.compose.ph_summary')}
+                  maxLength={500}
+                  rows={4}
+                  required
+                  disabled={!isDraft}
+                  className={`${fieldCls} resize-y pl-10`}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Hujjat matni */}
           <div>
