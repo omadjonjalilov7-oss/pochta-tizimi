@@ -1315,9 +1315,13 @@ export class DocumentsService {
             margin: 1,
             width: 160,
           });
+          // QR o'z markazlashgan bloki bilan chiqadi — atrofdagi matnga aralashib
+          // ketmasligi uchun (foydalanuvchi {{qr_kod}}ni alohida qatorga qo'yadi).
           qrHtml =
+            `<div style="text-align:center;margin:14px auto;">` +
             `<img src="${qrDataUrl}" alt="QR" title="Hujjatni skanerlab ko'rish" ` +
-            `style="width:120px;height:120px;" />`;
+            `style="width:110px;height:110px;display:inline-block;" />` +
+            `</div>`;
         } catch {
           qrHtml = ''; // QR yaratilmasa — bo'sh qoladi
         }
