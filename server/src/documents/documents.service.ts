@@ -1304,11 +1304,29 @@ export class DocumentsService {
 
     // Foydalanuvchi tanlagan blanka (ichki avto-shablon emas): blanka ramka bo'lib,
     // {{matn}} → hujjat matni, {{xujjat_n}} → raqam, {{sana_soat}} → sana.
+    // {{qr_kod}} → hujjat QR kodi, faqat hujjat "bajarildi" (done) bo'lganda.
     if (!doc.autoFilled) {
+      let qrHtml = '';
+      if (doc.status === DocumentStatus.done) {
+        try {
+          const token = await this.ensurePublicToken(doc.id, doc.publicToken);
+          const qrDataUrl = await QRCode.toDataURL(this.buildScanUrl(token), {
+            errorCorrectionLevel: 'M',
+            margin: 1,
+            width: 160,
+          });
+          qrHtml =
+            `<img src="${qrDataUrl}" alt="QR" title="Hujjatni skanerlab ko'rish" ` +
+            `style="width:120px;height:120px;" />`;
+        } catch {
+          qrHtml = ''; // QR yaratilmasa — bo'sh qoladi
+        }
+      }
       return fillCustomPlaceholders(tpl.bodyTemplate, {
         matn: doc.body ?? '',
         number: doc.number ?? '',
         date: doc.createdAt,
+        qr: qrHtml,
       });
     }
 

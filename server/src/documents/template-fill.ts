@@ -68,13 +68,20 @@ function fmtCyrDate(d: Date | null | undefined): string {
 //   {{xujjat_n}}  → hujjat tartib raqami (escape)
 //   {{sana_soat}} → kirill sana "28 июль 2026 йил" (escape)
 //   {{matn}}      → hujjat asosiy matni (xom HTML — escape qilinmaydi)
+//   {{qr_kod}}    → hujjat QR kodi <img> (faqat hujjat bajarilganda; xom HTML)
 // Faqat mavjud bo'lsagina almashadi.
 export function fillCustomPlaceholders(
   html: string,
-  input: { number: string; date: Date | null | undefined; matn?: string },
+  input: {
+    number: string;
+    date: Date | null | undefined;
+    matn?: string;
+    qr?: string;
+  },
 ): string {
   return html
     .replace(/\{\{\s*matn\s*\}\}/g, input.matn ?? '')
+    .replace(/\{\{\s*qr_kod\s*\}\}/g, input.qr ?? '')
     .replace(/\{\{\s*xujjat_n\s*\}\}/g, escapeHtml(input.number))
     .replace(/\{\{\s*sana_soat\s*\}\}/g, escapeHtml(fmtCyrDate(input.date)));
 }
