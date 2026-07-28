@@ -48,7 +48,8 @@ function defaultRange() {
 }
 
 export function EdoHisobotlarPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
   const [{ from, to }, setRange] = useState(defaultRange);
   const [tab, setTab] = useState<ReportTab>('all');
   const [downloading, setDownloading] = useState<'excel' | 'pdf' | null>(null);
@@ -97,10 +98,25 @@ export function EdoHisobotlarPage() {
   const downloadDoc = async (row: ReportRow) => {
     setRowDownloading(row.id);
     try {
-      // Hujjatning to'liq holatini olamiz va aynan ko'rinayotgan shablonni
-      // (yoki matnni) chop etish/PDF oynasida ochamiz — o'zimiz jadval yasamaymiz.
+      // Hujjatning to'liq holatini olamiz va aynan ekrandagi ko'rinishini
+      // (sarlavha + matn) chop etish/PDF oynasida ochamiz — panelsiz.
       const res = await api.get<EdoDocument>(`/documents/${row.id}`);
-      openDocumentPrint(res.data, true);
+      const d = res.data;
+      const typeLabel =
+        d.type === 'internal' && d.internalKind
+          ? `${t(`edo.doc_type.${d.type}`)} · ${t(`edo.internal_kind.${d.internalKind}`)}`
+          : t(`edo.doc_type.${d.type}`);
+      openDocumentPrint(d, true, {
+        statusLabel: t(`edo.status.${d.status}`),
+        typeLabel,
+        createdByName: d.createdBy?.fullName ?? '',
+        createdByPosition: d.createdBy?.position?.name,
+        createdAtText: new Date(d.createdAt).toLocaleString(lang),
+        deadlineText: d.deadline
+          ? `${t('edo.view.deadline')}: ${new Date(d.deadline).toLocaleString(lang)}`
+          : undefined,
+        bodyHeading: t('edo.view.body'),
+      });
     } finally {
       setRowDownloading(null);
     }

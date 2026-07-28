@@ -34,7 +34,30 @@ import { useAuth } from '../../context/AuthContext';
 import { cn, formatBytes } from '../../lib/utils';
 import { SecretInput } from '../../components/SecretInput';
 import { ApproverChainPicker } from '../../components/edo/ApproverChainPicker';
-import { openDocumentPrint } from '../../lib/printDoc';
+import { openDocumentPrint, type PrintMeta } from '../../lib/printDoc';
+
+// Chop etish uchun sarlavha ma'lumotini tayyorlaydi (ekrandagi ko'rinishga mos).
+function buildPrintMeta(
+  doc: EdoDocument,
+  t: (k: string) => string,
+  lang: string,
+): PrintMeta {
+  const typeLabel =
+    doc.type === 'internal' && doc.internalKind
+      ? `${t(`edo.doc_type.${doc.type}`)} · ${t(`edo.internal_kind.${doc.internalKind}`)}`
+      : t(`edo.doc_type.${doc.type}`);
+  return {
+    statusLabel: t(`edo.status.${doc.status}`),
+    typeLabel,
+    createdByName: doc.createdBy?.fullName ?? '',
+    createdByPosition: doc.createdBy?.position?.name,
+    createdAtText: new Date(doc.createdAt).toLocaleString(lang),
+    deadlineText: doc.deadline
+      ? `${t('edo.view.deadline')}: ${new Date(doc.deadline).toLocaleString(lang)}`
+      : undefined,
+    bodyHeading: t('edo.view.body'),
+  };
+}
 
 export function EdoDocumentViewPage() {
   const { t, i18n } = useTranslation();
@@ -605,14 +628,15 @@ function PdfDownloadButton({
   disabled?: boolean;
   isCreator?: boolean;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
 
   const isDisabled = disabled && isCreator;
   const title = isDisabled ? t('edo.view.pdf_disabled_creator') : t('edo.view.download_pdf');
 
   return (
     <button
-      onClick={() => openDocumentPrint(doc, true)}
+      onClick={() => openDocumentPrint(doc, true, buildPrintMeta(doc, t, lang))}
       disabled={isDisabled}
       title={title}
       className="inline-flex items-center gap-1.5 text-xs font-medium text-asaka-700 hover:text-asaka-800 hover:bg-asaka-50 px-2 py-1 rounded-md disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
@@ -630,11 +654,12 @@ function WordExportButton({
   doc: EdoDocument;
   disabled?: boolean;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
 
   return (
     <button
-      onClick={() => openDocumentPrint(doc, false)}
+      onClick={() => openDocumentPrint(doc, false, buildPrintMeta(doc, t, lang))}
       disabled={disabled}
       title={t('edo.view.preview_word')}
       className="inline-flex items-center justify-center text-slate-600 hover:text-slate-700 hover:bg-slate-50 p-1.5 rounded-md disabled:opacity-50 disabled:cursor-not-allowed shrink-0"

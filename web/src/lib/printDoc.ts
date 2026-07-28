@@ -1,30 +1,75 @@
 import type { EdoDocument } from './types';
 
-// Hujjatning aynan ko'rinayotgan holatini chop etish/PDF oynasida ochadi.
-// Shablon bo'lsa — to'ldirilgan shablon (renderedBody), aks holda asl matn.
-// O'zimiz jadval yoki xodimlar zanjirini yasamaymiz: barcha PDF/HTML eksporti
-// uchun yagona manba shu. autoPrint=true bo'lsa yuklangach chop etish (Save as
-// PDF) oynasi avtomatik chiqadi.
-export function openDocumentPrint(doc: EdoDocument, autoPrint: boolean): void {
+// Chop etishda ko'rsatiladigan sarlavha ma'lumotlari (i18n chaqiruvchi tomonda
+// tayyorlanadi — bu modul til fayllariga bog'liq emas).
+export interface PrintMeta {
+  statusLabel: string;
+  typeLabel: string; // masalan: "Ichki · Xizmat xati"
+  createdByName: string;
+  createdByPosition?: string;
+  createdAtText: string;
+  deadlineText?: string; // to'liq matn, masalan: "Muddat: 01.08.2026"
+  bodyHeading: string; // "Hujjat matni"
+}
+
+function esc(s: string): string {
+  return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Hujjatning ekrandagi ko'rinishini (sarlavha kartochkasi + matn) chop etish/PDF
+// oynasida ochadi — chap menyu, o'ng paneldagi zanjir/tarix, ilovalar va izohlarsiz.
+// Shablon bo'lsa matn sifatida to'ldirilgan shablon (renderedBody) ishlatiladi.
+// meta berilmasa faqat matn chop etiladi (eski xatti-harakat).
+export function openDocumentPrint(
+  doc: EdoDocument,
+  autoPrint: boolean,
+  meta?: PrintMeta,
+): void {
   const content = doc.renderedBody ?? doc.body ?? '';
   const isHtml = /^\s*<[a-z]/i.test(content);
-  const esc = (s: string) =>
-    (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const bodyInner = isHtml
     ? content
     : `<div style="white-space:pre-wrap;font-size:12px;line-height:1.5">${esc(content)}</div>`;
+
+  const head = meta
+    ? `<header class="doc-head">
+    <div class="doc-meta">
+      <span class="num">${esc(doc.number)}</span>
+      ${doc.docUid ? `<span class="uid">${esc(doc.docUid)}</span>` : ''}
+      <span class="status">${esc(meta.statusLabel)}</span>
+      <span class="type">${esc(meta.typeLabel)}</span>
+    </div>
+    <h1 class="subject">${esc(doc.subject)}</h1>
+    <div class="who">${esc(meta.createdByName)}${
+        meta.createdByPosition ? ` — ${esc(meta.createdByPosition)}` : ''
+      } · ${esc(meta.createdAtText)}${meta.deadlineText ? ` · ${esc(meta.deadlineText)}` : ''}</div>
+  </header>
+  <h2 class="body-heading">${esc(meta.bodyHeading)}</h2>`
+    : '';
+
   const printScript = autoPrint
     ? '<script>window.onload=function(){setTimeout(function(){window.focus();window.print();},250);};<\/script>'
     : '';
+
   const html = `<!DOCTYPE html><html lang="uz"><head><meta charset="UTF-8">
 <title>${esc(doc.number)} — ${esc(doc.subject)}</title>
 <style>
   * { box-sizing: border-box; }
-  body { font-family: "Calibri","Arial",sans-serif; margin: 1cm 1.2cm; color: #000; }
+  body { font-family: "Calibri","Arial",sans-serif; margin: 1cm 1.2cm; color: #0f172a; }
   table { border-collapse: collapse; }
   img { max-width: 100%; }
+  .doc-head { border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 12px; }
+  .doc-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; margin-bottom: 6px; }
+  .doc-meta .num, .doc-meta .uid { font-family: monospace; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
+  .doc-meta .uid { background: #fff2e8; color: #b45309; }
+  .doc-meta .status { background: #eef2ff; color: #4338ca; padding: 2px 6px; border-radius: 4px; }
+  .doc-meta .type { color: #64748b; padding: 2px 0; }
+  .subject { font-size: 18px; margin: 4px 0; }
+  .who { font-size: 11px; color: #64748b; }
+  .body-heading { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #64748b; margin: 14px 0 6px; }
   @media print { body { margin: 0.6cm 0.8cm; } }
-</style></head><body>${bodyInner}${printScript}</body></html>`;
+</style></head><body>${head}<div class="doc-body">${bodyInner}</div>${printScript}</body></html>`;
+
   const w = window.open('', '_blank');
   if (!w) return;
   w.document.open();
