@@ -506,7 +506,12 @@
     },
     "internal_kind": {
       "service_letter": "Служебное письмо",
-      "order": "Приказ"
+      "order": "Приказ",
+      "protocol": "Протокол",
+      "directive": "Распоряжение",
+      "decision": "Решение",
+      "conclusion": "Заключение",
+      "joint_plan": "Совместный план"
     },
     "control": {
       "section": "КОНТРОЛЬ",

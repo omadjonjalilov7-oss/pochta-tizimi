@@ -28,6 +28,18 @@ import { RichBodyEditor } from '../../components/edo/RichBodyEditor';
 const FILE_ACCEPT =
   '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.7z,.txt,.csv,image/*,video/*';
 
+// Ichki hujjat turlari — combobox uchun. "service_letter" avtomatik zanjir bilan
+// ishlaydi; qolganlari hozircha buyruq kabi (qo'lda tasdiqlovchi tanlash).
+const INTERNAL_KINDS = [
+  'service_letter',
+  'order',
+  'protocol',
+  'directive',
+  'decision',
+  'conclusion',
+  'joint_plan',
+] as const;
+
 export function EdoComposePage() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
@@ -40,7 +52,7 @@ export function EdoComposePage() {
   const initialType = (searchParams.get('type') as DocumentType) || 'internal';
   const [type, setType] = useState<DocumentType>(initialType);
   // Ichki hujjat turi: xizmat xati (avtomatik zanjir) | buyruq (qo'lda tasdiqlovchilar)
-  const [internalKind, setInternalKind] = useState<'service_letter' | 'order'>('service_letter');
+  const [internalKind, setInternalKind] = useState<string>('service_letter');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [numberDeptId, setNumberDeptId] = useState<string>('');
@@ -99,7 +111,7 @@ export function EdoComposePage() {
   useEffect(() => {
     if (!doc) return;
     setType(doc.type);
-    setInternalKind((doc.internalKind as 'service_letter' | 'order') || 'service_letter');
+    setInternalKind(doc.internalKind || 'service_letter');
     setSubject(doc.subject);
     setBody(doc.body || '');
     setNumberDeptId(doc.numberDeptId || '');
@@ -499,20 +511,18 @@ export function EdoComposePage() {
               <label className={labelCls}>
                 {t('edo.compose.label_internal_kind')} <span className="text-red-500">*</span>
               </label>
-              <div className="flex flex-wrap gap-2">
-                <KindChip
-                  active={internalKind === 'service_letter'}
-                  disabled={!isDraft}
-                  onClick={() => setInternalKind('service_letter')}
-                  label={t('edo.internal_kind.service_letter')}
-                />
-                <KindChip
-                  active={internalKind === 'order'}
-                  disabled={!isDraft}
-                  onClick={() => setInternalKind('order')}
-                  label={t('edo.internal_kind.order')}
-                />
-              </div>
+              <select
+                value={internalKind}
+                onChange={(e) => setInternalKind(e.target.value)}
+                disabled={!isDraft}
+                className={fieldCls}
+              >
+                {INTERNAL_KINDS.map((k) => (
+                  <option key={k} value={k}>
+                    {t(`edo.internal_kind.${k}`)}
+                  </option>
+                ))}
+              </select>
               <p className="mt-1.5 text-xs text-slate-500">
                 {internalKind === 'service_letter'
                   ? t('edo.compose.internal_kind_hint_service')
@@ -969,34 +979,6 @@ function OptCheck({
       />
       {label}
     </label>
-  );
-}
-
-function KindChip({
-  active,
-  disabled,
-  onClick,
-  label,
-}: {
-  active: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        'px-4 py-2 rounded-full text-sm font-medium border transition-colors disabled:opacity-60',
-        active
-          ? 'bg-asaka-600 text-white border-asaka-600'
-          : 'bg-white text-slate-600 border-slate-300 hover:border-asaka-400 hover:text-asaka-700',
-      )}
-    >
-      {label}
-    </button>
   );
 }
 

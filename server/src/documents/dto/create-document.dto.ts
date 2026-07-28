@@ -17,11 +17,19 @@ export class CreateDocumentDto {
   @IsEnum(DocumentType)
   type: DocumentType;
 
-  // Ichki hujjat turi: service_letter (xizmat xati) | order (buyruq).
-  // Faqat type === 'internal' uchun ma'noli.
+  // Ichki hujjat turi. Faqat type === 'internal' uchun ma'noli.
+  // service_letter avtomatik zanjir bilan; qolganlari hozircha buyruq kabi.
   @IsOptional()
-  @IsIn(['service_letter', 'order'])
-  internalKind?: 'service_letter' | 'order';
+  @IsIn([
+    'service_letter',
+    'order',
+    'protocol',
+    'directive',
+    'decision',
+    'conclusion',
+    'joint_plan',
+  ])
+  internalKind?: string;
 
   @IsString()
   @MinLength(2)

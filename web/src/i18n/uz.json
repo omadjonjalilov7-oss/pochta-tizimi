@@ -506,7 +506,12 @@
     },
     "internal_kind": {
       "service_letter": "Xizmat xati",
-      "order": "Buyruq"
+      "order": "Buyruq",
+      "protocol": "Bayonnoma",
+      "directive": "Farmoyish",
+      "decision": "Qaror",
+      "conclusion": "Xulosa",
+      "joint_plan": "Birgalikda reja"
     },
     "control": {
       "section": "NAZORAT",
