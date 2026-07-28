@@ -36,6 +36,7 @@ export interface ChatUser {
   avatarPath: string | null;
   position?: { name: string } | null;
   department?: { name: string } | null;
+  lastSeenAt?: string | null;
 }
 
 export interface ChatAttachment {
@@ -128,6 +129,22 @@ export function formatTime(iso: string) {
   if (sameDay)
     return d.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
   return d.toLocaleDateString('uz-UZ', { day: 'numeric', month: 'short' });
+}
+
+// Oxirgi faollik vaqti: 2 daqiqa ichida bo'lsa "online", aks holda sana + vaqt.
+export function formatLastSeen(iso: string) {
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  if (diffMs < 2 * 60_000) return { online: true, text: '' };
+  const sameDay =
+    d.getDate() === now.getDate() &&
+    d.getMonth() === now.getMonth() &&
+    d.getFullYear() === now.getFullYear();
+  const time = d.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+  if (sameDay) return { online: false, text: time };
+  const date = d.toLocaleDateString('uz-UZ', { day: 'numeric', month: 'short' });
+  return { online: false, text: `${date}, ${time}` };
 }
 
 // ─── Checkmark ────────────────────────────────────────────────────────────────
@@ -305,9 +322,22 @@ export function ConversationView({
               <span className="truncate">{t('edo.chat.typing')}</span>
             </div>
           ) : (
-            partner.position?.name && (
-              <div className="text-[10px] text-brand-100 truncate">{partner.position.name}</div>
-            )
+            (() => {
+              const seen = partner.lastSeenAt ? formatLastSeen(partner.lastSeenAt) : null;
+              return (
+                <div className="text-[10px] text-brand-100 truncate">
+                  {seen ? (
+                    seen.online ? (
+                      <span className="text-emerald-200">{t('edo.chat.online')}</span>
+                    ) : (
+                      t('edo.chat.last_seen', { time: seen.text })
+                    )
+                  ) : (
+                    partner.position?.name || ''
+                  )}
+                </div>
+              );
+            })()
           )}
         </div>
       </div>

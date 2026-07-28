@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import helmet from 'helmet';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 
 // Prisma BigInt fields (masalan, fayl o'lchami sizeBytes) JSON.stringify orqali
@@ -16,7 +17,13 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log'],
+    bodyParser: false,
   });
+
+  // Shablonlar base64 rasm bilan yuborilganda default ~100kb limit oshib ketadi
+  // (HTTP 413 "request entity too large") → limitni oshiramiz.
+  app.use(json({ limit: '25mb' }));
+  app.use(urlencoded({ extended: true, limit: '25mb' }));
 
   app.use(
     helmet({

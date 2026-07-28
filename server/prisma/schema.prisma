@@ -88,6 +88,8 @@ model User {
   failedLoginCount Int      @default(0) @map("failed_login_count")
   lockedUntil      DateTime? @map("locked_until") @db.Timestamptz(3)
   lastLoginAt      DateTime? @map("last_login_at") @db.Timestamptz(3)
+  // Oxirgi faollik: pochta/edo/chat — istalgan API so'rovida yangilanadi (throttled)
+  lastSeenAt       DateTime? @map("last_seen_at") @db.Timestamptz(3)
 
   // Tashqi pochta (asaka-motors.uz) integratsiyasi
   externalMailLogin       String?   @map("external_mail_login") @db.VarChar(255)

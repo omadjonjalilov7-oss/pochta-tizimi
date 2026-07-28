@@ -1036,6 +1036,8 @@
       "no_users": "Foydalanuvchi topilmadi",
       "select_conversation": "Suhbatni tanlang yoki yangi suhbat boshlang",
       "typing": "yozmoqda...",
+      "online": "onlayn",
+      "last_seen": "oxirgi faollik: {{time}}",
       "edit": "Tahrirlash",
       "editing": "Xabar tahrirlanmoqda",
       "edited": "tahrirlangan",
