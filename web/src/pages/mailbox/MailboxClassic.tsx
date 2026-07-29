@@ -20,10 +20,10 @@ export function MailboxClassic({ folder, starredOnly }: Props) {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center gap-4">
-        <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
-        <span className="text-sm text-slate-400">{t('mailbox.message_count', { count: filtered.length })}</span>
-        <div className="ml-auto relative w-72">
+      <div className="bg-white border-b border-slate-200 px-3 md:px-6 py-4 flex items-center gap-2 md:gap-4">
+        <h1 className="text-lg md:text-xl font-semibold text-slate-900">{title}</h1>
+        <span className="hidden sm:inline text-sm text-slate-400">{t('mailbox.message_count', { count: filtered.length })}</span>
+        <div className="ml-auto relative w-40 sm:w-72">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="search"
@@ -54,7 +54,7 @@ export function MailboxClassic({ folder, starredOnly }: Props) {
             {groupedItems.map((group) => (
               <div key={group.key}>
                 {/* Group header */}
-                <div className="sticky top-0 bg-slate-50 border-y border-slate-200 px-6 py-2 flex items-center gap-2">
+                <div className="sticky top-0 bg-slate-50 border-y border-slate-200 px-3 md:px-6 py-2 flex items-center gap-2">
                   {group.color && (
                     <div
                       className="w-2.5 h-2.5 rounded-full flex-shrink-0"
@@ -80,7 +80,7 @@ export function MailboxClassic({ folder, starredOnly }: Props) {
                       <Link
                         to={`/messages/${item.messageId}`}
                         className={cn(
-                          'flex items-center gap-3 px-6 py-3 hover:bg-brand-50 transition-colors',
+                          'flex items-center gap-3 px-3 md:px-6 py-3 hover:bg-brand-50 transition-colors',
                           !item.isRead && folder === 'inbox' && 'bg-blue-50/40 font-medium',
                         )}
                       >

@@ -15,6 +15,8 @@ import {
   Palette,
   LayoutGrid,
   Languages,
+  Menu,
+  X,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Avatar } from '../Avatar';
@@ -124,9 +126,19 @@ export function LayoutOutlook() {
   const showMailbox = !isAdminPage; // show list on folder routes and /messages/:id
   const activeMailbox = folderRoute || lastFolder;
 
+  const [mobileNav, setMobileNav] = useState(false);
+  useEffect(() => setMobileNav(false), [location.pathname]);
+
   return (
     <div className="flex h-full flex-col bg-[#faf9f8]">
-      <header className="h-12 bg-brand-700 text-white flex items-center px-4 gap-4">
+      <header className="h-12 bg-brand-700 text-white flex items-center px-3 md:px-4 gap-2 md:gap-4">
+        <button
+          onClick={() => setMobileNav((v) => !v)}
+          className="md:hidden p-1.5 -ml-1 rounded hover:bg-brand-600"
+          aria-label="Menu"
+        >
+          {mobileNav ? <X size={20} /> : <Menu size={20} />}
+        </button>
         <Link to="/inbox" className="flex items-center gap-2 font-semibold text-sm">
           <Logo size={18} />
           Pochta
@@ -157,10 +169,21 @@ export function LayoutOutlook() {
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+        {mobileNav && (
+          <div
+            className="md:hidden fixed inset-x-0 bottom-0 top-12 z-30 bg-black/40"
+            onClick={() => setMobileNav(false)}
+          />
+        )}
         <aside
           style={{ width: sidebarWidth }}
-          className="bg-slate-50 border-r border-slate-200 flex flex-col p-3 gap-1.5 overflow-y-auto flex-shrink-0"
+          className={cn(
+            'bg-slate-50 border-r border-slate-200 flex flex-col p-3 gap-1.5 overflow-y-auto',
+            'fixed top-12 bottom-0 left-0 z-40 max-w-[80vw] shadow-2xl transition-transform duration-200',
+            mobileNav ? 'translate-x-0' : '-translate-x-full',
+            'md:static md:top-auto md:bottom-auto md:z-auto md:max-w-none md:shadow-none md:translate-x-0 md:flex-shrink-0',
+          )}
         >
           <Link
             to="/compose"
@@ -216,7 +239,9 @@ export function LayoutOutlook() {
           </button>
         </aside>
 
-        <Resizer onResize={(d) => setSidebarWidth((w) => clamp(w + d, SIDEBAR_MIN, SIDEBAR_MAX))} />
+        <div className="hidden md:block">
+          <Resizer onResize={(d) => setSidebarWidth((w) => clamp(w + d, SIDEBAR_MIN, SIDEBAR_MAX))} />
+        </div>
 
         <main className="flex-1 overflow-hidden flex">
           {showMailbox && (
@@ -225,15 +250,18 @@ export function LayoutOutlook() {
                 folder={activeMailbox.folder}
                 starredOnly={activeMailbox.starred}
                 width={listWidth}
+                className={cn('max-md:!w-full', isMessageRoute && 'max-md:hidden')}
               />
-              <Resizer onResize={(d) => setListWidth((w) => clamp(w + d, LIST_MIN, LIST_MAX))} />
+              <div className="hidden md:block">
+                <Resizer onResize={(d) => setListWidth((w) => clamp(w + d, LIST_MIN, LIST_MAX))} />
+              </div>
             </>
           )}
-          <div className={cn(showMailbox && !isMessageRoute ? 'hidden' : 'flex-1 overflow-auto')}>
+          <div className={cn(showMailbox && !isMessageRoute ? 'hidden md:block md:flex-1 md:overflow-auto' : 'flex-1 overflow-auto')}>
             <Outlet />
           </div>
           {showMailbox && !isMessageRoute && (
-            <div className="flex-1 flex items-center justify-center text-slate-400 bg-[#faf9f8]">
+            <div className="hidden md:flex flex-1 items-center justify-center text-slate-400 bg-[#faf9f8]">
               <div className="text-center">
                 <Inbox size={64} className="mx-auto mb-3 text-slate-200" />
                 <div className="text-sm">{t('mailbox.no_selection')}</div>

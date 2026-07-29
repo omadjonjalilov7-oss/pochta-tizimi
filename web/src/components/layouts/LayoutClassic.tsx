@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   Inbox,
@@ -15,6 +16,8 @@ import {
   LayoutGrid,
   Languages,
   Tag,
+  Menu,
+  X,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Avatar } from '../Avatar';
@@ -72,14 +75,26 @@ export function LayoutClassic() {
   const { openTheme, openDesign, openLanguage, modals } = useAppearanceModals();
   const location = useLocation();
   const composing = location.pathname.startsWith('/compose');
+  const [mobileNav, setMobileNav] = useState(false);
+  // Marshrut o'zgarganda mobil menyu yopilsin.
+  useEffect(() => setMobileNav(false), [location.pathname]);
 
   return (
     <div className="flex h-full flex-col bg-slate-50">
-      <header className="h-14 bg-brand-700 text-white flex items-center justify-between px-6 shadow-sm">
-        <Link to="/inbox" className="flex items-center gap-2 font-semibold text-lg">
-          <Logo size={22} />
-          Pochta
-        </Link>
+      <header className="h-14 bg-brand-700 text-white flex items-center justify-between px-4 md:px-6 shadow-sm">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setMobileNav((v) => !v)}
+            className="md:hidden p-1.5 -ml-1 rounded-lg hover:bg-brand-600"
+            aria-label="Menu"
+          >
+            {mobileNav ? <X size={22} /> : <Menu size={22} />}
+          </button>
+          <Link to="/inbox" className="flex items-center gap-2 font-semibold text-lg">
+            <Logo size={22} />
+            Pochta
+          </Link>
+        </div>
         <AppSwitcher className="bg-brand-600/40" />
         <div className="flex items-center gap-4">
           {notification && (
@@ -110,10 +125,21 @@ export function LayoutClassic() {
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+        {mobileNav && (
+          <div
+            className="md:hidden fixed inset-x-0 bottom-0 top-14 z-30 bg-black/40"
+            onClick={() => setMobileNav(false)}
+          />
+        )}
         <aside className={cn(
-          'bg-white border-r border-slate-200 flex flex-col p-3 gap-1 overflow-y-auto transition-[width] duration-200',
-          composing ? 'w-[56px] items-center' : 'w-60',
+          'bg-white border-r border-slate-200 flex flex-col p-3 gap-1 overflow-y-auto',
+          // Mobil: chapdan chiquvchi drawer
+          'fixed top-14 bottom-0 left-0 z-40 w-64 shadow-2xl transition-transform duration-200',
+          mobileNav ? 'translate-x-0' : '-translate-x-full',
+          // Desktop: oddiy ustun
+          'md:static md:top-auto md:bottom-auto md:z-auto md:shadow-none md:translate-x-0 md:transition-[width]',
+          composing ? 'md:w-[56px] md:items-center' : 'md:w-60',
         )}>
           <Link
             to="/compose"

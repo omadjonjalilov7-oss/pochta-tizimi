@@ -168,6 +168,8 @@
     "reply_all": "Ответить всем",
     "forward": "Переслать",
     "translate": "Перевод",
+    "zoom_in": "Увеличить",
+    "zoom_out": "Уменьшить",
     "archive": "В архив",
     "move_to_archive": "Переместить в архив",
     "move_to_trash": "В корзину",

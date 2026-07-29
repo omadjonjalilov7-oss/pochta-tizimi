@@ -168,6 +168,8 @@
     "reply_all": "Barchaga javob",
     "forward": "Peresylka",
     "translate": "Tarjima",
+    "zoom_in": "Kattalashtirish",
+    "zoom_out": "Kichraytirish",
     "archive": "Arxivlash",
     "move_to_archive": "Arxivga ko'chirish",
     "move_to_trash": "Savatchaga tashlash",

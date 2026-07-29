@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Paperclip, Trash2, Archive, Reply, Download, Undo2, Eye, X, Check, Clock, Mail, Forward, Users, Languages } from 'lucide-react';
+import { ArrowLeft, Paperclip, Trash2, Archive, Reply, Download, Undo2, Eye, X, Check, Clock, Mail, Forward, Users, Languages, ZoomIn, ZoomOut } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { api } from '../lib/api';
 import { Avatar } from '../components/Avatar';
@@ -22,6 +22,8 @@ export function MessageViewPage() {
   const queryClient = useQueryClient();
   const [showReadStatus, setShowReadStatus] = useState(false);
   const [showTranslate, setShowTranslate] = useState(false);
+  // Matn kattaligi (lupa) — kichik ekranda o'qishni osonlashtirish uchun.
+  const [zoom, setZoom] = useState(100);
 
   const { data: item, isLoading } = useQuery({
     queryKey: ['message', id],
@@ -77,8 +79,8 @@ export function MessageViewPage() {
   const importance = IMPORTANCE_BADGE[m.importance] || IMPORTANCE_BADGE.normal;
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="flex items-center gap-2 mb-4">
+    <div className="max-w-4xl mx-auto p-3 md:p-6">
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-1.5 text-sm text-slate-700 hover:text-slate-900 px-4 py-2 rounded-full bg-gradient-to-b from-white to-slate-50 border border-slate-200 shadow-sm hover:shadow-md hover:from-white hover:to-white hover:border-slate-300 active:shadow-inner active:translate-y-px transition-all duration-200"
@@ -134,6 +136,28 @@ export function MessageViewPage() {
             {t('message.recall')}
           </button>
         )}
+        {/* Lupa — matnni kattalashtirish/kichraytirish (mobil o'qish uchun) */}
+        <div className="flex items-center gap-1 rounded-full bg-white border border-slate-200 shadow-sm px-1 py-0.5">
+          <button
+            onClick={() => setZoom((z) => Math.max(80, z - 10))}
+            className="p-1.5 rounded-full text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+            disabled={zoom <= 80}
+            title={t('message.zoom_out')}
+            aria-label={t('message.zoom_out')}
+          >
+            <ZoomOut size={16} />
+          </button>
+          <span className="text-xs font-medium text-slate-500 w-9 text-center tabular-nums">{zoom}%</span>
+          <button
+            onClick={() => setZoom((z) => Math.min(200, z + 10))}
+            className="p-1.5 rounded-full text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+            disabled={zoom >= 200}
+            title={t('message.zoom_in')}
+            aria-label={t('message.zoom_in')}
+          >
+            <ZoomIn size={16} />
+          </button>
+        </div>
         <button
           onClick={() => setShowTranslate(true)}
           className="flex items-center gap-1.5 text-sm text-indigo-700 hover:text-indigo-800 px-4 py-2 rounded-full bg-gradient-to-b from-white to-indigo-50 border border-indigo-200 shadow-sm hover:shadow-md hover:from-white hover:to-indigo-100 hover:border-indigo-300 active:shadow-inner active:translate-y-px transition-all duration-200"
@@ -157,7 +181,7 @@ export function MessageViewPage() {
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 md:p-8">
         {m.recalledAt && (
           <div className="mb-4 flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
             <Undo2 size={16} />
@@ -165,7 +189,7 @@ export function MessageViewPage() {
             <span className="text-amber-600">— {formatDateTime(m.recalledAt)}</span>
           </div>
         )}
-        <h1 className="text-2xl font-bold text-slate-900 mb-2">{m.subject}</h1>
+        <h1 className="text-xl md:text-2xl font-bold text-slate-900 mb-2">{m.subject}</h1>
         <div className="flex items-center gap-2">
           <span
             className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${importance.className}`}
@@ -229,7 +253,9 @@ export function MessageViewPage() {
           </div>
         </div>
 
-        <ExternalSafeBody body={m.body} isExternal={m.isExternal} />
+        <div style={{ fontSize: zoom + '%' }}>
+          <ExternalSafeBody body={m.body} isExternal={m.isExternal} />
+        </div>
 
         {m.attachments && m.attachments.length > 0 && (
           <div className="mt-8 pt-6 border-t border-slate-100">

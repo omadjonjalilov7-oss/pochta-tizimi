@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   Inbox,
@@ -14,6 +15,8 @@ import {
   Palette,
   LayoutGrid,
   Languages,
+  Menu,
+  X,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Avatar } from '../Avatar';
@@ -70,11 +73,20 @@ export function LayoutYandex() {
   const { openTheme, openDesign, openLanguage, modals } = useAppearanceModals();
   const location = useLocation();
   const composing = location.pathname.startsWith('/compose');
+  const [mobileNav, setMobileNav] = useState(false);
+  useEffect(() => setMobileNav(false), [location.pathname]);
 
   return (
     <div className="flex h-full flex-col bg-white">
       {/* Compact top bar — Yandex style */}
-      <header className="h-11 bg-white border-b border-slate-200 flex items-center px-4 gap-3 text-sm">
+      <header className="h-11 bg-white border-b border-slate-200 flex items-center px-3 md:px-4 gap-2 md:gap-3 text-sm">
+        <button
+          onClick={() => setMobileNav((v) => !v)}
+          className="md:hidden p-1 -ml-1 rounded hover:bg-slate-100 text-slate-600"
+          aria-label="Menu"
+        >
+          {mobileNav ? <X size={20} /> : <Menu size={20} />}
+        </button>
         <Link to="/inbox" className="flex items-center gap-1.5 font-bold text-slate-900">
           <Logo size={18} className="text-brand-600" />
           Pochta
@@ -100,11 +112,20 @@ export function LayoutYandex() {
         </button>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+        {mobileNav && (
+          <div
+            className="md:hidden fixed inset-x-0 bottom-0 top-11 z-30 bg-black/40"
+            onClick={() => setMobileNav(false)}
+          />
+        )}
         {/* Narrow sidebar */}
         <aside className={cn(
-          'bg-slate-50 border-r border-slate-200 flex flex-col p-2 gap-0.5 overflow-y-auto transition-[width] duration-200',
-          composing ? 'w-12 items-center' : 'w-48',
+          'bg-slate-50 border-r border-slate-200 flex flex-col p-2 gap-0.5 overflow-y-auto',
+          'fixed top-11 bottom-0 left-0 z-40 w-56 shadow-2xl transition-transform duration-200',
+          mobileNav ? 'translate-x-0' : '-translate-x-full',
+          'md:static md:top-auto md:bottom-auto md:z-auto md:shadow-none md:w-48 md:translate-x-0 md:transition-[width]',
+          composing ? 'md:w-12 md:items-center' : 'md:w-48',
         )}>
           <Link
             to="/compose"

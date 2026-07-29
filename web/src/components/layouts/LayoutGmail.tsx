@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   Inbox,
@@ -15,6 +16,8 @@ import {
   Palette,
   LayoutGrid,
   Languages,
+  Menu,
+  X,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Avatar } from '../Avatar';
@@ -74,12 +77,21 @@ export function LayoutGmail() {
   const { openTheme, openDesign, openLanguage, modals } = useAppearanceModals();
   const location = useLocation();
   const composing = location.pathname.startsWith('/compose');
+  const [mobileNav, setMobileNav] = useState(false);
+  useEffect(() => setMobileNav(false), [location.pathname]);
 
   return (
     <div className="flex h-full flex-col bg-slate-50">
       {/* Top search bar — Gmail style */}
-      <header className="h-16 bg-white border-b border-slate-200 flex items-center gap-4 px-4">
-        <Link to="/inbox" className="flex items-center gap-2 font-semibold text-xl text-slate-700 px-2 min-w-[200px]">
+      <header className="h-16 bg-white border-b border-slate-200 flex items-center gap-2 md:gap-4 px-3 md:px-4">
+        <button
+          onClick={() => setMobileNav((v) => !v)}
+          className="md:hidden p-2 -ml-1 rounded-full hover:bg-slate-100 text-slate-600"
+          aria-label="Menu"
+        >
+          {mobileNav ? <X size={22} /> : <Menu size={22} />}
+        </button>
+        <Link to="/inbox" className="flex items-center gap-2 font-semibold text-xl text-slate-700 px-2 md:min-w-[200px]">
           <Logo size={26} className="text-brand-700" />
           <span>Pochta</span>
         </Link>
@@ -114,11 +126,20 @@ export function LayoutGmail() {
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+        {mobileNav && (
+          <div
+            className="md:hidden fixed inset-x-0 bottom-0 top-16 z-30 bg-black/40"
+            onClick={() => setMobileNav(false)}
+          />
+        )}
         {/* Sidebar — Gmail style with rounded compose pill */}
         <aside className={cn(
-          'flex flex-col py-3 overflow-y-auto transition-[width] duration-200',
-          composing ? 'w-14 items-center pr-1' : 'w-64 pr-2',
+          'flex flex-col py-3 overflow-y-auto bg-white',
+          'fixed top-16 bottom-0 left-0 z-40 w-64 shadow-2xl transition-transform duration-200',
+          mobileNav ? 'translate-x-0' : '-translate-x-full',
+          'md:static md:top-auto md:bottom-auto md:z-auto md:shadow-none md:translate-x-0 md:transition-[width]',
+          composing ? 'md:w-14 md:items-center md:pr-1' : 'md:w-64 md:pr-2',
         )}>
           <div className={cn('mb-4', composing ? 'px-1' : 'px-4')}>
             <Link
