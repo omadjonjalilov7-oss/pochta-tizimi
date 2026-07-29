@@ -1086,7 +1086,12 @@ export class DocumentsService {
 
   // ── REZOLYUTSIYA / IJROCHI VAZIFALARI ─────────────────────────────────
 
-  async addResolution(userId: string, id: string, dto: CreateResolutionDto) {
+  async addResolution(
+    userId: string,
+    id: string,
+    dto: CreateResolutionDto,
+    role?: string,
+  ) {
     const doc = await this.prisma.document.findUnique({
       where: { id },
       include: { participants: true },
@@ -1098,7 +1103,7 @@ export class DocumentsService {
       );
     }
 
-    // Faqat yaratuvchi yoki tasdiqlovchi (allaqachon imzolagan) yoza oladi
+    // Yaratuvchi, tasdiqlovchi (imzolagan) yoki kanselyariya/admin (nazorat bandi)
     const isCreator = doc.createdById === userId;
     const isApprover = doc.participants.some(
       (p) =>
@@ -1106,7 +1111,8 @@ export class DocumentsService {
         p.role === ParticipantRole.approver &&
         p.status === ParticipantStatus.approved,
     );
-    if (!isCreator && !isApprover) {
+    const isStaff = role === 'admin' || role === 'chancellery';
+    if (!isCreator && !isApprover && !isStaff) {
       throw new ForbiddenException("Sizda rezolyutsiya yozish huquqi yo'q");
     }
 

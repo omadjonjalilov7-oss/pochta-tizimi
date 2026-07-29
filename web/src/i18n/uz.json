@@ -514,6 +514,32 @@
       "conclusion": "Xulosa",
       "joint_plan": "Birgalikda reja"
     },
+    "control_assignment": {
+      "title": "Nazorat bandi",
+      "type_label": "Topshiriq turi",
+      "type_execution": "Ijro uchun",
+      "type_info": "Ma'lumot uchun",
+      "type_review": "Tanishish uchun",
+      "deadline_label": "Ijro muddati",
+      "executors_label": "Ijrochilar",
+      "executor_search": "Xodimni qidirish...",
+      "no_users": "Xodim topilmadi",
+      "content_label": "Topshiriq mazmuni",
+      "content_ph": "Xodimga nima qilish kerakligini yozing...",
+      "samples_label": "Namunalar",
+      "samples": [
+        "Ijro uchun qabul qilindi",
+        "Natijalar haqida ma'lumot bering",
+        "Ma'lumot uchun qabul qiling",
+        "Belgilangan tartibda ijrosini ta'minlashingizni so'rayman",
+        "Zarur choralar ko'rishingizni so'rayman",
+        "O'rganib chiqib, taklif bering",
+        "Kompaniya manfaatlarini himoya qilishingizni so'rayman"
+      ],
+      "save": "Saqlash va yuborish",
+      "err_no_executor": "Kamida bitta ijrochi tanlang",
+      "err_no_text": "Topshiriq mazmunini yozing"
+    },
     "control": {
       "section": "NAZORAT",
       "soon_badge": "tez orada",

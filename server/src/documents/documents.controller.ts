@@ -356,7 +356,7 @@ export class DocumentsController {
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: CreateResolutionDto,
   ) {
-    return this.docs.addResolution(user.id, id, dto);
+    return this.docs.addResolution(user.id, id, dto, user.role);
   }
 
   @Post(':id/sign')

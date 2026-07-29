@@ -16,7 +16,6 @@ import {
   ShieldCheck,
   ClipboardList,
   UserPlus,
-  Trash2,
   KeyRound,
   Download,
   Paperclip,
@@ -27,6 +26,7 @@ import {
   X,
 } from 'lucide-react';
 import { EimzoSignModal } from '../../components/edo/EimzoSignModal';
+import { ControlAssignmentModal } from '../../components/edo/ControlAssignmentModal';
 import { api } from '../../lib/api';
 import type { DocumentStatus, EdoDocument, User } from '../../lib/types';
 import { Avatar } from '../../components/Avatar';
@@ -157,6 +157,7 @@ export function EdoDocumentViewPage() {
   const [sendApproverIds, setSendApproverIds] = useState<string[]>([]);
   const [showChainModal, setShowChainModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showControlModal, setShowControlModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (isLoading) {
@@ -197,6 +198,14 @@ export function EdoDocumentViewPage() {
         (p) => p.userId === user.id && p.role === 'approver' && p.status === 'approved',
       )) &&
     (doc.status === 'in_review' || doc.status === 'in_progress' || doc.status === 'done');
+
+  // Nazorat bandi (topshiriq) qo'sha oladiganlar: rezolyutsiya yozuvchilar +
+  // kanselyariya/admin — hujjat tasdiqlangan/ijrodagi/bajarilgan bo'lsa.
+  const isStaff = user?.role === 'admin' || user?.role === 'chancellery';
+  const canAssignControl =
+    canResolve ||
+    (isStaff &&
+      (doc.status === 'in_review' || doc.status === 'in_progress' || doc.status === 'done'));
 
   // Mening pending ijro vazifalarim
   const myPendingTargets = (doc.resolutions ?? [])
@@ -512,19 +521,34 @@ export function EdoDocumentViewPage() {
             />
           )}
 
-          {/* Rezolyutsiyalar bo'limi */}
+          {/* Rezolyutsiyalar / nazorat bandi bo'limi */}
           <ResolutionSection
             doc={doc}
-            canResolve={canResolve}
-            onAdd={(text, targets) => addResolution.mutate({ text, targets })}
-            adding={addResolution.isPending}
-            addError={extractError(addResolution.error)}
+            canAssign={canAssignControl}
+            onAddClick={() => setShowControlModal(true)}
           />
 
           {/* Izohlar va Audit */}
           <CommentsSection doc={doc} onComment={(t) => comment.mutate(t)} sending={comment.isPending} />
         </div>
       </div>
+
+      {/* Nazorat bandi modali — ijrochi + topshiriq + muddat */}
+      {showControlModal && (
+        <ControlAssignmentModal
+          documentNumber={doc.number}
+          documentSubject={doc.subject}
+          submitting={addResolution.isPending}
+          error={extractError(addResolution.error)}
+          onClose={() => setShowControlModal(false)}
+          onSubmit={(text, targets) =>
+            addResolution.mutate(
+              { text, targets },
+              { onSuccess: () => setShowControlModal(false) },
+            )
+          }
+        />
+      )}
 
       {/* Zanjir modali — kim tasdiqladi / kim tasdiqlamadi */}
       {showChainModal && (
@@ -1748,41 +1772,15 @@ function MyTasksBox({
 
 function ResolutionSection({
   doc,
-  canResolve,
-  onAdd,
-  adding,
-  addError,
+  canAssign,
+  onAddClick,
 }: {
   doc: EdoDocument;
-  canResolve: boolean;
-  onAdd: (text: string, targets: { userId: string; deadline?: string }[]) => void;
-  adding: boolean;
-  addError: string | null;
+  canAssign: boolean;
+  onAddClick: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
-  const [adding_open, setAddingOpen] = useState(false);
-  const [text, setText] = useState('');
-  const [targets, setTargets] = useState<{ userId: string; deadline?: string }[]>([{ userId: '' }]);
-
-  const { data: users = [] } = useQuery({
-    queryKey: ['users-short'],
-    queryFn: async () => (await api.get<User[]>('/users')).data,
-    enabled: adding_open,
-    staleTime: 60_000,
-  });
-
-  function submit(e: FormEvent) {
-    e.preventDefault();
-    const cleanTargets = targets
-      .filter((t) => t.userId)
-      .map((t) => ({ userId: t.userId, deadline: t.deadline || undefined }));
-    if (text.trim().length < 2 || cleanTargets.length === 0) return;
-    onAdd(text.trim(), cleanTargets);
-    setText('');
-    setTargets([{ userId: '' }]);
-    setAddingOpen(false);
-  }
 
   const resolutions = doc.resolutions ?? [];
 
@@ -1793,9 +1791,9 @@ function ResolutionSection({
           <ClipboardList size={14} />
           {t('edo.view.resolutions')} ({resolutions.length})
         </h2>
-        {canResolve && !adding_open && (
+        {canAssign && (
           <button
-            onClick={() => setAddingOpen(true)}
+            onClick={onAddClick}
             className="inline-flex items-center gap-1 text-sm bg-asaka-50 hover:bg-asaka-100 text-asaka-700 font-medium px-3 py-1.5 rounded-lg"
           >
             <UserPlus size={14} />
@@ -1804,8 +1802,8 @@ function ResolutionSection({
         )}
       </div>
 
-      <div className="space-y-3 mb-4">
-        {resolutions.length === 0 && !adding_open && (
+      <div className="space-y-3">
+        {resolutions.length === 0 && (
           <p className="text-sm text-slate-400">{t('edo.view.no_resolutions')}</p>
         )}
         {resolutions.map((r) => (
@@ -1854,104 +1852,6 @@ function ResolutionSection({
           </article>
         ))}
       </div>
-
-      {adding_open && (
-        <form onSubmit={submit} className="border-t border-slate-100 pt-4 space-y-3">
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">
-              {t('edo.view.resolution_text')}
-            </label>
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              rows={3}
-              required
-              placeholder={t('edo.view.resolution_ph')}
-              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">
-              {t('edo.view.executors')}
-            </label>
-            <div className="space-y-2">
-              {targets.map((tg, idx) => (
-                <div key={idx} className="flex gap-2">
-                  <select
-                    value={tg.userId}
-                    onChange={(e) => {
-                      const v = [...targets];
-                      v[idx] = { ...v[idx], userId: e.target.value };
-                      setTargets(v);
-                    }}
-                    required
-                    className="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 outline-none"
-                  >
-                    <option value="">{t('edo.view.select_executor')}</option>
-                    {users.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.fullName}
-                        {u.position?.name ? ` — ${u.position.name}` : ''}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="datetime-local"
-                    value={tg.deadline ?? ''}
-                    onChange={(e) => {
-                      const v = [...targets];
-                      v[idx] = { ...v[idx], deadline: e.target.value || undefined };
-                      setTargets(v);
-                    }}
-                    className="px-2 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 outline-none"
-                  />
-                  {targets.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => setTargets(targets.filter((_, i) => i !== idx))}
-                      className="text-red-600 hover:bg-red-50 p-2 rounded-lg"
-                      title={t('common.remove')}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => setTargets([...targets, { userId: '' }])}
-                className="text-sm text-asaka-700 hover:bg-asaka-50 font-medium px-3 py-1.5 rounded-lg"
-              >
-                + {t('edo.view.add_executor')}
-              </button>
-            </div>
-          </div>
-
-          {addError && <div className="text-sm text-red-600">{addError}</div>}
-
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={adding}
-              className="bg-asaka-600 hover:bg-asaka-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg text-sm"
-            >
-              {adding ? t('common.saving') : t('edo.view.save_resolution')}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setAddingOpen(false);
-                setText('');
-                setTargets([{ userId: '' }]);
-              }}
-              className="text-slate-600 hover:bg-slate-100 font-medium px-4 py-2 rounded-lg text-sm"
-            >
-              {t('common.cancel')}
-            </button>
-          </div>
-        </form>
-      )}
     </section>
   );
 }
