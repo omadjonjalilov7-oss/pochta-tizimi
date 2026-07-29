@@ -1,4 +1,5 @@
 import { CheckCircle2, Clock, XCircle, BarChart3 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '../../lib/utils';
 
 export interface ApprovalStats {
@@ -21,10 +22,11 @@ export function ApprovalStatusTabs({
   onStatusChange,
   isLoading = false,
 }: ApprovalStatusTabsProps) {
+  const { t } = useTranslation();
   const tabs = [
     {
       id: 'pending' as const,
-      label: 'Kelishilinmagan',
+      label: t('edo.approval_tabs.pending'),
       icon: Clock,
       count: stats.pending,
       color: 'text-yellow-600',
@@ -33,7 +35,7 @@ export function ApprovalStatusTabs({
     },
     {
       id: 'partially_approved' as const,
-      label: 'Qisman kelishilingan',
+      label: t('edo.approval_tabs.partially'),
       icon: BarChart3,
       count: stats.approved > 0 && stats.pending > 0 ? stats.approved : 0,
       color: 'text-blue-600',
@@ -42,7 +44,7 @@ export function ApprovalStatusTabs({
     },
     {
       id: 'approved' as const,
-      label: 'Kelishilingan',
+      label: t('edo.approval_tabs.approved'),
       icon: CheckCircle2,
       count: stats.approved,
       color: 'text-green-600',
@@ -51,7 +53,7 @@ export function ApprovalStatusTabs({
     },
     {
       id: 'rejected' as const,
-      label: 'Rad etilgan',
+      label: t('edo.approval_tabs.rejected'),
       icon: XCircle,
       count: stats.rejected,
       color: 'text-red-600',

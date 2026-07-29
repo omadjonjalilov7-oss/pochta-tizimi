@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Loader, AlertCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '../../lib/utils';
 
 export interface QrScannerModalProps {
@@ -15,8 +16,9 @@ export function QrScannerModal({
   onClose,
   onScan,
   isLoading = false,
-  title = 'QR Kod Skanerlash',
+  title,
 }: QrScannerModalProps) {
+  const { t } = useTranslation();
   const [inputValue, setInputValue] = useState('');
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -32,7 +34,7 @@ export function QrScannerModal({
     setError(null);
 
     if (!inputValue.trim()) {
-      setError('QR kod kiritilishi kerak');
+      setError(t('edo.qr_scanner.err_empty'));
       return;
     }
 
@@ -47,7 +49,7 @@ export function QrScannerModal({
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200">
-          <h2 className="text-lg font-bold text-slate-900">{title}</h2>
+          <h2 className="text-lg font-bold text-slate-900">{title ?? t('edo.qr_scanner.title')}</h2>
           <button
             onClick={onClose}
             disabled={isLoading}
@@ -62,19 +64,19 @@ export function QrScannerModal({
           {/* QR Code Input */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              QR Kod'ni o'qing yoki kiriting
+              {t('edo.qr_scanner.read_label')}
             </label>
             <input
               ref={inputRef}
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              placeholder="QR kod ma'lumotlari bu yerga paydo bo'ladi..."
+              placeholder={t('edo.qr_scanner.placeholder')}
               disabled={isLoading}
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none transition disabled:bg-slate-50"
             />
             <p className="text-xs text-slate-500 mt-1">
-              Smartphone'i yoki scanner'i qo'lga oling va QR kod'ni skanerlang
+              {t('edo.qr_scanner.help')}
             </p>
           </div>
 
@@ -89,8 +91,7 @@ export function QrScannerModal({
           {/* Info */}
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm text-blue-700">
-              💡 <strong>Maslahat:</strong> Telefon kamerasida QR kod'ni skanerlang yoki birinchi
-              bo'lib taqdim etilgan QR ko'dini to'g'ridan-to'g'ri kiriting.
+              💡 <strong>{t('edo.qr_scanner.tip_label')}</strong> {t('edo.qr_scanner.tip_body')}
             </p>
           </div>
 
@@ -102,7 +103,7 @@ export function QrScannerModal({
               disabled={isLoading}
               className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-slate-700 font-medium hover:bg-slate-50 transition-colors disabled:opacity-50"
             >
-              Bekor qilish
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -115,7 +116,7 @@ export function QrScannerModal({
               )}
             >
               {isLoading && <Loader size={16} className="animate-spin" />}
-              Tasdiqlash
+              {t('edo.qr_scanner.confirm')}
             </button>
           </div>
         </form>

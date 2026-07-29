@@ -485,6 +485,34 @@
       "dev_notice_title": "Tizim ishlab chiqilmoqda",
       "dev_notice_body": "Hujjat aylanmasi moduli faol ravishda ishlab chiqilmoqda. Yaqin orada barcha bo'limlar to'liq ishlay boshlaydi."
     },
+    "dashboard": {
+      "title": "Hujjatlar ijro holati",
+      "incoming_title": "Kelib tushgan topshiriqlar",
+      "card_signing": "Imzolash uchun",
+      "card_approval": "Kelishish uchun",
+      "card_tasks": "Ijro topshiriqlari",
+      "card_overdue": "Muddati o'tgan",
+      "personal_title": "Shaxsiy topshiriqlar",
+      "personal_sub": "Muddati yaqinlashayotgan",
+      "all": "Barchasi",
+      "no_tasks": "Topshiriq yo'q"
+    },
+    "approval_tabs": {
+      "pending": "Kelishilinmagan",
+      "partially": "Qisman kelishilingan",
+      "approved": "Kelishilingan",
+      "rejected": "Rad etilgan"
+    },
+    "qr_scanner": {
+      "title": "QR kod skanerlash",
+      "read_label": "QR kodni o'qing yoki kiriting",
+      "placeholder": "QR kod ma'lumotlari bu yerga paydo bo'ladi...",
+      "help": "Smartfon yoki skaner bilan QR kodni skanerlang",
+      "err_empty": "QR kod kiritilishi kerak",
+      "tip_label": "Maslahat:",
+      "tip_body": "Telefon kamerasida QR kodni skanerlang yoki taqdim etilgan QR kodni to'g'ridan-to'g'ri kiriting.",
+      "confirm": "Tasdiqlash"
+    },
     "tiles": {
       "new_doc": "Yangi hujjat",
       "new_doc_desc": "Yangi hujjat yaratish va kelishuvga yuborish",

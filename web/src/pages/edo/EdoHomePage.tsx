@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   FileSignature,
   Handshake,
@@ -20,14 +21,14 @@ interface MineStats {
   tasks: { total: number; byStatus: Record<string, number> };
 }
 
-// Hujjat holatlari — to'q panel kartochkalari
-const STATUS_CARDS: Array<{ key: string; label: string; danger?: boolean }> = [
-  { key: 'draft', label: 'Qoralama' },
-  { key: 'in_review', label: 'Kelishuvda' },
-  { key: 'in_progress', label: 'Ijroda' },
-  { key: 'done', label: 'Bajarilgan' },
-  { key: 'rejected', label: 'Rad etilgan', danger: true },
-  { key: 'overdue', label: "Muddati o'tgan", danger: true },
+// Hujjat holatlari — to'q panel kartochkalari (label edo.status.* dan olinadi)
+const STATUS_CARDS: Array<{ key: string; danger?: boolean }> = [
+  { key: 'draft' },
+  { key: 'in_review' },
+  { key: 'in_progress' },
+  { key: 'done' },
+  { key: 'rejected', danger: true },
+  { key: 'overdue', danger: true },
 ];
 
 function fmtDate(iso?: string | null) {
@@ -40,6 +41,7 @@ function fmtDate(iso?: string | null) {
 }
 
 export function EdoHomePage() {
+  const { t } = useTranslation();
   const { data: stats } = useQuery({
     queryKey: ['edo-home-stats'],
     queryFn: async () => (await api.get<MineStats>('/documents/stats/mine')).data,
@@ -68,17 +70,17 @@ export function EdoHomePage() {
     icon: typeof FileSignature;
     danger?: boolean;
   }> = [
-    { label: 'Imzolash uchun', count: imzolashCount, to: '/edo/signing', icon: FileSignature },
-    { label: 'Kelishish uchun', count: kelishishCount, to: '/edo/approval', icon: Handshake },
-    { label: 'Ijro topshiriqlari', count: ijroCount, to: '/edo/tasks', icon: ListChecks },
-    { label: "Muddati o'tgan", count: overdueCount, to: '/edo/tasks', icon: AlertTriangle, danger: true },
+    { label: t('edo.dashboard.card_signing'), count: imzolashCount, to: '/edo/signing', icon: FileSignature },
+    { label: t('edo.dashboard.card_approval'), count: kelishishCount, to: '/edo/approval', icon: Handshake },
+    { label: t('edo.dashboard.card_tasks'), count: ijroCount, to: '/edo/tasks', icon: ListChecks },
+    { label: t('edo.dashboard.card_overdue'), count: overdueCount, to: '/edo/tasks', icon: AlertTriangle, danger: true },
   ];
 
   return (
     <div className="flex h-full">
       {/* Asosiy ustun */}
       <div className="flex-1 overflow-auto px-6 py-6">
-        <h1 className="text-xl font-semibold text-slate-900 mb-4">Hujjatlar ijro holati</h1>
+        <h1 className="text-xl font-semibold text-slate-900 mb-4">{t('edo.dashboard.title')}</h1>
 
         {/* To'q panel — holat kesimi */}
         <div className="bg-edonav-900 rounded-2xl p-5 shadow-sm">
@@ -90,7 +92,7 @@ export function EdoHomePage() {
                   key={c.key}
                   className="bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 flex flex-col gap-1"
                 >
-                  <span className="text-xs text-slate-300 leading-snug">{c.label}</span>
+                  <span className="text-xs text-slate-300 leading-snug">{t(`edo.status.${c.key}`)}</span>
                   <span
                     className={
                       'text-2xl font-bold ' +
@@ -107,7 +109,7 @@ export function EdoHomePage() {
 
         {/* Kelib tushgan topshiriqlar */}
         <div className="mt-6">
-          <h2 className="text-sm font-semibold text-slate-600 mb-3">Kelib tushgan topshiriqlar</h2>
+          <h2 className="text-sm font-semibold text-slate-600 mb-3">{t('edo.dashboard.incoming_title')}</h2>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {incomingCards.map((c) => (
               <Link
@@ -145,19 +147,19 @@ export function EdoHomePage() {
       <aside className="hidden xl:flex w-80 shrink-0 border-l border-slate-200 flex-col bg-slate-50/50">
         <div className="px-5 py-4 border-b border-slate-200">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-slate-900">Shaxsiy topshiriqlar</h3>
-            <Link to="/edo/tasks" className="text-asaka-600 hover:text-asaka-700" title="Barchasi">
+            <h3 className="font-semibold text-slate-900">{t('edo.dashboard.personal_title')}</h3>
+            <Link to="/edo/tasks" className="text-asaka-600 hover:text-asaka-700" title={t('edo.dashboard.all')}>
               <ExternalLink size={16} />
             </Link>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">Muddati yaqinlashayotgan</p>
+          <p className="text-xs text-slate-500 mt-0.5">{t('edo.dashboard.personal_sub')}</p>
         </div>
 
         <div className="flex-1 overflow-auto p-3 space-y-2">
           {(tasks ?? []).length === 0 ? (
             <div className="text-center text-sm text-slate-400 py-10">
               <CalendarClock size={28} className="mx-auto mb-2 opacity-50" />
-              Topshiriq yo'q
+              {t('edo.dashboard.no_tasks')}
             </div>
           ) : (
             (tasks ?? []).slice(0, 8).map((d) => (
