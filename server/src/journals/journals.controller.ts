@@ -21,7 +21,7 @@ import {
 } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { AdminGuard } from '../auth/guards/admin.guard';
+import { StaffGuard } from '../auth/guards/staff.guard';
 
 const JOURNAL_KINDS = ['general', 'incoming', 'outgoing', 'internal'];
 
@@ -63,7 +63,7 @@ export class JournalsController {
   }
 
   @Post()
-  @UseGuards(AdminGuard)
+  @UseGuards(StaffGuard)
   create(@Body() dto: JournalDto) {
     return this.prisma.journal.create({
       data: {
@@ -77,7 +77,7 @@ export class JournalsController {
   }
 
   @Patch(':id')
-  @UseGuards(AdminGuard)
+  @UseGuards(StaffGuard)
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: JournalDto) {
     return this.prisma.journal.update({
       where: { id },
@@ -92,7 +92,7 @@ export class JournalsController {
   }
 
   @Delete(':id')
-  @UseGuards(AdminGuard)
+  @UseGuards(StaffGuard)
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.prisma.journal.delete({ where: { id } });
   }

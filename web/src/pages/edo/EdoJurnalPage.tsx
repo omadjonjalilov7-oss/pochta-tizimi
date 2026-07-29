@@ -20,7 +20,8 @@ const EMPTY: JournalForm = { name: '', prefix: '', kind: 'general', seq: '0' };
 export function EdoJurnalPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  // Jurnal kategoriyalarini boshqarish: admin va kanselyariya (chancellery)
+  const canManage = user?.role === 'admin' || user?.role === 'chancellery';
   const queryClient = useQueryClient();
 
   const [form, setForm] = useState<JournalForm>(EMPTY);
@@ -103,7 +104,7 @@ export function EdoJurnalPage() {
       )}
 
       {/* Yaratish / tahrirlash formasi (faqat admin) */}
-      {isAdmin && (
+      {canManage && (
         <form
           onSubmit={submit}
           className="bg-white border border-slate-200 rounded-2xl p-5 grid grid-cols-1 md:grid-cols-4 gap-4"
@@ -196,7 +197,7 @@ export function EdoJurnalPage() {
                   <th className="px-4 py-2">{t('edo.jurnal.col_name')}</th>
                   <th className="px-4 py-2">{t('edo.jurnal.col_prefix')}</th>
                   <th className="px-4 py-2">{t('edo.jurnal.col_kind')}</th>
-                  {isAdmin && <th className="px-4 py-2 text-right">{t('edo.jurnal.col_actions')}</th>}
+                  {canManage && <th className="px-4 py-2 text-right">{t('edo.jurnal.col_actions')}</th>}
                 </tr>
               </thead>
               <tbody>
@@ -206,7 +207,7 @@ export function EdoJurnalPage() {
                     <td className="px-4 py-2 font-medium text-slate-800">{j.name}</td>
                     <td className="px-4 py-2 font-mono text-xs text-slate-600">{j.prefix || '—'}</td>
                     <td className="px-4 py-2 text-slate-600">{t(`edo.jurnal.kind_${j.kind}`, j.kind)}</td>
-                    {isAdmin && (
+                    {canManage && (
                       <td className="px-4 py-2 text-right whitespace-nowrap">
                         <button
                           onClick={() => startEdit(j)}
