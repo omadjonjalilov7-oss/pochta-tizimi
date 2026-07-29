@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Paperclip, Trash2, Archive, Reply, Download, Undo2, Eye, X, Check, Clock, Mail, Forward, Users } from 'lucide-react';
+import { ArrowLeft, Paperclip, Trash2, Archive, Reply, Download, Undo2, Eye, X, Check, Clock, Mail, Forward, Users, Languages } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { api } from '../lib/api';
 import { Avatar } from '../components/Avatar';
+import { TranslateModal } from '../components/TranslateModal';
 import { formatDateTime, formatBytes, senderDisplayName, senderSubLine } from '../lib/utils';
 
 const IMPORTANCE_BADGE: Record<string, { i18nKey: string; className: string }> = {
@@ -20,6 +21,7 @@ export function MessageViewPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showReadStatus, setShowReadStatus] = useState(false);
+  const [showTranslate, setShowTranslate] = useState(false);
 
   const { data: item, isLoading } = useQuery({
     queryKey: ['message', id],
@@ -132,6 +134,13 @@ export function MessageViewPage() {
             {t('message.recall')}
           </button>
         )}
+        <button
+          onClick={() => setShowTranslate(true)}
+          className="flex items-center gap-1.5 text-sm text-indigo-700 hover:text-indigo-800 px-4 py-2 rounded-full bg-gradient-to-b from-white to-indigo-50 border border-indigo-200 shadow-sm hover:shadow-md hover:from-white hover:to-indigo-100 hover:border-indigo-300 active:shadow-inner active:translate-y-px transition-all duration-200"
+        >
+          <Languages size={16} />
+          {t('message.translate')}
+        </button>
         <button
           onClick={() => moveTo('archive')}
           className="flex items-center gap-1.5 text-sm text-slate-700 hover:text-slate-900 px-4 py-2 rounded-full bg-gradient-to-b from-white to-slate-50 border border-slate-200 shadow-sm hover:shadow-md hover:from-white hover:to-white hover:border-slate-300 active:shadow-inner active:translate-y-px transition-all duration-200"
@@ -266,6 +275,13 @@ export function MessageViewPage() {
 
       {showReadStatus && (
         <ReadStatusModal messageId={item.messageId} onClose={() => setShowReadStatus(false)} />
+      )}
+      {showTranslate && (
+        <TranslateModal
+          subject={m.subject || ''}
+          body={m.body || ''}
+          onClose={() => setShowTranslate(false)}
+        />
       )}
     </div>
   );

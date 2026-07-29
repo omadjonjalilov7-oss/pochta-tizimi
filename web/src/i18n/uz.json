@@ -1,4 +1,17 @@
 {
+  "translate_modal": {
+    "title": "Xabarni tarjima qilish",
+    "from": "Qaysi tildan",
+    "to": "Qaysi tilga",
+    "auto": "Avtomatik aniqlash",
+    "translate": "Tarjima qilish",
+    "subject": "Mavzu",
+    "body": "Matn",
+    "copy": "Nusxa olish",
+    "copied": "Nusxa olindi",
+    "apply": "Xabarga qo'llash",
+    "error": "Tarjima qilishda xatolik yuz berdi"
+  },
   "common": {
     "save": "Saqlash",
     "cancel": "Bekor qilish",
@@ -110,6 +123,7 @@
   },
   "compose": {
     "title": "Yangi xabar",
+    "translate": "Tarjima",
     "title_reply": "Javob",
     "title_reply_all": "Barchaga javob",
     "title_forward": "Peresylka",
@@ -153,6 +167,7 @@
     "reply": "Javob yozish",
     "reply_all": "Barchaga javob",
     "forward": "Peresylka",
+    "translate": "Tarjima",
     "archive": "Arxivlash",
     "move_to_archive": "Arxivga ko'chirish",
     "move_to_trash": "Savatchaga tashlash",

@@ -22,6 +22,7 @@ import { StatsModule } from './stats/stats.module';
 import { SettingsModule } from './settings/settings.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { JournalsModule } from './journals/journals.module';
+import { TranslateModule } from './translate/translate.module';
 
 const avatarsDir = process.env.AVATARS_DIR || 'C:\\D\\pochta\\storage\\avatars';
 
@@ -66,6 +67,7 @@ const staticImports = [
     SettingsModule,
     OrganizationsModule,
     JournalsModule,
+    TranslateModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

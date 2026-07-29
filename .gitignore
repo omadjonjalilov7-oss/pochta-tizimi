@@ -15,6 +15,9 @@ build/
 **/.env
 !**/.env.example
 
+# Maxfiy kalitlar (yozib qo'yilgan)
+1.txt
+
 # Logs
 *.log
 npm-debug.log*

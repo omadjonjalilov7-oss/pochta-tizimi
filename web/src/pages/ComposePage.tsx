@@ -2,10 +2,11 @@ import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } fro
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Send, Paperclip, X, ChevronDown, Mail } from 'lucide-react';
+import { Send, Paperclip, X, ChevronDown, Mail, Languages } from 'lucide-react';
 import { api } from '../lib/api';
 import { Avatar } from '../components/Avatar';
 import { RichEditor } from '../components/RichEditor';
+import { TranslateModal } from '../components/TranslateModal';
 import { formatBytes, cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import type { User, Importance } from '../lib/types';
@@ -78,6 +79,9 @@ export function ComposePage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError]         = useState<string | null>(null);
   const [bodyReady, setBodyReady] = useState(false);
+  const [showTranslate, setShowTranslate] = useState(false);
+  // Tarjimani qo'llagach RichEditor'ni qayta yuklab, yangi matnni ko'rsatish uchun.
+  const [editorKey, setEditorKey] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Ma'lumotlar ────────────────────────────────────────────────────────
@@ -447,6 +451,15 @@ export function ComposePage() {
           />
           <button
             type="button"
+            onClick={() => setShowTranslate(true)}
+            title={t('compose.translate')}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg text-sm"
+          >
+            <Languages size={16} />
+            <span className="hidden sm:inline">{t('compose.translate')}</span>
+          </button>
+          <button
+            type="button"
             onClick={() => handleSubmit()}
             disabled={submitting || uploading}
             className="flex items-center gap-1.5 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white font-semibold px-4 py-1.5 rounded-lg text-sm"
@@ -603,6 +616,7 @@ export function ComposePage() {
           {/* Tahrirlanadigani */}
           {bodyReady && (
             <RichEditor
+              key={editorKey}
               value={body}
               onChange={setBody}
               className="flex-1 flex flex-col"
@@ -631,6 +645,18 @@ export function ComposePage() {
           )}
         </div>
       </form>
+      {showTranslate && (
+        <TranslateModal
+          subject={subject}
+          body={body}
+          onClose={() => setShowTranslate(false)}
+          onApply={(s, b) => {
+            setSubject(s);
+            setBody(b);
+            setEditorKey((k) => k + 1);
+          }}
+        />
+      )}
     </div>
   );
 }
