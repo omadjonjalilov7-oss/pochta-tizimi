@@ -212,19 +212,21 @@ export function EdoScanPage() {
               </div>
             </div>
 
-            {/* Hujjat matni / to'ldirilgan shablon */}
+            {/* Hujjat matni / to'ldirilgan shablon — doim A4 varaqda */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
               <div className="px-5 py-3 border-b border-slate-100 text-[11px] uppercase tracking-wide text-slate-400">
                 {t('edo.view.body')}
               </div>
               {isHtml ? (
-                <div
-                  className="edo-rendered p-5 overflow-x-auto text-sm text-slate-800"
-                  dangerouslySetInnerHTML={{ __html: docContent }}
-                />
+                <div className="a4-scroll">
+                  <div
+                    className="a4-sheet edo-doc-body"
+                    dangerouslySetInnerHTML={{ __html: docContent }}
+                  />
+                </div>
               ) : (
-                <div className="p-5 whitespace-pre-wrap text-sm text-slate-800 leading-relaxed">
-                  {docContent || '—'}
+                <div className="a4-scroll">
+                  <div className="a4-sheet whitespace-pre-wrap">{docContent || '—'}</div>
                 </div>
               )}
             </div>
