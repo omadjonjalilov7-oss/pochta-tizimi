@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -40,8 +41,42 @@ function fmtDate(iso?: string | null) {
   });
 }
 
+// O'ng panel kengligi chegaralari (px) va saqlash kaliti.
+const ASIDE_MIN = 260;
+const ASIDE_MAX = 640;
+const ASIDE_KEY = 'edo-home-aside-w';
+
 export function EdoHomePage() {
   const { t } = useTranslation();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const widthRef = useRef(0);
+  const [asideWidth, setAsideWidth] = useState<number>(() => {
+    const saved = Number(localStorage.getItem(ASIDE_KEY));
+    return saved >= ASIDE_MIN && saved <= ASIDE_MAX ? saved : 320;
+  });
+
+  // Ajratuvchi chiziqni sudrab panel kengligini o'zgartirish.
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+    const onMove = (ev: MouseEvent) => {
+      const right = rootRef.current?.getBoundingClientRect().right ?? window.innerWidth;
+      const w = Math.min(ASIDE_MAX, Math.max(ASIDE_MIN, right - ev.clientX));
+      widthRef.current = w;
+      setAsideWidth(w);
+    };
+    const onUp = () => {
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      if (widthRef.current) localStorage.setItem(ASIDE_KEY, String(Math.round(widthRef.current)));
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
   const { data: stats } = useQuery({
     queryKey: ['edo-home-stats'],
     queryFn: async () => (await api.get<MineStats>('/documents/stats/mine')).data,
@@ -77,7 +112,7 @@ export function EdoHomePage() {
   ];
 
   return (
-    <div className="flex h-full">
+    <div ref={rootRef} className="flex h-full">
       {/* Asosiy ustun */}
       <div className="flex-1 overflow-auto px-6 py-6">
         <h1 className="text-xl font-semibold text-slate-900 mb-4">{t('edo.dashboard.title')}</h1>
@@ -143,8 +178,18 @@ export function EdoHomePage() {
         </div>
       </div>
 
+      {/* Kenglikni o'zgartirish uchun sudraladigan ajratuvchi chiziq */}
+      <div
+        onMouseDown={startResize}
+        title={t('edo.dashboard.resize_hint')}
+        className="hidden xl:block w-1.5 shrink-0 cursor-col-resize bg-slate-200 hover:bg-asaka-400 active:bg-asaka-500 transition-colors"
+      />
+
       {/* O'ng panel — shaxsiy topshiriqlar */}
-      <aside className="hidden xl:flex w-80 shrink-0 border-l border-slate-200 flex-col bg-slate-50/50">
+      <aside
+        style={{ width: asideWidth }}
+        className="hidden xl:flex shrink-0 flex-col bg-slate-50/50"
+      >
         <div className="px-5 py-4 border-b border-slate-200">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-slate-900">{t('edo.dashboard.personal_title')}</h3>

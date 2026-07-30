@@ -512,7 +512,8 @@
       "personal_title": "Shaxsiy topshiriqlar",
       "personal_sub": "Muddati yaqinlashayotgan",
       "all": "Barchasi",
-      "no_tasks": "Topshiriq yo'q"
+      "no_tasks": "Topshiriq yo'q",
+      "resize_hint": "Kengligini o'zgartirish uchun suring"
     },
     "approval_tabs": {
       "pending": "Kelishilinmagan",
