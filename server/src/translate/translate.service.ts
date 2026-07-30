@@ -20,6 +20,8 @@ const LANG_NAMES: Record<string, string> = {
   kk: 'Kazakh',
   ky: 'Kyrgyz',
   tg: 'Tajik',
+  zh: 'Chinese (Simplified)',
+  ko: 'Korean',
 };
 
 const MAX_ITEM_LEN = 20_000;

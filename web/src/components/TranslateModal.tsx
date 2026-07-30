@@ -21,6 +21,8 @@ const LANGS = [
   { code: 'uzc', label: 'Ўзбек (крилл)' },
   { code: 'ru', label: 'Русский' },
   { code: 'en', label: 'English' },
+  { code: 'zh', label: '中文 (Xitoy)' },
+  { code: 'ko', label: '한국어 (Koreys)' },
 ];
 
 export function TranslateModal({ subject, body, onClose, onApply }: Props) {
