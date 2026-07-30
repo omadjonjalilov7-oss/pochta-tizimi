@@ -261,10 +261,10 @@ export function LayoutEdo() {
             <span className="text-xs font-normal text-slate-500">{t('edo.app_tagline')}</span>
           </div>
         </Link>
-        <AppSwitcher className="ml-2 hidden md:block" />
-        {/* Kanselyariya/admin uchun yuqori tugmalar (34-rasm) */}
+        <AppSwitcher className="ml-2 hidden md:inline-flex shrink-0" />
+        {/* Kanselyariya/admin uchun yuqori tugmalar (34-rasm) — o'ng tomonga surilgan */}
         {isStaff && (
-          <nav className="hidden md:flex items-center gap-1 ml-3">
+          <nav className="hidden md:flex items-center gap-1 ml-auto shrink-0">
             <TopNav to="/edo/tasks" icon={Handshake} label={t('edo.topnav.assignments')} />
             <TopNav to="/edo/stats/overview" icon={LayoutGrid} label={t('edo.topnav.chancellery')} />
             <TopNav to="/edo/control" icon={ShieldCheck} label={t('edo.topnav.control')} />
