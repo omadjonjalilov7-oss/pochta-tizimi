@@ -520,8 +520,14 @@ export class DocumentsService {
       );
     }
 
-    // Haqiqiy raqamni ajratamiz — bo'lim kodi bo'yicha
-    const number = await this.allocateNumber(doc.numberDept.code);
+    // Raqam berish qoidasi:
+    //  - kiruvchi (incoming) → eski shart: yuborishdayoq raqam beriladi;
+    //  - ichki/chiquvchi → raqam faqat tasdiqlanib bo'lganda (done) beriladi,
+    //    tasdiqlash bosqichida qoralama raqam saqlanib turadi.
+    const number =
+      doc.type === 'incoming'
+        ? await this.allocateNumber(doc.numberDept.code)
+        : doc.number;
 
     // Birinchi tasdiqlovchi — to'g'ridan-to'g'ri rahbar
     const firstApproverId = chain[0];
@@ -692,6 +698,7 @@ export class DocumentsService {
       );
     } else {
       // Zanjir tugadi — bajarildi va chop bo'lish uchun tayyorlanadi
+      let finalNumber = doc.number;
       await this.prisma.$transaction(async (tx) => {
         await tx.document.update({
           where: { id },
@@ -703,12 +710,14 @@ export class DocumentsService {
             isPrintable: true, // Yakunlangan hujjat chop bo'lishi mumkin
           },
         });
+        // Yakuniy tartib raqamini AYNAN shu yerda beramiz (tasdiqlangach).
+        finalNumber = (await this.finalizeNumber(tx, id)) ?? finalNumber;
         await tx.documentAuditLog.create({
           data: { documentId: id, actorId: userId, action: 'completed' },
         });
       });
       // Yaratuvchini xabardor qilamiz
-      await this.notifyCreator(doc.createdById, userId, id, doc.number, doc.subject, 'completed');
+      await this.notifyCreator(doc.createdById, userId, id, finalNumber, doc.subject, 'completed');
       // Ichki "xizmat xati" (avtomatik zanjir) tugagach — barcha kanselyariya
       // xodimlariga ijrochi biriktirish uchun xabar yuboriladi.
       const isServiceLetter =
@@ -1022,6 +1031,7 @@ export class DocumentsService {
       });
       await this.notifyApprover(next.userId, userId, id, doc.number, doc.subject);
     } else {
+      let finalNumber = doc.number;
       await this.prisma.$transaction(async (tx) => {
         await tx.document.update({
           where: { id },
@@ -1032,11 +1042,13 @@ export class DocumentsService {
             isSigned: true,
           },
         });
+        // Chiquvchi hujjat raqami imzolash to'liq tugagach (done) beriladi.
+        finalNumber = (await this.finalizeNumber(tx, id)) ?? finalNumber;
         await tx.documentAuditLog.create({
           data: { documentId: id, actorId: userId, action: 'completed' },
         });
       });
-      await this.notifyCreator(doc.createdById, userId, id, doc.number, doc.subject, 'completed');
+      await this.notifyCreator(doc.createdById, userId, id, finalNumber, doc.subject, 'completed');
     }
 
     return this.findOne(userId, id);
@@ -1290,7 +1302,7 @@ export class DocumentsService {
     if (doc.body) {
       const filled = fillCustomPlaceholders(doc.body, {
         number: doc.number ?? '',
-        date: doc.createdAt,
+        date: this.effectiveDocDate(doc),
       });
       if (filled !== doc.body) doc.renderedBody = filled;
     }
@@ -1333,7 +1345,7 @@ export class DocumentsService {
       return fillCustomPlaceholders(tpl.bodyTemplate, {
         matn: doc.body ?? '',
         number: doc.number ?? '',
-        date: doc.createdAt,
+        date: this.effectiveDocDate(doc),
         qr: qrHtml,
       });
     }
@@ -1814,8 +1826,11 @@ export class DocumentsService {
     return chain;
   }
 
-  private async allocateNumber(deptCode: string): Promise<string> {
-    const counter = await this.prisma.documentCounter.upsert({
+  private async allocateNumber(
+    deptCode: string,
+    client: Prisma.TransactionClient | PrismaService = this.prisma,
+  ): Promise<string> {
+    const counter = await client.documentCounter.upsert({
       where: { deptCode },
       create: { deptCode, lastNumber: 1 },
       update: { lastNumber: { increment: 1 } },
@@ -1823,6 +1838,40 @@ export class DocumentsService {
     const padded = String(counter.lastNumber).padStart(2, '0');
     // Xodimlar uchun tartib raqami: avval tartib, keyin bo'lim kodi (01-05)
     return `${padded}-${deptCode}`;
+  }
+
+  // Hujjatning ko'rsatiladigan sanasi:
+  //  - kiruvchi (incoming) → yaratilgan (ro'yxatga olingan) sana (eski shart);
+  //  - ichki/chiquvchi → TASDIQLANGAN (yakunlangan) sana; hali yakunlanmagan
+  //    bo'lsa vaqtincha yaratilgan sana ko'rsatiladi.
+  private effectiveDocDate(doc: {
+    type: string;
+    createdAt: Date;
+    closedAt: Date | null;
+  }): Date {
+    if (doc.type === 'incoming') return doc.createdAt;
+    return doc.closedAt ?? doc.createdAt;
+  }
+
+  // Ichki/chiquvchi hujjatga YAKUNIY tartib raqamini beradi — faqat hujjat
+  // tasdiqlanib (done) bo'lganda, ya'ni raqam hali qoralama (DRAFT-) bo'lsa.
+  // Transaksiya ichida chaqiriladi. Yakuniy raqamni qaytaradi.
+  private async finalizeNumber(
+    tx: Prisma.TransactionClient,
+    docId: string,
+  ): Promise<string | null> {
+    const d = await tx.document.findUnique({
+      where: { id: docId },
+      select: { number: true, numberDept: { select: { code: true } } },
+    });
+    if (!d) return null;
+    // Allaqachon haqiqiy raqam berilgan bo'lsa — qayta bermaymiz.
+    if (d.number && !d.number.startsWith('DRAFT-')) return d.number;
+    const code = d.numberDept?.code;
+    if (!code) return d.number ?? null; // bo'lim kodi yo'q — raqamsiz qoladi
+    const number = await this.allocateNumber(code, tx);
+    await tx.document.update({ where: { id: docId }, data: { number } });
+    return number;
   }
 
   // Tizim uchun yagona ID: asaka-YYYYMMDDNN (kunlik tartib bilan). Yaratishda beriladi.

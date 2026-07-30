@@ -118,7 +118,8 @@ export function buildIchkiTokens(input: AutoFillInput): {
     _asaka_10: input.subject,
     _asaka_11: input.body,
     _asaka_12: input.recipientName,
-    _sana_1: fmtDate(input.createdAt),
+    // Ichki hujjat sanasi — ochilgan emas, TASDIQLANGAN (yakunlangan) sana.
+    _sana_1: fmtDate(input.closedAt ?? input.createdAt),
     _sana_2: dateOf('aziza'),
     _sana_3: dateOf('raxmatjon'),
     _sana_4: dateOf('abduxalil'),

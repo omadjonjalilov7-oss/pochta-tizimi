@@ -201,7 +201,7 @@ export function EdoDocumentViewPage() {
     .filter((t) => t.userId === user?.id && t.status !== 'done');
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-6">
+    <div className="max-w-7xl mx-auto px-3 md:px-6 py-4 md:py-6">
       <button
         onClick={() => navigate(-1)}
         className="inline-flex items-center gap-1.5 mb-3 px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-asaka-700 hover:bg-slate-100 rounded-lg transition"
@@ -210,9 +210,9 @@ export function EdoDocumentViewPage() {
         {t('common.back')}
       </button>
       {/* Shapka — hujjat ma'lumotlari */}
-      <header className="bg-white border border-slate-200 rounded-2xl p-6 mb-4">
-        <div className="flex items-start gap-4">
-          <div className="bg-asaka-50 text-asaka-600 rounded-xl p-3">
+      <header className="bg-white border border-slate-200 rounded-2xl p-4 md:p-6 mb-4">
+        <div className="flex items-start gap-3 md:gap-4">
+          <div className="hidden sm:block bg-asaka-50 text-asaka-600 rounded-xl p-3">
             <FileText size={28} />
           </div>
           <div className="flex-1 min-w-0">
@@ -245,9 +245,9 @@ export function EdoDocumentViewPage() {
                 </span>
               )}
             </div>
-            <div className="flex items-start gap-2">
-              <h1 className="text-xl font-semibold text-slate-900 flex-1">{doc.subject}</h1>
-              <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-start gap-2">
+              <h1 className="text-lg md:text-xl font-semibold text-slate-900 flex-1 break-words">{doc.subject}</h1>
+              <div className="flex gap-2 shrink-0 flex-wrap">
                 {doc.status !== 'draft' && (
                   <PdfDownloadButton
                     doc={doc}
@@ -288,7 +288,7 @@ export function EdoDocumentViewPage() {
             {doc.shortInfo && (
               <p className="text-sm text-slate-600 mt-1">{doc.shortInfo}</p>
             )}
-            <div className="flex items-center gap-3 mt-3 text-xs text-slate-500">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-3 text-xs text-slate-500">
               <span className="flex items-center gap-1">
                 <Avatar fullName={doc.createdBy.fullName} avatarPath={doc.createdBy.avatarPath} size="sm" />
                 <span>

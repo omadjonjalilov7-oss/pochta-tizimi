@@ -23,6 +23,7 @@ import {
   Users,
   Search,
   Check as CheckIcon,
+  Smile,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Avatar } from '../Avatar';
@@ -110,6 +111,75 @@ export interface GroupInfo {
     position?: { name: string } | null;
     isAdmin: boolean;
   }[];
+}
+
+// ─── Emoji tanlagich ────────────────────────────────────────────────────────────
+// Foydalanuvchi so'ragan smaylik to'plami — kayfiyat, imo-ishoralar, ob-havo va h.k.
+const CHAT_EMOJIS: string[] = [
+  // Kayfiyat / kulgu
+  '😀', '😄', '😁', '😂', '🤣', '😊', '🙂', '😍', '😘', '😉',
+  '😎', '🤭', '🤫', '😇', '🥰', '😜', '😝', '🤪', '🙃', '😋',
+  // Xafa / yig'lagan / asabiy
+  '😢', '😭', '😥', '😔', '☹️', '🙁', '😞', '😟', '😠', '😡',
+  '🤬', '😤', '😩', '😫', '😰', '😨', '😱', '🥺', '😬', '😐',
+  // Yurak / like / dislike
+  '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '💔', '💗', '💯',
+  '👍', '👎', '👏', '🙏', '🤝', '💪', '🤟', '✌️', '🤞', '👌',
+  // Qo'l ishoralari (tepa/past/chap/o'ng)
+  '👆', '👇', '👈', '👉', '☝️', '✋', '👋', '🤙', '🫵', '🫶',
+  // Bayram / tug'ilgan kun
+  '🥳', '🎉', '🎊', '🎂', '🎁', '🎈', '👑', '🍾', '🥂', '🎆',
+  // Ob-havo / tabiat
+  '🔥', '❄️', '☃️', '⛄', '🌧️', '🌨️', '⛈️', '🌈', '☀️', '⭐',
+  // Hayvonlar
+  '🐶', '🐱', '🐭', '🐰', '🦊', '🐻', '🐼', '🐨', '🦁', '🐮',
+  // Narsalar / transport / joy
+  '🚗', '🚕', '🚙', '🏎️', '🚶', '🚶‍♂️', '🏠', '🏢', '🏭', '🥤',
+  '🍹', '🍺', '☕', '🍰', '🍪', '🍫', '🍕', '⚽', '💻', '📱',
+];
+
+export function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="p-1.5 text-slate-400 hover:text-brand-600 rounded-lg hover:bg-brand-50"
+        title="Smayliklar"
+      >
+        <Smile size={18} />
+      </button>
+      {open && (
+        <div className="absolute bottom-full left-0 mb-2 z-50 w-72 max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg p-2 grid grid-cols-8 gap-0.5">
+          {CHAT_EMOJIS.map((e, i) => (
+            <button
+              key={`${e}-${i}`}
+              type="button"
+              onClick={() => {
+                onPick(e);
+                setOpen(false);
+              }}
+              className="text-xl leading-none p-1 rounded hover:bg-slate-100"
+            >
+              {e}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─── Yordamchilar ───────────────────────────────────────────────────────────────
@@ -426,6 +496,12 @@ export function ConversationView({
           type="file"
           className="hidden"
           onChange={handleFileChange}
+        />
+        <EmojiPicker
+          onPick={(emoji) => {
+            setText((prev) => prev + emoji);
+            setTimeout(() => inputRef.current?.focus(), 0);
+          }}
         />
         <textarea
           ref={inputRef}
@@ -1019,6 +1095,12 @@ export function GroupConversationView({
           </button>
         )}
         <input ref={fileRef} type="file" className="hidden" onChange={handleFileChange} />
+        <EmojiPicker
+          onPick={(emoji) => {
+            setText((prev) => prev + emoji);
+            setTimeout(() => inputRef.current?.focus(), 0);
+          }}
+        />
         <textarea
           ref={inputRef}
           value={text}
