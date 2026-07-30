@@ -180,9 +180,10 @@ export class DocumentsController {
     @Query('from') from?: string,
     @Query('to') to?: string,
     @Query('type') type?: string,
+    @Query('search') search?: string,
   ) {
     const canSeeAll = user.role === 'admin' || user.role === 'chancellery';
-    return this.reports.preview(user.id, canSeeAll, from, to, type);
+    return this.reports.preview(user.id, canSeeAll, from, to, type, search);
   }
 
   @Get('report')
@@ -193,6 +194,7 @@ export class DocumentsController {
     @Query('from') from?: string,
     @Query('to') to?: string,
     @Query('type') type?: string,
+    @Query('search') search?: string,
   ) {
     const fmt = format === 'pdf' ? 'pdf' : 'excel';
     const canSeeAll = user.role === 'admin' || user.role === 'chancellery';
@@ -203,6 +205,7 @@ export class DocumentsController {
       from,
       to,
       type,
+      search,
     );
     res.setHeader('Content-Type', mime);
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);

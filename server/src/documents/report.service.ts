@@ -87,6 +87,7 @@ export class ReportService {
     from: Date,
     to: Date,
     type?: string,
+    search?: string,
   ): Promise<ReportRow[]> {
     const where: Prisma.DocumentWhereInput = {
       createdAt: { gte: from, lte: to },
@@ -99,6 +100,21 @@ export class ReportService {
       where.OR = [
         { createdById: userId },
         { participants: { some: { userId } } },
+      ];
+    }
+    // Ixtiyoriy qidiruv — raqam, mavzu, muallif F.I.Sh yoki bo'lim nomi bo'yicha.
+    const q = search?.trim();
+    if (q) {
+      const like = { contains: q, mode: 'insensitive' as const };
+      where.AND = [
+        {
+          OR: [
+            { number: like },
+            { subject: like },
+            { createdBy: { fullName: like } },
+            { createdBy: { department: { name: like } } },
+          ],
+        },
       ];
     }
 
@@ -284,12 +300,13 @@ export class ReportService {
     fromIso?: string,
     toIso?: string,
     type?: string,
+    search?: string,
   ): Promise<ReportPreviewResult> {
     const from = fromIso ? new Date(fromIso) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const to = toIso ? new Date(toIso) : new Date();
     from.setHours(0, 0, 0, 0);
     to.setHours(23, 59, 59, 999);
-    const rows = await this.fetchRows(userId, canSeeAll, from, to, type);
+    const rows = await this.fetchRows(userId, canSeeAll, from, to, type, search);
     return {
       from: from.toISOString(),
       to: to.toISOString(),
@@ -310,13 +327,14 @@ export class ReportService {
     fromIso?: string,
     toIso?: string,
     type?: string,
+    search?: string,
   ): Promise<{ filename: string; mime: string; buffer: Buffer }> {
     const from = fromIso ? new Date(fromIso) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const to = toIso ? new Date(toIso) : new Date();
     from.setHours(0, 0, 0, 0);
     to.setHours(23, 59, 59, 999);
 
-    const rows = await this.fetchRows(userId, canSeeAll, from, to, type);
+    const rows = await this.fetchRows(userId, canSeeAll, from, to, type, search);
     const stamp = `${fmtDate(from)}_${fmtDate(to)}`.replace(/\./g, '-');
 
     if (format === 'excel') {

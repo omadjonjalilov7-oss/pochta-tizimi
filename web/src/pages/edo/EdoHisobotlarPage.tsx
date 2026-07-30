@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { FileSpreadsheet, FileText, Download, Loader2 } from 'lucide-react';
+import { FileSpreadsheet, FileText, Download, Loader2, Search, X } from 'lucide-react';
 import { api } from '../../lib/api';
 import type { EdoDocument } from '../../lib/types';
 import { openDocumentPrint } from '../../lib/printDoc';
@@ -54,6 +54,14 @@ export function EdoHisobotlarPage() {
   const [tab, setTab] = useState<ReportTab>('all');
   const [downloading, setDownloading] = useState<'excel' | 'pdf' | null>(null);
   const [rowDownloading, setRowDownloading] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+
+  // Qidiruvni debounce qilamiz (yozish tugaganda so'rov yuboriladi).
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchInput.trim()), 350);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const params = useMemo(() => {
     const p = new URLSearchParams();
@@ -64,8 +72,9 @@ export function EdoHisobotlarPage() {
       p.set('to', d.toISOString());
     }
     if (tab !== 'all') p.set('type', tab);
+    if (search) p.set('search', search);
     return p.toString();
-  }, [from, to, tab]);
+  }, [from, to, tab, search]);
 
   const previewQ = useQuery({
     queryKey: ['edo-report-preview', params],
@@ -175,6 +184,27 @@ export function EdoHisobotlarPage() {
             {t('edo.hisobotlar.export_pdf')}
           </button>
         </div>
+      </div>
+
+      {/* Qidiruv */}
+      <div className="relative">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          type="text"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder={t('edo.hisobotlar.search_ph')}
+          className="w-full pl-9 pr-9 py-2.5 text-sm border border-slate-300 rounded-xl focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none"
+        />
+        {searchInput && (
+          <button
+            type="button"
+            onClick={() => setSearchInput('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+          >
+            <X size={16} />
+          </button>
+        )}
       </div>
 
       {/* Turi bo'yicha bo'limlar */}

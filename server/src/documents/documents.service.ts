@@ -455,11 +455,18 @@ export class DocumentsService {
     // avtomatik ichki zanjir (aziza → ... → mirzaxid) ishlamaydi.
     const isOrder = doc.type === 'internal' && doc.internalKind === 'order';
 
-    // Shablon tanlanmagan bo'lsa (va "buyruq" bo'lmasa) — hujjat "ichki" shabloniga
-    // avtomat solinadi va qat'iy zanjir (aziza → raxmatjon → abduxalil → mirzaxid) qo'yiladi.
+    // Foydalanuvchi shablonni "yoygan" (flatten) bo'lsa — matnning o'zi to'liq
+    // hujjat (data-fulldoc). Bunda ichki avto-shablon qo'llanmaydi (aks holda
+    // hujjat ikki marta ramkaga o'raladi).
+    const isFullDocBody =
+      typeof doc.body === 'string' && doc.body.includes('data-fulldoc');
+
+    // Shablon tanlanmagan bo'lsa (va "buyruq" / "yoyilgan hujjat" bo'lmasa) —
+    // hujjat "ichki" shabloniga avtomat solinadi va qat'iy zanjir
+    // (aziza → raxmatjon → abduxalil → mirzaxid) qo'yiladi.
     let autoIchkiTemplateId: string | null = null;
     let autoIchkiChain: string[] | null = null;
-    if (!doc.templateId && !isOrder) {
+    if (!doc.templateId && !isOrder && !isFullDocBody) {
       const tpl = await this.prisma.documentTemplate.findFirst({
         where: { name: { equals: 'ichki', mode: 'insensitive' } },
         select: { id: true },

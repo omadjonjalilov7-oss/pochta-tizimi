@@ -1066,6 +1066,7 @@
       "tab_outgoing": "Tashqi",
       "tab_incoming": "Kiruvchi",
       "export_hint": "Formatni tanlang va hisobotni yuklab oling",
+      "search_ph": "Qidiruv — raqam, mavzu, muallif yoki bo'lim bo'yicha",
       "export_excel": "Excel (.xlsx)",
       "export_pdf": "PDF",
       "preview": "Ko'rish",

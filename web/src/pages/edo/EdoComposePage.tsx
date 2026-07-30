@@ -1448,10 +1448,16 @@ export function EdoComposePage() {
       {showTemplatePicker && (
         <TemplatePickerModal
           onClose={() => setShowTemplatePicker(false)}
-          onPick={(_picked, templateId) => {
-            // Blanka ramka sifatida ishlatiladi — matnga qo'shilmaydi. {{matn}}
-            // hujjat matniga, {{xujjat_n}}/{{sana_soat}} raqam/sanaga to'ladi.
-            setPickedTemplateId(templateId);
+          onPick={(templateBody) => {
+            // Shablon endi "ramka" emas — to'g'ridan-to'g'ri tahrirlanadigan
+            // matnga "yoyiladi" (flatten). Foydalanuvchi hujjatning to'liq
+            // ko'rinishini Word kabi ko'radi va ichidagi hamma narsani
+            // (shrift turi, hajmi, rangi, interval) o'zgartira oladi.
+            // {{matn}} → hozirgi matn; {{xujjat_n}}/{{sana_soat}} render paytida
+            // avtomat to'ladi (data-fulldoc belgisi ichki avto-shablonni o'chiradi).
+            const flattened = templateBody.replace(/\{\{\s*matn\s*\}\}/g, body || '');
+            setBody(`<div data-fulldoc="1">${flattened}</div>`);
+            setPickedTemplateId(null);
           }}
         />
       )}

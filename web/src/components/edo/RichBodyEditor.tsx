@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bold, Italic, List, Type, AlignJustify } from 'lucide-react';
+import { Bold, Italic, List, Type, AlignJustify, Baseline } from 'lucide-react';
 
 // Hujjat matni uchun HTML muharrir — Word'dan kelgan jadval/formatlashni saqlaydi.
 // A4 ga moslash uchun: shrift turi, harflar hajmi va qatorlar oralig'i (interval)
@@ -119,6 +119,29 @@ export function RichBodyEditor({
     emit();
   };
 
+  // Belgilangan matn rangini o'zgartirish. Rang tanlashda tanlov (selection)
+  // yo'qolmasligi uchun oxirgi tanlangan diapazonni saqlab boramiz.
+  const savedRange = useRef<Range | null>(null);
+  const saveSelection = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && ref.current?.contains(sel.anchorNode)) {
+      savedRange.current = sel.getRangeAt(0).cloneRange();
+    }
+  };
+  const applyColor = (color: string) => {
+    if (disabled) return;
+    const el = ref.current;
+    el?.focus();
+    const sel = window.getSelection();
+    if (savedRange.current && sel) {
+      sel.removeAllRanges();
+      sel.addRange(savedRange.current);
+    }
+    document.execCommand('styleWithCSS', false, 'true');
+    document.execCommand('foreColor', false, color);
+    emit();
+  };
+
   const changeStyle = (patch: Partial<DocStyle>) => {
     if (disabled) return;
     const next = { ...docStyle, ...patch };
@@ -216,12 +239,32 @@ export function RichBodyEditor({
             ))}
           </select>
         </span>
+
+        <span className="w-px h-5 bg-slate-200 mx-1" />
+
+        {/* Matn rangi (belgilangan qismga qo'llanadi) */}
+        <label
+          className="relative inline-flex items-center gap-1 p-1.5 rounded hover:bg-slate-200 text-slate-600 cursor-pointer"
+          title="Matn rangi"
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          <Baseline size={15} />
+          <input
+            type="color"
+            defaultValue="#0f172a"
+            onChange={(e) => applyColor(e.target.value)}
+            className="absolute inset-0 opacity-0 cursor-pointer"
+          />
+        </label>
       </div>
       <div
         ref={ref}
         contentEditable
         suppressContentEditableWarning
         onInput={emit}
+        onKeyUp={saveSelection}
+        onMouseUp={saveSelection}
+        onBlur={saveSelection}
         data-placeholder={placeholder}
         className="edo-doc-body prose prose-sm max-w-none min-h-[180px] max-h-[520px] overflow-auto px-4 py-3 text-slate-800 outline-none"
       />
