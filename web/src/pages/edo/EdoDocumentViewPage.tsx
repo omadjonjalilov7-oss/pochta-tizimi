@@ -288,31 +288,31 @@ export function EdoDocumentViewPage() {
             {doc.shortInfo && (
               <p className="text-sm text-slate-600 mt-1">{doc.shortInfo}</p>
             )}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-3 text-xs text-slate-500">
-              <span className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-3 text-xs text-slate-500 max-w-full">
+              <span className="flex items-center gap-1 min-w-0 max-w-full">
                 <Avatar fullName={doc.createdBy.fullName} avatarPath={doc.createdBy.avatarPath} size="sm" />
-                <span>
+                <span className="min-w-0 truncate">
                   <span className="text-slate-700 font-medium">{cyrName(doc.createdBy.fullName)}</span>
                   {doc.createdBy.position?.name && <span className="text-slate-400"> — {trDyn(doc.createdBy.position.name)}</span>}
                 </span>
               </span>
-              <span className="flex items-center gap-1">
-                <Clock size={12} />
+              <span className="flex items-center gap-1 whitespace-nowrap">
+                <Clock size={12} className="shrink-0" />
                 {new Date(doc.createdAt).toLocaleString(lang)}
               </span>
               {doc.deadline && (
                 <DeadlineBadge deadline={doc.deadline} status={doc.status} lang={lang} />
               )}
               {doc.status === 'done' && doc.closedAt && (
-                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  <CheckCircle2 size={12} />
-                  {t('edo.view.executed_on')}: {new Date(doc.closedAt).toLocaleString(lang)}
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 max-w-full">
+                  <CheckCircle2 size={12} className="shrink-0" />
+                  <span className="truncate">{t('edo.view.executed_on')}: {new Date(doc.closedAt).toLocaleString(lang)}</span>
                 </span>
               )}
               {doc.currentHolder && doc.status === 'in_review' && (
-                <span className="flex items-center gap-1 text-asaka-700">
-                  <ChevronRight size={12} />
-                  {t('edo.view.holder')}: <span className="font-medium">{cyrName(doc.currentHolder.fullName)}</span>
+                <span className="inline-flex items-center gap-1 text-asaka-700 min-w-0 max-w-full">
+                  <ChevronRight size={12} className="shrink-0" />
+                  <span className="truncate">{t('edo.view.holder')}: <span className="font-medium">{cyrName(doc.currentHolder.fullName)}</span></span>
                 </span>
               )}
             </div>

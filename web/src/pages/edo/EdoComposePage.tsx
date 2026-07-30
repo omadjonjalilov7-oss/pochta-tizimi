@@ -419,10 +419,10 @@ export function EdoComposePage() {
     'w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none disabled:bg-slate-50';
   const labelCls = 'block text-sm font-medium text-slate-700 mb-1.5';
   const secondaryBtnCls =
-    'inline-flex items-center gap-2 bg-asaka-50 hover:bg-asaka-100 text-asaka-700 font-medium px-4 py-2 rounded-full disabled:opacity-50';
+    'inline-flex items-center gap-1.5 bg-asaka-50 hover:bg-asaka-100 text-asaka-700 font-medium text-xs md:text-sm px-2.5 md:px-3 py-1.5 rounded-lg disabled:opacity-50';
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-6">
+    <div className="max-w-6xl mx-auto px-3 md:px-6 py-4 md:py-6">
       {error && (
         <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
           {error}
@@ -449,8 +449,8 @@ export function EdoComposePage() {
 
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
         {/* Sarlavha + amal tugmalari (tepada) */}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-slate-200">
-          <h1 className="text-lg font-semibold text-slate-900">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 md:px-6 py-3 border-b border-slate-200">
+          <h1 className="text-base md:text-lg font-semibold text-slate-900">
             {type === 'internal' || type === 'incoming' || (doc && doc.status !== 'draft')
               ? headerTitle
               : ''}
@@ -521,9 +521,9 @@ export function EdoComposePage() {
               type="button"
               onClick={() => handleSave()}
               disabled={saveDraft.isPending || !isDraft}
-              className="inline-flex items-center gap-2 bg-asaka-600 hover:bg-asaka-700 text-white font-semibold px-6 py-2 rounded-full disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 bg-asaka-600 hover:bg-asaka-700 text-white font-semibold text-xs md:text-sm px-4 py-1.5 rounded-lg disabled:opacity-50"
             >
-              <Save size={16} />
+              <Save size={15} />
               {saveDraft.isPending ? t('common.saving') : t('edo.compose.save')}
             </button>
             <button
