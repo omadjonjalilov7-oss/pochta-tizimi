@@ -225,6 +225,7 @@ export interface Journal {
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
+  _count?: { documents: number };
 }
 
 export interface EdoDocument {

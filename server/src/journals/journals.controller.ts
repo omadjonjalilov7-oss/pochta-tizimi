@@ -59,6 +59,7 @@ export class JournalsController {
   findAll() {
     return this.prisma.journal.findMany({
       orderBy: [{ seq: 'asc' }, { name: 'asc' }],
+      include: { _count: { select: { documents: true } } },
     });
   }
 

@@ -37,6 +37,7 @@ import { cn, formatBytes, cyrName, trDyn } from '../../lib/utils';
 import { SecretInput } from '../../components/SecretInput';
 import { ApproverChainPicker } from '../../components/edo/ApproverChainPicker';
 import { openDocumentPrint } from '../../lib/printDoc';
+import { exportApproverChainWord } from '../../lib/exportChainWord';
 
 // Chop etish uchun sarlavha ma'lumotini tayyorlaydi (ekrandagi ko'rinishga mos).
 export function EdoDocumentViewPage() {
@@ -259,6 +260,7 @@ export function EdoDocumentViewPage() {
                   doc={doc}
                   disabled={doc.status === 'draft'}
                 />
+                {doc.status === 'done' && <ChainWordButton doc={doc} />}
                 <QrButton docId={doc.id} docNumber={doc.number} />
               </div>
             </div>
@@ -716,6 +718,27 @@ function WordExportButton({
       className="inline-flex items-center justify-center text-slate-600 hover:text-slate-700 hover:bg-slate-50 p-1.5 rounded-md disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
     >
       <FileDown size={16} />
+    </button>
+  );
+}
+
+// Tasdiqlovchilar zanjirini Word (.doc) faylga saqlash (faqat xujjat tayyor bo'lганда).
+function ChainWordButton({ doc }: { doc: EdoDocument }) {
+  const { t } = useTranslation();
+  return (
+    <button
+      onClick={() =>
+        exportApproverChainWord(doc, {
+          deptPos: t('edo.view.chain_word_deptpos'),
+          fullName: t('edo.view.chain_word_fio'),
+          title: t('edo.view.chain_word_title'),
+        })
+      }
+      title={t('edo.view.chain_word')}
+      className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-700 hover:text-blue-800 hover:bg-blue-50 px-2 py-1 rounded-md shrink-0"
+    >
+      <FileDown size={14} />
+      <span>{t('edo.view.chain_word')}</span>
     </button>
   );
 }

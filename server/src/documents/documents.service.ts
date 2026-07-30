@@ -113,7 +113,14 @@ const FULL_INCLUDE = {
     orderBy: { order: 'asc' as const },
     include: {
       user: {
-        select: { id: true, fullName: true, login: true, avatarPath: true, position: { select: { name: true, rank: true } } },
+        select: {
+          id: true,
+          fullName: true,
+          login: true,
+          avatarPath: true,
+          position: { select: { name: true, rank: true } },
+          department: { select: { name: true } },
+        },
       },
     },
   },
