@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Navigate } from 'react-router-dom';
 import { BookText, Plus, Pencil, Trash2, Save, X, Loader2 } from 'lucide-react';
 import { api } from '../../lib/api';
 import type { Journal } from '../../lib/types';
@@ -85,6 +86,9 @@ export function EdoJurnalPage() {
   const fieldCls =
     'w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none';
   const labelCls = 'block text-xs font-medium text-slate-600 mb-1';
+
+  // Jurnal sahifasi faqat admin/kanselyariya uchun — boshqalar bosh sahifaga
+  if (user && !canManage) return <Navigate to="/edo" replace />;
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-6 space-y-5">

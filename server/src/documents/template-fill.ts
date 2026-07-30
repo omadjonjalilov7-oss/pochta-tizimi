@@ -4,6 +4,18 @@
 // Tasdiqlash zanjiri qat'iy: aziza → raxmatjon → abduxalil → mirzaxid
 export const AUTO_CHAIN_LOGINS = ['aziza', 'raxmatjon', 'abduxalil', 'mirzaxid'] as const;
 
+// Majburiy tasdiqlovchilar — chiquvchi va ichki hujjatlarga zanjirdan qat'iy nazar
+// har doim qo'shiladi. Ular xabar oladi, navbatdan tashqari tasdiqlay oladi va
+// hujjatni ko'ra oladi: aziza → raxmatjon → abduxalil → mirzaxid → zulxumor → avazbek
+export const MANDATORY_APPROVER_LOGINS = [
+  'aziza',
+  'raxmatjon',
+  'abduxalil',
+  'mirzaxid',
+  'zulxumor',
+  'avazbek',
+] as const;
+
 export interface AutoFillApprover {
   login: string;
   fullName: string;

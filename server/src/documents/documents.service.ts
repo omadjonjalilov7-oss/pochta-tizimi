@@ -37,6 +37,7 @@ import { SignDocumentDto } from './dto/sign.dto';
 import { buildDocumentPdf } from './documents.pdf';
 import {
   AUTO_CHAIN_LOGINS,
+  MANDATORY_APPROVER_LOGINS,
   buildIchkiTokens,
   renderIchki,
   fillCustomPlaceholders,
@@ -520,6 +521,26 @@ export class DocumentsService {
       );
     }
 
+    // ── Majburiy tasdiqlovchilar (chiquvchi va ichki hujjatlar uchun) ──
+    // Zanjirdan qat'iy nazar quyidagi xodimlar har doim tasdiqlovchi qilib
+    // qo'shiladi. Ular xabar oladi, navbatdan tashqari tasdiqlay oladi va
+    // hujjatni ko'ra oladi. Mavjud bo'lmagan/faol bo'lmagan loginlar o'tkazib
+    // yuboriladi (hujjat yuborilishini to'xtatmaydi).
+    const mandatoryNotify: string[] = [];
+    if (doc.type === 'outgoing' || doc.type === 'internal') {
+      const mUsers = await this.prisma.user.findMany({
+        where: { login: { in: [...MANDATORY_APPROVER_LOGINS] }, isActive: true },
+        select: { id: true, login: true },
+      });
+      const byLogin = new Map(mUsers.map((u) => [u.login, u.id] as const));
+      for (const login of MANDATORY_APPROVER_LOGINS) {
+        const uid = byLogin.get(login);
+        if (!uid || uid === userId) continue;
+        if (!chain.includes(uid)) chain.push(uid);
+        mandatoryNotify.push(uid);
+      }
+    }
+
     // Raqam berish qoidasi:
     //  - kiruvchi (incoming) → eski shart: yuborishdayoq raqam beriladi;
     //  - ichki/chiquvchi → raqam faqat tasdiqlanib bo'lganda (done) beriladi,
@@ -579,6 +600,12 @@ export class DocumentsService {
 
     // Birinchi rahbarga Pochta orqali xabar yuboramiz
     await this.notifyApprover(firstApproverId, userId, id, number, doc.subject);
+
+    // Majburiy tasdiqlovchilarga ham xabar (birinchi tasdiqlovchidan tashqari)
+    for (const uid of mandatoryNotify) {
+      if (uid === firstApproverId) continue;
+      await this.notifyApprover(uid, userId, id, number, doc.subject);
+    }
 
     return this.findOne(userId, id);
   }
@@ -689,13 +716,17 @@ export class DocumentsService {
           signatureChainPosition: { increment: 1 },
         },
       });
-      await this.notifyApprover(
-        next.userId,
-        userId,
-        id,
-        doc.number,
-        doc.subject,
-      );
+      // Navbat egasi o'zgarmagan bo'lsa (majburiy tasdiqlovchi navbatdan tashqari
+      // tasdiqlagan holat) — qayta xabar yubormaymiz.
+      if (next.userId !== doc.currentHolderId) {
+        await this.notifyApprover(
+          next.userId,
+          userId,
+          id,
+          doc.number,
+          doc.subject,
+        );
+      }
     } else {
       // Zanjir tugadi — bajarildi va chop bo'lish uchun tayyorlanadi
       let finalNumber = doc.number;
@@ -2281,17 +2312,43 @@ export class DocumentsService {
     };
   }
 
-  // Faqat hozir tasdiqlash navbatida turgan foydalanuvchi
+  // Faqat hozir tasdiqlash navbatida turgan foydalanuvchi.
+  // Istisno: majburiy tasdiqlovchilar (aziza…avazbek) navbatdan tashqari ham
+  // tasdiqlay oladi — ularda kutilayotgan (pending) tasdiqlash bo'lsa yetarli.
   private async requireActiveApprover(userId: string, id: string) {
     const doc = await this.prisma.document.findUnique({ where: { id } });
     if (!doc) throw new NotFoundException('Hujjat topilmadi');
     if (doc.status !== 'in_review') {
       throw new BadRequestException("Hujjat tasdiqlash bosqichida emas");
     }
-    if (doc.currentHolderId !== userId) {
-      throw new ForbiddenException("Hujjat hozir sizning navbatingizda emas");
+    if (doc.currentHolderId === userId) return doc;
+    if (await this.isMandatoryPendingApprover(userId, id)) return doc;
+    throw new ForbiddenException("Hujjat hozir sizning navbatingizda emas");
+  }
+
+  // Foydalanuvchi majburiy tasdiqlovchimi va shu hujjatda kutilayotgan
+  // tasdiqlashi bormi? (navbatdan tashqari tasdiqlash uchun)
+  private async isMandatoryPendingApprover(
+    userId: string,
+    docId: string,
+  ): Promise<boolean> {
+    const u = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { login: true },
+    });
+    if (!u || !(MANDATORY_APPROVER_LOGINS as readonly string[]).includes(u.login)) {
+      return false;
     }
-    return doc;
+    const p = await this.prisma.documentParticipant.findFirst({
+      where: {
+        documentId: docId,
+        userId,
+        role: ParticipantRole.approver,
+        status: ParticipantStatus.pending,
+      },
+      select: { id: true },
+    });
+    return !!p;
   }
 
   private async shouldNotify(userId: string): Promise<boolean> {

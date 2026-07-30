@@ -134,6 +134,10 @@ export function EdoComposePage() {
     staleTime: 60_000,
   });
 
+  // Faqat tanlangan hujjat turiga mos jurnallar ko'rsatilsin
+  // (kiruvchi hujjatga — kiruvchi jurnallar, va h.k.; "general" — barchasiga).
+  const filteredJournals = journals.filter((j) => j.kind === type || j.kind === 'general');
+
   const { data: doc } = useQuery({
     queryKey: ['edo-doc', currentDocId],
     queryFn: async () => (await api.get<EdoDocument>(`/documents/${currentDocId}`)).data,
@@ -673,7 +677,7 @@ export function EdoComposePage() {
                     className={fieldCls}
                   >
                     <option value="">{t('edo.compose.ph_journal')}</option>
-                    {journals.map((j) => (
+                    {filteredJournals.map((j) => (
                       <option key={j.id} value={j.id}>
                         {j.prefix ? `[${j.prefix}] ` : ''}
                         {trDyn(j.name)}
@@ -1001,7 +1005,7 @@ export function EdoComposePage() {
                   className={fieldCls}
                 >
                   <option value="">{t('edo.compose.ph_journal')}</option>
-                  {journals.map((j) => (
+                  {filteredJournals.map((j) => (
                     <option key={j.id} value={j.id}>
                       {j.prefix ? `[${j.prefix}] ` : ''}
                       {j.name}
@@ -1073,7 +1077,7 @@ export function EdoComposePage() {
                   className={fieldCls}
                 >
                   <option value="">{t('edo.compose.ph_journal')}</option>
-                  {journals.map((j) => (
+                  {filteredJournals.map((j) => (
                     <option key={j.id} value={j.id}>
                       {j.prefix ? `[${j.prefix}] ` : ''}
                       {j.name}
