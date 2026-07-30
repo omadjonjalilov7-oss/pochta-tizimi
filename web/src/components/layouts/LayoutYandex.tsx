@@ -22,7 +22,7 @@ import { useTranslation } from 'react-i18next';
 import { Avatar } from '../Avatar';
 import { Logo } from '../Logo';
 import { AppSwitcher } from '../AppSwitcher';
-import { cn } from '../../lib/utils';
+import { cn, cyrName } from '../../lib/utils';
 import { useLayoutData } from './useLayoutData';
 import { useAppearanceModals } from '../AppearanceModals';
 import { FloatingChatWidget } from '../FloatingChatWidget';
@@ -101,7 +101,7 @@ export function LayoutYandex() {
         )}
         <Link to="/profile" className="flex items-center gap-2 hover:bg-slate-100 px-2 py-1 rounded transition">
           <Avatar fullName={user.fullName} avatarPath={user.avatarPath} size="sm" />
-          <span className="text-xs font-medium hidden md:inline">{user.fullName}</span>
+          <span className="text-xs font-medium hidden md:inline">{cyrName(user.fullName)}</span>
         </Link>
         <button
           onClick={handleLogout}

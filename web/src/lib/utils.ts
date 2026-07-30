@@ -1,4 +1,20 @@
 import i18n from '../i18n';
+import { latinToCyrillic } from '../i18n/translit';
+
+// Ichki foydalanuvchi FISH (familiya-ism-otasining ismi) — til tanlovidan
+// qat'iy nazar DOIM krill alifbosida ko'rsatiladi (foydalanuvchi talabiga ko'ra).
+export function cyrName(s?: string | null): string {
+  return latinToCyrillic(s ?? '');
+}
+
+// Dinamik DB matni (jurnal / bo'lim / lavozim nomi): lotin tanlansa asl holida,
+// krill yoki rus tanlansa krill alifbosiga o'giriladi.
+export function trDyn(s?: string | null): string {
+  const text = s ?? '';
+  if (!text) return text;
+  const lang = (i18n.language || 'uz').split('-')[0];
+  return lang === 'uz' ? text : latinToCyrillic(text);
+}
 
 export function formatDateTime(iso: string): string {
   const d = new Date(iso);
@@ -60,7 +76,7 @@ export function senderDisplayName(message: {
   externalFromEmail?: string | null;
   isExternal?: boolean;
 }): string {
-  if (message.fromUser?.fullName) return message.fromUser.fullName;
+  if (message.fromUser?.fullName) return cyrName(message.fromUser.fullName);
   if (message.externalFromName) return message.externalFromName;
   if (message.externalFromEmail) return message.externalFromEmail;
   return i18n.t('common.unknown');
@@ -72,8 +88,8 @@ export function senderSubLine(message: {
   isExternal?: boolean;
 }): string {
   if (message.fromUser) {
-    const pos = message.fromUser.position?.name;
-    const dep = message.fromUser.department?.name;
+    const pos = trDyn(message.fromUser.position?.name);
+    const dep = trDyn(message.fromUser.department?.name);
     return [pos, dep].filter(Boolean).join(' • ');
   }
   if (message.isExternal && message.externalFromEmail) return message.externalFromEmail;

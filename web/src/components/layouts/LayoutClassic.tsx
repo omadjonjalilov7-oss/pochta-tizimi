@@ -23,7 +23,7 @@ import { useTranslation } from 'react-i18next';
 import { Avatar } from '../Avatar';
 import { Logo } from '../Logo';
 import { AppSwitcher } from '../AppSwitcher';
-import { cn } from '../../lib/utils';
+import { cn, cyrName, trDyn } from '../../lib/utils';
 import { useLayoutData } from './useLayoutData';
 import { useAppearanceModals } from '../AppearanceModals';
 import { FloatingChatWidget } from '../FloatingChatWidget';
@@ -109,9 +109,9 @@ export function LayoutClassic() {
           >
             <Avatar fullName={user.fullName} avatarPath={user.avatarPath} size="sm" />
             <div className="text-sm leading-tight">
-              <div className="font-medium">{user.fullName}</div>
+              <div className="font-medium">{cyrName(user.fullName)}</div>
               <div className="text-xs text-brand-100">
-                {user.position?.name || user.login}
+                {trDyn(user.position?.name) || user.login}
               </div>
             </div>
           </Link>

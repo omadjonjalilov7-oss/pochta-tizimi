@@ -7,7 +7,7 @@ import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import type { DocumentStatus, EdoDocument } from '../../lib/types';
 import { Avatar } from '../../components/Avatar';
-import { cn } from '../../lib/utils';
+import { cn, cyrName } from '../../lib/utils';
 
 export interface DocListProps {
   queryKey: string;
@@ -141,7 +141,7 @@ export function DocList({ queryKey, endpoint, titleKey, emptyKey, showHolder }: 
                   <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-500">
                     <span className="flex items-center gap-1">
                       <Avatar fullName={d.createdBy.fullName} avatarPath={d.createdBy.avatarPath} size="sm" />
-                      <span>{d.createdBy.fullName}</span>
+                      <span>{cyrName(d.createdBy.fullName)}</span>
                     </span>
                     <span className="flex items-center gap-1">
                       <Clock size={11} />
@@ -164,7 +164,7 @@ export function DocList({ queryKey, endpoint, titleKey, emptyKey, showHolder }: 
                     )}
                     {showHolder && d.currentHolder && d.status === 'in_review' && (
                       <span className="text-asaka-700">
-                        → {d.currentHolder.fullName}
+                        → {cyrName(d.currentHolder.fullName)}
                       </span>
                     )}
                   </div>

@@ -24,7 +24,7 @@ import { Logo } from '../Logo';
 import { Resizer } from '../Resizer';
 import { HeaderSearch } from '../HeaderSearch';
 import { AppSwitcher } from '../AppSwitcher';
-import { cn } from '../../lib/utils';
+import { cn, cyrName } from '../../lib/utils';
 import { useLayoutData } from './useLayoutData';
 import { useAppearanceModals } from '../AppearanceModals';
 import { FloatingChatWidget } from '../FloatingChatWidget';
@@ -161,7 +161,7 @@ export function LayoutOutlook() {
           )}
           <Link to="/profile" className="hover:bg-brand-600 px-2 py-1 rounded transition flex items-center gap-2">
             <Avatar fullName={user.fullName} avatarPath={user.avatarPath} size="sm" />
-            <span className="text-xs hidden md:inline">{user.fullName}</span>
+            <span className="text-xs hidden md:inline">{cyrName(user.fullName)}</span>
           </Link>
           <button onClick={handleLogout} className="text-brand-100 hover:text-white" title={t('common.logout')}>
             <LogOut size={16} />

@@ -5,6 +5,7 @@ import { Plus, Pencil, Trash2, X } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import type { Position } from '../lib/types';
+import { trDyn } from '../lib/utils';
 
 export function AdminPositionsPage() {
   const { t } = useTranslation();
@@ -60,7 +61,7 @@ export function AdminPositionsPage() {
                 <span className="inline-block bg-slate-100 text-slate-600 text-xs font-mono px-2 py-0.5 rounded mr-3 w-12 text-center">
                   {p.rank}
                 </span>
-                <span className="text-sm text-slate-800">{p.name}</span>
+                <span className="text-sm text-slate-800">{trDyn(p.name)}</span>
                 <div className="ml-auto flex items-center gap-2">
                   <button
                     onClick={() => setEditing(p)}

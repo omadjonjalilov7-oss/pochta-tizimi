@@ -5,6 +5,7 @@ import { BookText, Plus, Pencil, Trash2, Save, X, Loader2 } from 'lucide-react';
 import { api } from '../../lib/api';
 import type { Journal } from '../../lib/types';
 import { useAuth } from '../../context/AuthContext';
+import { trDyn } from '../../lib/utils';
 
 const JOURNAL_KINDS = ['general', 'incoming', 'outgoing', 'internal'] as const;
 
@@ -204,7 +205,7 @@ export function EdoJurnalPage() {
                 {journals.map((j) => (
                   <tr key={j.id} className="border-t border-slate-100 hover:bg-slate-50/60">
                     <td className="px-4 py-2 text-slate-400">{j.seq}</td>
-                    <td className="px-4 py-2 font-medium text-slate-800">{j.name}</td>
+                    <td className="px-4 py-2 font-medium text-slate-800">{trDyn(j.name)}</td>
                     <td className="px-4 py-2 font-mono text-xs text-slate-600">{j.prefix || '—'}</td>
                     <td className="px-4 py-2 text-slate-600">{t(`edo.jurnal.kind_${j.kind}`, j.kind)}</td>
                     {canManage && (

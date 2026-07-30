@@ -102,21 +102,7 @@ export function EdoHisobotlarPage() {
       // (sarlavha + matn) chop etish/PDF oynasida ochamiz — panelsiz.
       const res = await api.get<EdoDocument>(`/documents/${row.id}`);
       const d = res.data;
-      const typeLabel =
-        d.type === 'internal' && d.internalKind
-          ? `${t(`edo.doc_type.${d.type}`)} · ${t(`edo.internal_kind.${d.internalKind}`)}`
-          : t(`edo.doc_type.${d.type}`);
-      openDocumentPrint(d, true, {
-        statusLabel: t(`edo.status.${d.status}`),
-        typeLabel,
-        createdByName: d.createdBy?.fullName ?? '',
-        createdByPosition: d.createdBy?.position?.name,
-        createdAtText: new Date(d.createdAt).toLocaleString(lang),
-        deadlineText: d.deadline
-          ? `${t('edo.view.deadline')}: ${new Date(d.deadline).toLocaleString(lang)}`
-          : undefined,
-        bodyHeading: t('edo.view.body'),
-      });
+      openDocumentPrint(d, true);
     } finally {
       setRowDownloading(null);
     }

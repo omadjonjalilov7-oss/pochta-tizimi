@@ -289,3 +289,18 @@ input, textarea, select {
 @media (max-width: 820px) {
   .a4-scroll { padding: 8px; justify-content: flex-start; }
 }
+
+/* ---------- Hujjat ko'rish sahifasidagi A4 varaq (zoom bilan) ---------- */
+/* Hujjat matni A4 kengligida (794px ≈ 210mm) qat'iy varaqqa joylanadi.
+   Mobil ekranda konteyner scroll qilinadi, zoom tugmalari orqali
+   kattalashtirish/kichraytirish mumkin. */
+.edo-a4-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+.edo-a4-sheet {
+  width: 794px;
+  max-width: 794px;
+  padding: 40px 48px;
+  border-radius: 2px;
+}
+.edo-a4-sheet img { max-width: 100%; height: auto; }

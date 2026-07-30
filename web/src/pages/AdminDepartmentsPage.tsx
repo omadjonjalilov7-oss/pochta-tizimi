@@ -5,6 +5,7 @@ import { Plus, Pencil, Trash2, X } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import type { Department } from '../lib/types';
+import { trDyn } from '../lib/utils';
 
 export function AdminDepartmentsPage() {
   const { t } = useTranslation();
@@ -68,7 +69,7 @@ export function AdminDepartmentsPage() {
                 >
                   {d.code || '—'}
                 </span>
-                <span className="text-sm text-slate-800">{d.name}</span>
+                <span className="text-sm text-slate-800">{trDyn(d.name)}</span>
                 <div className="ml-auto flex items-center gap-2">
                   <button
                     onClick={() => setEditing(d)}

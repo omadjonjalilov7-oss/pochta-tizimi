@@ -853,6 +853,8 @@
       "overdue_hint": "Muddatni uzaytirsangiz, tasdiqlash jarayonini davom ettirish mumkin",
       "extend_deadline": "Muddatni uzaytirish",
       "body": "Hujjat matni",
+      "zoom_in": "Kattalashtirish",
+      "zoom_out": "Kichraytirish",
       "attachments": "Biriktirilgan fayllar ({{count}})",
       "holder": "Hozir kimda",
       "executed_on": "Ijro sanasi",

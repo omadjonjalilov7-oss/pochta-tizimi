@@ -19,7 +19,7 @@ import {
   Building2,
 } from 'lucide-react';
 import { api } from '../../lib/api';
-import { cn } from '../../lib/utils';
+import { cn, trDyn, cyrName } from '../../lib/utils';
 import type { Department, DocumentType, EdoDocument, Organization, Journal } from '../../lib/types';
 import { useAuth } from '../../context/AuthContext';
 import { Avatar } from '../../components/Avatar';
@@ -676,7 +676,7 @@ export function EdoComposePage() {
                     {journals.map((j) => (
                       <option key={j.id} value={j.id}>
                         {j.prefix ? `[${j.prefix}] ` : ''}
-                        {j.name}
+                        {trDyn(j.name)}
                       </option>
                     ))}
                   </select>
@@ -849,7 +849,7 @@ export function EdoComposePage() {
                     {departments.map((d) => (
                       <option key={d.id} value={d.id}>
                         {d.code ? `[${d.code}] ` : ''}
-                        {d.name}
+                        {trDyn(d.name)}
                       </option>
                     ))}
                   </select>
@@ -1383,7 +1383,7 @@ export function EdoComposePage() {
                     {departments.map((d) => (
                       <option key={d.id} value={d.id}>
                         {d.code ? `[${d.code}] ` : ''}
-                        {d.name}
+                        {trDyn(d.name)}
                       </option>
                     ))}
                   </select>
@@ -1656,7 +1656,7 @@ function CommentsBox({
               />
               <div className="flex-1 bg-slate-50 rounded-lg px-3 py-2">
                 <div className="flex items-baseline gap-2 mb-1">
-                  <span className="text-sm font-medium text-slate-900">{c.author.fullName}</span>
+                  <span className="text-sm font-medium text-slate-900">{cyrName(c.author.fullName)}</span>
                   <span className="text-xs text-slate-400">
                     {new Date(c.createdAt).toLocaleString(lang)}
                   </span>

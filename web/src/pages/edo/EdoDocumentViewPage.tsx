@@ -24,6 +24,8 @@ import {
   QrCode,
   Printer,
   X,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
 import { EimzoSignModal } from '../../components/edo/EimzoSignModal';
 import { ControlAssignmentModal } from '../../components/edo/ControlAssignmentModal';
@@ -31,34 +33,12 @@ import { api } from '../../lib/api';
 import type { DocumentStatus, EdoDocument, User } from '../../lib/types';
 import { Avatar } from '../../components/Avatar';
 import { useAuth } from '../../context/AuthContext';
-import { cn, formatBytes } from '../../lib/utils';
+import { cn, formatBytes, cyrName, trDyn } from '../../lib/utils';
 import { SecretInput } from '../../components/SecretInput';
 import { ApproverChainPicker } from '../../components/edo/ApproverChainPicker';
-import { openDocumentPrint, type PrintMeta } from '../../lib/printDoc';
+import { openDocumentPrint } from '../../lib/printDoc';
 
 // Chop etish uchun sarlavha ma'lumotini tayyorlaydi (ekrandagi ko'rinishga mos).
-function buildPrintMeta(
-  doc: EdoDocument,
-  t: (k: string) => string,
-  lang: string,
-): PrintMeta {
-  const typeLabel =
-    doc.type === 'internal' && doc.internalKind
-      ? `${t(`edo.doc_type.${doc.type}`)} · ${t(`edo.internal_kind.${doc.internalKind}`)}`
-      : t(`edo.doc_type.${doc.type}`);
-  return {
-    statusLabel: t(`edo.status.${doc.status}`),
-    typeLabel,
-    createdByName: doc.createdBy?.fullName ?? '',
-    createdByPosition: doc.createdBy?.position?.name,
-    createdAtText: new Date(doc.createdAt).toLocaleString(lang),
-    deadlineText: doc.deadline
-      ? `${t('edo.view.deadline')}: ${new Date(doc.deadline).toLocaleString(lang)}`
-      : undefined,
-    bodyHeading: t('edo.view.body'),
-  };
-}
-
 export function EdoDocumentViewPage() {
   const { t, i18n } = useTranslation();
   const { id } = useParams<{ id: string }>();
@@ -158,6 +138,14 @@ export function EdoDocumentViewPage() {
   const [showChainModal, setShowChainModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showControlModal, setShowControlModal] = useState(false);
+  // Hujjat matnini kattalashtirish/kichraytirish (ayniqsa mobil qurilmada A4 varaqni ko'rish uchun).
+  // Mobil ekranda A4 varaq (794px) ekranga to'liq sig'ishi uchun boshlang'ich zoom hisoblanadi.
+  const [docZoom, setDocZoom] = useState(() => {
+    if (typeof window === 'undefined') return 100;
+    const w = window.innerWidth;
+    if (w >= 900) return 100;
+    return Math.max(40, Math.round(((w - 32) / 794) * 100));
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (isLoading) {
@@ -253,7 +241,7 @@ export function EdoDocumentViewPage() {
                   title={t('edo.compose.label_journal')}
                 >
                   {doc.journal.prefix ? `[${doc.journal.prefix}] ` : ''}
-                  {doc.journal.name}
+                  {trDyn(doc.journal.name)}
                 </span>
               )}
             </div>
@@ -304,8 +292,8 @@ export function EdoDocumentViewPage() {
               <span className="flex items-center gap-1">
                 <Avatar fullName={doc.createdBy.fullName} avatarPath={doc.createdBy.avatarPath} size="sm" />
                 <span>
-                  <span className="text-slate-700 font-medium">{doc.createdBy.fullName}</span>
-                  {doc.createdBy.position?.name && <span className="text-slate-400"> — {doc.createdBy.position.name}</span>}
+                  <span className="text-slate-700 font-medium">{cyrName(doc.createdBy.fullName)}</span>
+                  {doc.createdBy.position?.name && <span className="text-slate-400"> — {trDyn(doc.createdBy.position.name)}</span>}
                 </span>
               </span>
               <span className="flex items-center gap-1">
@@ -324,7 +312,7 @@ export function EdoDocumentViewPage() {
               {doc.currentHolder && doc.status === 'in_review' && (
                 <span className="flex items-center gap-1 text-asaka-700">
                   <ChevronRight size={12} />
-                  {t('edo.view.holder')}: <span className="font-medium">{doc.currentHolder.fullName}</span>
+                  {t('edo.view.holder')}: <span className="font-medium">{cyrName(doc.currentHolder.fullName)}</span>
                 </span>
               )}
             </div>
@@ -336,22 +324,54 @@ export function EdoDocumentViewPage() {
       <div className="grid grid-cols-1 gap-4">
         {/* Asosiy ustun */}
         <div className="space-y-4 min-w-0">
-          <section className="bg-white border border-slate-200 rounded-2xl p-6">
-            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">
-              {t('edo.view.body')}
-            </h2>
+          <section className="bg-white border border-slate-200 rounded-2xl p-4 md:p-6">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">
+                {t('edo.view.body')}
+              </h2>
+              {/* Zoom boshqaruvi — A4 varaqni kattalashtirish/kichraytirish */}
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setDocZoom((z) => Math.max(40, z - 10))}
+                  title={t('edo.view.zoom_out')}
+                  className="p-1.5 text-slate-500 hover:text-asaka-700 hover:bg-slate-100 rounded"
+                >
+                  <ZoomOut size={16} />
+                </button>
+                <span className="text-xs font-medium text-slate-500 w-10 text-center tabular-nums">
+                  {docZoom}%
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setDocZoom((z) => Math.min(200, z + 10))}
+                  title={t('edo.view.zoom_in')}
+                  className="p-1.5 text-slate-500 hover:text-asaka-700 hover:bg-slate-100 rounded"
+                >
+                  <ZoomIn size={16} />
+                </button>
+              </div>
+            </div>
             {(() => {
               const shown = doc.renderedBody ?? doc.body;
-              return /^\s*<[a-z]/i.test(shown || '') ? (
-                <div className="overflow-x-auto">
+              const isHtml = /^\s*<[a-z]/i.test(shown || '');
+              return (
+                <div className="edo-a4-scroll overflow-auto bg-slate-100 rounded-lg p-2 md:p-4">
                   <div
-                    className="edo-doc-body prose prose-sm max-w-none text-slate-800"
-                    dangerouslySetInnerHTML={{ __html: shown }}
-                  />
-                </div>
-              ) : (
-                <div className="prose prose-sm max-w-none whitespace-pre-wrap text-slate-800">
-                  {shown}
+                    className="edo-a4-sheet mx-auto bg-white shadow-md"
+                    style={{ zoom: docZoom / 100 }}
+                  >
+                    {isHtml ? (
+                      <div
+                        className="edo-doc-body prose prose-sm max-w-none text-slate-800"
+                        dangerouslySetInnerHTML={{ __html: shown }}
+                      />
+                    ) : (
+                      <div className="prose prose-sm max-w-none whitespace-pre-wrap text-slate-800">
+                        {shown}
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })()}
@@ -661,15 +681,14 @@ function PdfDownloadButton({
   disabled?: boolean;
   isCreator?: boolean;
 }) {
-  const { t, i18n } = useTranslation();
-  const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
+  const { t } = useTranslation();
 
   const isDisabled = disabled && isCreator;
   const title = isDisabled ? t('edo.view.pdf_disabled_creator') : t('edo.view.download_pdf');
 
   return (
     <button
-      onClick={() => openDocumentPrint(doc, true, buildPrintMeta(doc, t, lang))}
+      onClick={() => openDocumentPrint(doc, true)}
       disabled={isDisabled}
       title={title}
       className="inline-flex items-center gap-1.5 text-xs font-medium text-asaka-700 hover:text-asaka-800 hover:bg-asaka-50 px-2 py-1 rounded-md disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
@@ -687,12 +706,11 @@ function WordExportButton({
   doc: EdoDocument;
   disabled?: boolean;
 }) {
-  const { t, i18n } = useTranslation();
-  const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
+  const { t } = useTranslation();
 
   return (
     <button
-      onClick={() => openDocumentPrint(doc, false, buildPrintMeta(doc, t, lang))}
+      onClick={() => openDocumentPrint(doc, false)}
       disabled={disabled}
       title={t('edo.view.preview_word')}
       className="inline-flex items-center justify-center text-slate-600 hover:text-slate-700 hover:bg-slate-50 p-1.5 rounded-md disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
@@ -719,7 +737,7 @@ function SignaturesPanel({ doc }: { doc: EdoDocument }) {
             <div className="flex items-start gap-3">
               <Avatar fullName={s.signer.fullName} avatarPath={s.signer.avatarPath} size="sm" />
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-slate-900">{s.signer.fullName}</div>
+                <div className="text-sm font-medium text-slate-900">{cyrName(s.signer.fullName)}</div>
                 <div className="text-xs text-slate-500 truncate">{s.certSubject}</div>
                 {s.certIssuer && (
                   <div className="text-xs text-slate-400 truncate">{s.certIssuer}</div>
@@ -1303,8 +1321,8 @@ function ApproverActions({
               .filter((u) => u.isActive && u.id !== user?.id && u.id !== docCreatorId)
               .map((u) => (
                 <option key={u.id} value={u.id}>
-                  {u.fullName}
-                  {u.position?.name ? ` — ${u.position.name}` : ''}
+                  {cyrName(u.fullName)}
+                  {u.position?.name ? ` — ${trDyn(u.position.name)}` : ''}
                 </option>
               ))}
           </select>
@@ -1410,7 +1428,7 @@ function CommentsSection({
             <Avatar fullName={c.author.fullName} avatarPath={c.author.avatarPath} size="sm" />
             <div className="flex-1 bg-slate-50 rounded-lg px-3 py-2">
               <div className="flex items-baseline gap-2 mb-1">
-                <span className="text-sm font-medium text-slate-900">{c.author.fullName}</span>
+                <span className="text-sm font-medium text-slate-900">{cyrName(c.author.fullName)}</span>
                 <span className="text-xs text-slate-400">{new Date(c.createdAt).toLocaleString(lang)}</span>
               </div>
               <p className="text-sm text-slate-700 whitespace-pre-wrap">{c.text}</p>
@@ -1473,12 +1491,12 @@ function ParticipantsPanel({
               <Avatar fullName={p.user.fullName} avatarPath={p.user.avatarPath} size="sm" />
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium text-slate-900 truncate">
-                  {p.user.fullName}
+                  {cyrName(p.user.fullName)}
                   {isMe && <span className="ml-1 text-xs text-asaka-600">({t('edo.view.you')})</span>}
                 </div>
                 <div className="text-xs text-slate-500">
                   {t(`edo.role.${p.role}`)}
-                  {p.user.position?.name && ` — ${p.user.position.name}`}
+                  {p.user.position?.name && ` — ${trDyn(p.user.position.name)}`}
                 </div>
                 <ParticipantStatusBadge status={p.status} />
                 {p.rejectReason && (
@@ -1549,7 +1567,7 @@ function AuditPayload({
     const target = participants.find((p) => p.userId === payload.toUserId);
     return (
       <div className="mt-1 text-xs text-slate-600">
-        → <span className="font-medium text-slate-800">{target?.user.fullName || payload.toUserId}</span>
+        → <span className="font-medium text-slate-800">{cyrName(target?.user.fullName) || payload.toUserId}</span>
         {payload.note && <span className="ml-1 italic">“{payload.note}”</span>}
       </div>
     );
@@ -1566,7 +1584,7 @@ function AuditPayload({
     const names = payload.targets
       .map((tg: any) => {
         const p = participants.find((p) => p.userId === tg.userId);
-        return p?.user.fullName || tg.userId;
+        return cyrName(p?.user.fullName) || tg.userId;
       })
       .join(', ');
     return (
@@ -1627,7 +1645,7 @@ function AuditPanel({ doc }: { doc: EdoDocument }) {
                 </div>
                 <div className="text-sm">
                   <span className="font-medium text-slate-800">
-                    {a.actor?.fullName || t('edo.view.system_actor')}
+                    {cyrName(a.actor?.fullName) || t('edo.view.system_actor')}
                   </span>
                   <span className={cn('ml-1', style.text)}>
                     {t(`edo.action.${a.action}`, a.action)}
@@ -1708,7 +1726,7 @@ function MyTasksBox({
         {targets.map((tg) => (
           <li key={tg.id} className="border border-slate-200 rounded-lg p-3 bg-slate-50">
             <div className="text-xs text-slate-500 mb-1">
-              {t('edo.view.assigned_by')}: <span className="font-medium text-slate-700">{tg.resolution.author.fullName}</span>
+              {t('edo.view.assigned_by')}: <span className="font-medium text-slate-700">{cyrName(tg.resolution.author.fullName)}</span>
               {tg.deadline && (
                 <span className="ml-2">
                   · {t('edo.view.deadline')}: {new Date(tg.deadline).toLocaleString(lang)}
@@ -1811,7 +1829,7 @@ function ResolutionSection({
             <div className="flex items-center gap-2 mb-2">
               <Avatar fullName={r.author.fullName} avatarPath={r.author.avatarPath} size="sm" />
               <div>
-                <div className="text-sm font-medium text-slate-900">{r.author.fullName}</div>
+                <div className="text-sm font-medium text-slate-900">{cyrName(r.author.fullName)}</div>
                 <div className="text-xs text-slate-400">{new Date(r.createdAt).toLocaleString(lang)}</div>
               </div>
             </div>
@@ -1824,7 +1842,7 @@ function ResolutionSection({
                 >
                   <Avatar fullName={tg.user.fullName} avatarPath={tg.user.avatarPath} size="sm" />
                   <span className="flex-1 min-w-0">
-                    <span className="font-medium text-slate-800">{tg.user.fullName}</span>
+                    <span className="font-medium text-slate-800">{cyrName(tg.user.fullName)}</span>
                     {tg.deadline && (
                       <span className="text-xs text-slate-500 ml-2">
                         ⏰ {new Date(tg.deadline).toLocaleString(lang)}

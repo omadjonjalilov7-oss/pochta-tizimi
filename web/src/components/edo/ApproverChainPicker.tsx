@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ArrowDown, ArrowUp, Search, Trash2, UserPlus } from 'lucide-react';
 import { Avatar } from '../Avatar';
 import type { User } from '../../lib/types';
+import { cyrName, trDyn } from '../../lib/utils';
 
 type ShortUser = Pick<User, 'id' | 'fullName' | 'avatarPath' | 'departmentId' | 'isActive'> & {
   position?: { name?: string | null; rank?: number } | null;
@@ -123,13 +124,13 @@ export function ApproverChainPicker({
                     />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-slate-900 truncate">
-                        {u.fullName}
+                        {cyrName(u.fullName)}
                       </div>
                       {(u.position?.name || u.department?.name) && (
                         <div className="text-xs text-slate-500 truncate">
-                          {u.position?.name}
+                          {trDyn(u.position?.name)}
                           {u.position?.name && u.department?.name ? ' — ' : ''}
-                          {u.department?.name}
+                          {trDyn(u.department?.name)}
                         </div>
                       )}
                     </div>
@@ -222,13 +223,13 @@ export function ApproverChainPicker({
                         />
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium text-slate-900 truncate">
-                            {u.fullName}
+                            {cyrName(u.fullName)}
                           </div>
                           {(u.position?.name || u.department?.name) && (
                             <div className="text-xs text-slate-500 truncate">
-                              {u.position?.name}
+                              {trDyn(u.position?.name)}
                               {u.position?.name && u.department?.name ? ' — ' : ''}
-                              {u.department?.name}
+                              {trDyn(u.department?.name)}
                             </div>
                           )}
                         </div>

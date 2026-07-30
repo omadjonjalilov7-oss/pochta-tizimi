@@ -7,6 +7,7 @@ import { Avatar } from '../components/Avatar';
 import { useAuth } from '../context/AuthContext';
 import type { User, Department, Position } from '../lib/types';
 import { SecretInput } from '../components/SecretInput';
+import { cyrName, trDyn } from '../lib/utils';
 
 export function AdminUsersPage() {
   const { t } = useTranslation();
@@ -102,7 +103,7 @@ export function AdminUsersPage() {
                       <div className="flex items-center gap-3">
                         <Avatar fullName={u.fullName} avatarPath={u.avatarPath} size="sm" />
                         <div>
-                          <div className="font-medium text-slate-900">{u.fullName}</div>
+                          <div className="font-medium text-slate-900">{cyrName(u.fullName)}</div>
                           {u.email && (
                             <div className="text-xs text-slate-500">{u.email}</div>
                           )}
@@ -111,9 +112,9 @@ export function AdminUsersPage() {
                     </td>
                     <td className="px-4 py-3 font-mono text-slate-700">{u.login}</td>
                     <td className="px-4 py-3 text-slate-600">
-                      {u.position?.name || '—'}
+                      {trDyn(u.position?.name) || '—'}
                       {u.department?.name && (
-                        <div className="text-xs text-slate-400">{u.department.name}</div>
+                        <div className="text-xs text-slate-400">{trDyn(u.department.name)}</div>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -453,7 +454,7 @@ function UserModal({
                 <option value="">{t('admin.form_select_placeholder')}</option>
                 {departments.map((d) => (
                   <option key={d.id} value={d.id}>
-                    {d.name}
+                    {trDyn(d.name)}
                   </option>
                 ))}
               </select>
@@ -468,7 +469,7 @@ function UserModal({
                 <option value="">{t('admin.form_select_placeholder')}</option>
                 {positions.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {t('admin.position_rank', { name: p.name, rank: p.rank })}
+                    {t('admin.position_rank', { name: trDyn(p.name), rank: p.rank })}
                   </option>
                 ))}
               </select>
@@ -483,8 +484,8 @@ function UserModal({
                 <option value="">{t('admin.form_no_manager')}</option>
                 {managerOptions.map((m) => (
                   <option key={m.id} value={m.id}>
-                    {m.fullName}
-                    {m.position?.name ? ` — ${m.position.name}` : ''}
+                    {cyrName(m.fullName)}
+                    {m.position?.name ? ` — ${trDyn(m.position.name)}` : ''}
                   </option>
                 ))}
               </select>
