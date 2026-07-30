@@ -722,7 +722,18 @@ export class DocumentsService {
       orderBy: { order: 'asc' },
     });
 
-    if (next) {
+    // Bosh direktor (avazbek) tasdiqlasa — ichki/chiquvchi hujjat DARHOL yakunlanadi
+    // (raqam beriladi), zanjirda boshqa tasdiqlovchilar qolgan bo'lsa ham. Ichki
+    // shablonda _gen_dir → QR, _sana_7 → tasdiqlangan sana avtomat to'ladi.
+    const approverUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { login: true },
+    });
+    const finalizeNow =
+      approverUser?.login === 'avazbek' &&
+      (doc.type === 'internal' || doc.type === 'outgoing');
+
+    if (next && !finalizeNow) {
       await this.prisma.document.update({
         where: { id },
         data: {
@@ -1389,6 +1400,7 @@ export class DocumentsService {
       }
       return fillCustomPlaceholders(tpl.bodyTemplate, {
         matn: doc.body ?? '',
+        mavzu: doc.subject ?? '',
         number: doc.number ?? '',
         date: this.effectiveDocDate(doc),
         qr: qrHtml,

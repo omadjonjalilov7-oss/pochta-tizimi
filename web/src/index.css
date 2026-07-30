@@ -304,3 +304,27 @@ input, textarea, select {
   border-radius: 2px;
 }
 .edo-a4-sheet img { max-width: 100%; height: auto; }
+
+/* ---------- Shablonni to'ldirish muharriri (TemplateFillEditor) ---------- */
+/* Shablon to'liq blanka ko'rinishida ochiladi; faqat {{mavzu}} va
+   {{xujjat_matni}} maydonlari tahrirlanadi. Tahrirlanadigan qismlar ko'k
+   fon bilan ajratiladi, qulflangan blanka esa o'zgarmaydi. */
+.tpl-sheet img { max-width: 100%; height: auto; }
+.tpl-sheet table { border-collapse: collapse; }
+.tpl-sheet table td,
+.tpl-sheet table th { border: 1px solid #94a3b8; padding: 4px 8px; vertical-align: top; }
+.tpl-fill {
+  background: rgba(37, 99, 235, 0.08);
+  outline: 1px dashed rgba(37, 99, 235, 0.4);
+  border-radius: 3px;
+  padding: 0 2px;
+  min-width: 8px;
+  min-height: 1em;
+  transition: background 0.15s, outline-color 0.15s;
+}
+.tpl-fill:focus {
+  background: rgba(37, 99, 235, 0.14);
+  outline: 1px solid rgba(37, 99, 235, 0.7);
+}
+div.tpl-fill { display: block; min-height: 1.5em; }
+.tpl-ph { color: #94a3b8; }

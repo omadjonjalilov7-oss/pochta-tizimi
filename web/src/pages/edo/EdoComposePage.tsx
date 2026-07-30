@@ -25,6 +25,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Avatar } from '../../components/Avatar';
 import { TemplatePickerModal } from '../../components/edo/TemplatePickerModal';
 import { RichBodyEditor } from '../../components/edo/RichBodyEditor';
+import { TemplateFillEditor } from '../../components/edo/TemplateFillEditor';
 
 const FILE_ACCEPT =
   '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.7z,.txt,.csv,image/*,video/*';
@@ -1158,8 +1159,9 @@ export function EdoComposePage() {
             </div>
           )}
 
-          {/* Qisqacha mazmuni — chiquvchi hujjatda kerak emas */}
-          {type !== 'outgoing' && (
+          {/* Qisqacha mazmuni — chiquvchi hujjatda kerak emas. Shablon tanlansa
+              mavzu shablon ichidagi {{mavzu}} maydonida to'g'ridan-to'g'ri kiritiladi. */}
+          {type !== 'outgoing' && !pickedTemplateId && (
             <div>
               <label className={labelCls}>
                 {t('edo.compose.label_summary')} <span className="text-red-500">*</span>
@@ -1180,15 +1182,28 @@ export function EdoComposePage() {
             </div>
           )}
 
-          {/* Hujjat matni */}
+          {/* Hujjat matni — shablon tanlansa, hujjat to'liq blanka ko'rinishida
+              ochiladi, lekin faqat {{mavzu}} va {{xujjat_matni}} tahrirlanadi. */}
           <div>
             <label className={labelCls}>{t('edo.compose.label_body')}</label>
-            <RichBodyEditor
-              value={body}
-              onChange={setBody}
-              disabled={!isDraft}
-              placeholder={t('edo.compose.ph_body')}
-            />
+            {pickedTemplateId ? (
+              <TemplateFillEditor
+                templateId={pickedTemplateId}
+                subject={subject}
+                body={body}
+                onSubject={setSubject}
+                onBody={setBody}
+                disabled={!isDraft}
+                maxBodyChars={3000}
+              />
+            ) : (
+              <RichBodyEditor
+                value={body}
+                onChange={setBody}
+                disabled={!isDraft}
+                placeholder={t('edo.compose.ph_body')}
+              />
+            )}
           </div>
 
           {/* Hujjat heshteglari */}
@@ -1448,16 +1463,10 @@ export function EdoComposePage() {
       {showTemplatePicker && (
         <TemplatePickerModal
           onClose={() => setShowTemplatePicker(false)}
-          onPick={(templateBody) => {
-            // Shablon endi "ramka" emas — to'g'ridan-to'g'ri tahrirlanadigan
-            // matnga "yoyiladi" (flatten). Foydalanuvchi hujjatning to'liq
-            // ko'rinishini Word kabi ko'radi va ichidagi hamma narsani
-            // (shrift turi, hajmi, rangi, interval) o'zgartira oladi.
-            // {{matn}} → hozirgi matn; {{xujjat_n}}/{{sana_soat}} render paytida
-            // avtomat to'ladi (data-fulldoc belgisi ichki avto-shablonni o'chiradi).
-            const flattened = templateBody.replace(/\{\{\s*matn\s*\}\}/g, body || '');
-            setBody(`<div data-fulldoc="1">${flattened}</div>`);
-            setPickedTemplateId(null);
+          onPick={(_picked, templateId) => {
+            // Shablon ramka bo'lib qoladi. Matn oynasi shablonni to'liq ko'rsatadi,
+            // lekin faqat {{mavzu}} va {{xujjat_matni}} tahrirlanadi (TemplateFillEditor).
+            setPickedTemplateId(templateId);
           }}
         />
       )}

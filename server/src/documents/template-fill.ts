@@ -77,10 +77,12 @@ function fmtCyrDate(d: Date | null | undefined): string {
 }
 
 // Foydalanuvchi blankasidagi maxsus o'zgaruvchilar:
-//   {{xujjat_n}}  → hujjat tartib raqami (escape)
-//   {{sana_soat}} → kirill sana "28 июль 2026 йил" (escape)
-//   {{matn}}      → hujjat asosiy matni (xom HTML — escape qilinmaydi)
-//   {{qr_kod}}    → hujjat QR kodi <img> (faqat hujjat bajarilganda; xom HTML)
+//   {{xujjat_n}}     → hujjat tartib raqami (escape)
+//   {{sana_soat}}    → kirill sana "28 июль 2026 йил" (escape)
+//   {{mavzu}}        → hujjat mavzusi (escape)
+//   {{xujjat_matni}} → hujjat asosiy matni (xom HTML — escape qilinmaydi)
+//   {{matn}}         → {{xujjat_matni}} ning eski nomi (moslik uchun)
+//   {{qr_kod}}       → hujjat QR kodi <img> (faqat hujjat bajarilganda; xom HTML)
 // Faqat mavjud bo'lsagina almashadi.
 export function fillCustomPlaceholders(
   html: string,
@@ -88,11 +90,14 @@ export function fillCustomPlaceholders(
     number: string;
     date: Date | null | undefined;
     matn?: string;
+    mavzu?: string;
     qr?: string;
   },
 ): string {
   return html
+    .replace(/\{\{\s*xujjat_matni\s*\}\}/g, input.matn ?? '')
     .replace(/\{\{\s*matn\s*\}\}/g, input.matn ?? '')
+    .replace(/\{\{\s*mavzu\s*\}\}/g, escapeHtml(input.mavzu ?? ''))
     .replace(/\{\{\s*qr_kod\s*\}\}/g, input.qr ?? '')
     .replace(/\{\{\s*xujjat_n\s*\}\}/g, escapeHtml(input.number))
     .replace(/\{\{\s*sana_soat\s*\}\}/g, escapeHtml(fmtCyrDate(input.date)));
@@ -130,6 +135,8 @@ export function buildIchkiTokens(input: AutoFillInput): {
     _asaka_10: input.subject,
     _asaka_11: input.body,
     _asaka_12: input.recipientName,
+    // Bosh direktor (avazbek) tasdig'i — QR kod (tasdiqlagan bo'lsa).
+    _gen_dir: markOf('avazbek'),
     // Ichki hujjat sanasi — ochilgan emas, TASDIQLANGAN (yakunlangan) sana.
     _sana_1: fmtDate(input.closedAt ?? input.createdAt),
     _sana_2: dateOf('aziza'),
@@ -137,9 +144,11 @@ export function buildIchkiTokens(input: AutoFillInput): {
     _sana_4: dateOf('abduxalil'),
     _sana_5: dateOf('mirzaxid'),
     _sana_6: fmtDate(input.closedAt),
+    // Bosh direktor tasdiqlagan sana va vaqt.
+    _sana_7: dateOf('avazbek'),
   };
   // Hujjat matni (_asaka_11) va tasdiqlash katakchalaridagi QR <img> teglari
-  // xom HTML sifatida joylanadi (escape qilinmaydi).
+  // (jumladan bosh direktor _gen_dir) xom HTML sifatida joylanadi.
   const raw = new Set<string>([
     '_asaka_11',
     '_asaka_2',
@@ -147,6 +156,7 @@ export function buildIchkiTokens(input: AutoFillInput): {
     '_asaka_4',
     '_asaka_5',
     '_asaka_6',
+    '_gen_dir',
   ]);
   return { values, raw };
 }
@@ -154,7 +164,8 @@ export function buildIchkiTokens(input: AutoFillInput): {
 // Ham `{{_asaka_1}}`, ham yalang'och `_asaka_1` ko'rinishini almashtiradi.
 // `\d+` ochko'z bo'lgani uchun `_asaka_12` to'liq mos keladi (`_asaka_1` bilan
 // qisman to'qnashmaydi).
-const TOKEN_RE = /\{\{\s*(_(?:asaka|sana)_\d+)\s*\}\}|(_(?:asaka|sana)_\d+)/g;
+const TOKEN_RE =
+  /\{\{\s*(_(?:asaka|sana)_\d+|_gen_dir)\s*\}\}|(_(?:asaka|sana)_\d+|_gen_dir)/g;
 
 export function renderIchki(
   bodyTemplate: string,
