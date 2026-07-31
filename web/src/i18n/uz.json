@@ -38,6 +38,7 @@
     "blocked": "Bloklangan",
     "today": "Bugun",
     "yesterday": "Kecha",
+    "day_before": "Ilgari kun",
     "minutes_ago": "{{count}} daqiqa oldin",
     "hours_ago": "{{count}} soat oldin",
     "days_ago": "{{count}} kun oldin",
@@ -1151,7 +1152,13 @@
       "admin": "admin",
       "leave_group": "Guruhdan chiqish",
       "delete_group": "Guruhni o'chirish",
-      "leave_confirm": "Guruhdan chiqmoqchimisiz?"
+      "leave_confirm": "Guruhdan chiqmoqchimisiz?",
+      "title": "Chat",
+      "emoji": "Smaykliklar",
+      "attach_file": "Fayl biriktirish (max 50 MB)",
+      "file_too_large": "Fayl 50 MB dan katta bo'lmasligi kerak",
+      "message_placeholder": "Xabar yozing... (Enter — yuborish)",
+      "no_messages_dm": "Xabarlar yo'q. Birinchi xabarni yuboring!"
     }
   }
 }

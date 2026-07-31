@@ -38,6 +38,7 @@
     "blocked": "Заблокирован",
     "today": "Сегодня",
     "yesterday": "Вчера",
+    "day_before": "Позавчера",
     "minutes_ago": "{{count}} мин. назад",
     "hours_ago": "{{count}} ч. назад",
     "days_ago": "{{count}} дн. назад",
@@ -1153,7 +1154,13 @@
       "admin": "админ",
       "leave_group": "Выйти из группы",
       "delete_group": "Удалить группу",
-      "leave_confirm": "Выйти из группы?"
+      "leave_confirm": "Выйти из группы?",
+      "title": "Чат",
+      "emoji": "Смайлики",
+      "attach_file": "Прикрепить файл (макс. 50 МБ)",
+      "file_too_large": "Файл не должен превышать 50 МБ",
+      "message_placeholder": "Напишите сообщение... (Enter — отправить)",
+      "no_messages_dm": "Сообщений нет. Отправьте первое сообщение!"
     }
   }
 }

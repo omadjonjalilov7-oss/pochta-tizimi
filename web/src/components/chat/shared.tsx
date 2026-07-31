@@ -26,8 +26,19 @@ import {
   Smile,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import i18n, { getLanguage } from '../../i18n';
+import { latinToCyrillic } from '../../i18n/translit';
 import { Avatar } from '../Avatar';
 import { cn } from '../../lib/utils';
+
+// Sana/vaqt lokalizatsiyasi. Rus tili → ru-RU; o'zbek (lotin/krill) → uz-UZ.
+// Krill uchun natijani translit qilamiz (brauzer uz-Cyrl'ni bilmasligi mumkin).
+function dateLocale() {
+  return getLanguage() === 'ru' ? 'ru-RU' : 'uz-UZ';
+}
+function localizeDate(s: string) {
+  return getLanguage() === 'uzc' ? latinToCyrillic(s) : s;
+}
 
 // ─── Turlar ───────────────────────────────────────────────────────────────────
 export interface ChatUser {
@@ -139,6 +150,7 @@ const CHAT_EMOJIS: string[] = [
 ];
 
 export function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -157,7 +169,7 @@ export function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="p-1.5 text-slate-400 hover:text-brand-600 rounded-lg hover:bg-brand-50"
-        title="Smayliklar"
+        title={t('edo.chat.emoji')}
       >
         <Smile size={18} />
       </button>
@@ -192,15 +204,15 @@ export function formatBytes(n: number) {
 export function formatTime(iso: string) {
   const d = new Date(iso);
   const now = new Date();
-  const hm = d.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+  const hm = d.toLocaleTimeString(dateLocale(), { hour: '2-digit', minute: '2-digit' });
   // Kalendar kunlar farqi (soatlar emas)
   const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const dayDiff = Math.round((startOf(now) - startOf(d)) / 86_400_000);
   const dd = String(d.getDate()).padStart(2, '0');
   const mm = String(d.getMonth() + 1).padStart(2, '0');
-  if (dayDiff === 0) return `Bugun ${hm}`;
-  if (dayDiff === 1) return `Kecha ${hm}`;
-  if (dayDiff === 2) return `Ilgari kun ${hm}`;
+  if (dayDiff === 0) return `${i18n.t('common.today')} ${hm}`;
+  if (dayDiff === 1) return `${i18n.t('common.yesterday')} ${hm}`;
+  if (dayDiff === 2) return `${i18n.t('common.day_before')} ${hm}`;
   if (d.getFullYear() === now.getFullYear()) return `${dd}.${mm} ${hm}`;
   const yy = String(d.getFullYear()).slice(-2);
   return `${dd}.${mm}.${yy} ${hm}`;
@@ -216,9 +228,9 @@ export function formatLastSeen(iso: string) {
     d.getDate() === now.getDate() &&
     d.getMonth() === now.getMonth() &&
     d.getFullYear() === now.getFullYear();
-  const time = d.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+  const time = d.toLocaleTimeString(dateLocale(), { hour: '2-digit', minute: '2-digit' });
   if (sameDay) return { online: false, text: time };
-  const date = d.toLocaleDateString('uz-UZ', { day: 'numeric', month: 'short' });
+  const date = localizeDate(d.toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' }));
   return { online: false, text: `${date}, ${time}` };
 }
 
@@ -326,7 +338,7 @@ export function ConversationView({
         setText('');
       } catch (e: any) {
         const msg = e?.response?.data?.message;
-        setError(Array.isArray(msg) ? msg.join(', ') : msg || e?.message || 'Xatolik');
+        setError(Array.isArray(msg) ? msg.join(', ') : msg || e?.message || t('common.error'));
       } finally {
         setSending(false);
       }
@@ -342,7 +354,7 @@ export function ConversationView({
       setFile(null);
     } catch (e: any) {
       const msg = e?.response?.data?.message;
-      setError(Array.isArray(msg) ? msg.join(', ') : msg || e?.message || 'Xatolik');
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || e?.message || t('common.error'));
     } finally {
       setSending(false);
     }
@@ -359,7 +371,7 @@ export function ConversationView({
     const f = e.target.files?.[0];
     if (!f) return;
     if (f.size > 50 * 1024 * 1024) {
-      setError("Fayl 50 MB dan katta bo'lmasligi kerak");
+      setError(t('edo.chat.file_too_large'));
       return;
     }
     setFile(f);
@@ -369,15 +381,19 @@ export function ConversationView({
   const grouped = useMemo(() => {
     const days: { date: string; msgs: ChatMsg[] }[] = [];
     for (const m of messages) {
-      const d = new Date(m.sentAt).toLocaleDateString('uz-UZ', {
-        day: 'numeric', month: 'long', year: 'numeric',
-      });
+      const d = localizeDate(
+        new Date(m.sentAt).toLocaleDateString(dateLocale(), {
+          day: 'numeric', month: 'long', year: 'numeric',
+        }),
+      );
       const last = days[days.length - 1];
       if (!last || last.date !== d) days.push({ date: d, msgs: [m] });
       else last.msgs.push(m);
     }
     return days;
-  }, [messages]);
+    // i18n.language — til o'zgarsa sana sarlavhalari qayta hisoblanadi
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, i18n.language]);
 
   return (
     <>
@@ -421,7 +437,7 @@ export function ConversationView({
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1 bg-slate-50">
         {grouped.length === 0 && (
           <p className="text-xs text-slate-400 text-center py-8">
-            Xabarlar yo'q. Birinchi xabarni yuboring!
+            {t('edo.chat.no_messages_dm')}
           </p>
         )}
         {grouped.map((group) => (
@@ -486,7 +502,7 @@ export function ConversationView({
             type="button"
             onClick={() => fileRef.current?.click()}
             className="p-1.5 text-slate-400 hover:text-brand-600 rounded-lg hover:bg-brand-50"
-            title="Fayl biriktirish (max 50 MB)"
+            title={t('edo.chat.attach_file')}
           >
             <Paperclip size={18} />
           </button>
@@ -513,7 +529,7 @@ export function ConversationView({
           }}
           onKeyDown={handleKeyDown}
           rows={1}
-          placeholder="Xabar yozing... (Enter — yuborish)"
+          placeholder={t('edo.chat.message_placeholder')}
           className="flex-1 text-sm resize-none outline-none bg-transparent py-1 max-h-24 overflow-y-auto"
           style={{ lineHeight: '1.4' }}
         />
@@ -654,7 +670,7 @@ export function MessageBubble({
           <span
             className={`text-[10px] ${isMine ? 'text-brand-200' : 'text-slate-400'}`}
           >
-            {new Date(msg.sentAt).toLocaleTimeString('uz-UZ', {
+            {new Date(msg.sentAt).toLocaleTimeString(dateLocale(), {
               hour: '2-digit',
               minute: '2-digit',
             })}
@@ -799,7 +815,7 @@ export function GroupCreatePanel({
       await onCreate(name.trim(), Array.from(selected));
     } catch (e: any) {
       const msg = e?.response?.data?.message;
-      setError(Array.isArray(msg) ? msg.join(', ') : msg || e?.message || 'Xatolik');
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || e?.message || t('common.error'));
       setSaving(false);
     }
   };
@@ -953,7 +969,7 @@ export function GroupConversationView({
         setText('');
       } catch (e: any) {
         const msg = e?.response?.data?.message;
-        setError(Array.isArray(msg) ? msg.join(', ') : msg || e?.message || 'Xatolik');
+        setError(Array.isArray(msg) ? msg.join(', ') : msg || e?.message || t('common.error'));
       } finally {
         setSending(false);
       }
@@ -968,7 +984,7 @@ export function GroupConversationView({
       setFile(null);
     } catch (e: any) {
       const msg = e?.response?.data?.message;
-      setError(Array.isArray(msg) ? msg.join(', ') : msg || e?.message || 'Xatolik');
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || e?.message || t('common.error'));
     } finally {
       setSending(false);
     }
@@ -985,7 +1001,7 @@ export function GroupConversationView({
     const f = e.target.files?.[0];
     if (!f) return;
     if (f.size > 50 * 1024 * 1024) {
-      setError("Fayl 50 MB dan katta bo'lmasligi kerak");
+      setError(t('edo.chat.file_too_large'));
       return;
     }
     setFile(f);
@@ -995,15 +1011,19 @@ export function GroupConversationView({
   const grouped = useMemo(() => {
     const days: { date: string; msgs: GroupMsg[] }[] = [];
     for (const m of messages) {
-      const d = new Date(m.sentAt).toLocaleDateString('uz-UZ', {
-        day: 'numeric', month: 'long', year: 'numeric',
-      });
+      const d = localizeDate(
+        new Date(m.sentAt).toLocaleDateString(dateLocale(), {
+          day: 'numeric', month: 'long', year: 'numeric',
+        }),
+      );
       const last = days[days.length - 1];
       if (!last || last.date !== d) days.push({ date: d, msgs: [m] });
       else last.msgs.push(m);
     }
     return days;
-  }, [messages]);
+    // i18n.language — til o'zgarsa sana sarlavhalari qayta hisoblanadi
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, i18n.language]);
 
   return (
     <>
@@ -1089,7 +1109,7 @@ export function GroupConversationView({
             type="button"
             onClick={() => fileRef.current?.click()}
             className="p-1.5 text-slate-400 hover:text-brand-600 rounded-lg hover:bg-brand-50"
-            title="Fayl biriktirish (max 50 MB)"
+            title={t('edo.chat.attach_file')}
           >
             <Paperclip size={18} />
           </button>
@@ -1107,7 +1127,7 @@ export function GroupConversationView({
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
           rows={1}
-          placeholder="Xabar yozing... (Enter — yuborish)"
+          placeholder={t('edo.chat.message_placeholder')}
           className="flex-1 text-sm resize-none outline-none bg-transparent py-1 max-h-24 overflow-y-auto"
           style={{ lineHeight: '1.4' }}
         />
@@ -1246,7 +1266,7 @@ export function GroupMessageBubble({
             </span>
           )}
           <span className={`text-[10px] ${isMine ? 'text-brand-200' : 'text-slate-400'}`}>
-            {new Date(msg.sentAt).toLocaleTimeString('uz-UZ', {
+            {new Date(msg.sentAt).toLocaleTimeString(dateLocale(), {
               hour: '2-digit',
               minute: '2-digit',
             })}

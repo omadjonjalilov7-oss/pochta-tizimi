@@ -456,7 +456,7 @@ export function FloatingChatWidget() {
         )}
         <button
           onClick={() => setOpen((v) => !v)}
-          title="Chat"
+          title={t('edo.chat.title')}
           className={cn(
             'rounded-full text-white flex items-center justify-center relative transition-[width,height,background-color] duration-300',
             !open && totalUnread > 0
@@ -518,7 +518,7 @@ function ConversationList({
     <>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-brand-600 text-white shrink-0">
-        <span className="font-semibold text-sm">Chat</span>
+        <span className="font-semibold text-sm">{t('edo.chat.title')}</span>
         <div className="flex items-center gap-2">
           <button
             onClick={onCreateGroup}
@@ -550,7 +550,7 @@ function ConversationList({
             onChange={(e) =>
               showContacts ? onNewConvSearch(e.target.value) : onSearch(e.target.value)
             }
-            placeholder={showContacts ? 'Foydalanuvchi qidirish...' : 'Qidirish...'}
+            placeholder={showContacts ? t('edo.chat.search_user') : t('edo.chat.search')}
             className="flex-1 text-xs bg-transparent outline-none"
           />
         </div>
@@ -562,7 +562,7 @@ function ConversationList({
           <>
             {contacts.length === 0 ? (
               <p className="text-xs text-slate-400 text-center py-8">
-                Foydalanuvchi topilmadi
+                {t('edo.chat.no_users')}
               </p>
             ) : (
               contacts.map((c) => (
