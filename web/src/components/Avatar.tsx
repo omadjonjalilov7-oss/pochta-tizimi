@@ -13,7 +13,8 @@ const SIZE_CLASS = {
 };
 
 export function avatarUrl(avatarPath?: string | null): string | null {
-  return avatarPath ? `/avatars/${avatarPath}` : null;
+  // Avatarlar /api/avatars ostida beriladi (API bilan bir xil proksi orqali).
+  return avatarPath ? `/api/avatars/${avatarPath}` : null;
 }
 
 export function Avatar({ fullName, size = 'md', avatarPath }: AvatarProps) {

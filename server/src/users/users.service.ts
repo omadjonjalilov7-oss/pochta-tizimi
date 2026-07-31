@@ -334,9 +334,14 @@ export class UsersService {
   }
 
   private avatarsDir(): string {
-    return (
-      this.config.get<string>('AVATARS_DIR') || 'C:\\D\\pochta\\storage\\avatars'
-    );
+    // app.module.ts dagi ServeStaticModule bilan AYNAN bir xil papka bo'lishi
+    // shart — aks holda yuklangan rasm ko'rinmaydi. AVATARS_DIR bo'lmasa
+    // ATTACHMENTS_DIR yonidagi "avatars" papkasidan foydalanamiz.
+    const explicit = this.config.get<string>('AVATARS_DIR');
+    if (explicit) return explicit;
+    const att = this.config.get<string>('ATTACHMENTS_DIR');
+    if (att) return path.join(path.dirname(att), 'avatars');
+    return path.join(process.cwd(), 'storage', 'avatars');
   }
 
   async uploadAvatar(userId: string, file: Express.Multer.File) {

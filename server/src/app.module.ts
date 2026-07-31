@@ -4,7 +4,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { APP_GUARD } from '@nestjs/core';
-import { join } from 'path';
+import { join, dirname } from 'path';
 
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
@@ -24,20 +24,32 @@ import { OrganizationsModule } from './organizations/organizations.module';
 import { JournalsModule } from './journals/journals.module';
 import { TranslateModule } from './translate/translate.module';
 
-const avatarsDir = process.env.AVATARS_DIR || 'C:\\D\\pochta\\storage\\avatars';
+// Avatar papkasi. AVATARS_DIR ko'rsatilmagan bo'lsa — ishlab turgan
+// ATTACHMENTS_DIR yonidagi "avatars" papkasidan foydalanamiz (Linux/Windows
+// da bir xil ishlaydi). Bu yozuvchi (UsersService) bilan bir xil bo'lishi shart.
+export function resolveAvatarsDir(): string {
+  if (process.env.AVATARS_DIR) return process.env.AVATARS_DIR;
+  const att = process.env.ATTACHMENTS_DIR;
+  if (att) return join(dirname(att), 'avatars');
+  return join(process.cwd(), 'storage', 'avatars');
+}
+
+const avatarsDir = resolveAvatarsDir();
 
 const staticImports = [
-  // avatar fayllari hamma vaqt ochiq (LAN ichida)
+  // Avatar fayllari — /api/avatars ostida beriladi. Shunda ular API bilan bir
+  // xil proksidan o'tadi (nginx faqat /api ni backendga yo'naltiradi), demak
+  // prodda alohida nginx sozlamasi shart emas.
   ServeStaticModule.forRoot({
     rootPath: avatarsDir,
-    serveRoot: '/avatars',
+    serveRoot: '/api/avatars',
     serveStaticOptions: { fallthrough: true, index: false },
   }),
   ...(process.env.SERVE_STATIC === 'true'
     ? [
         ServeStaticModule.forRoot({
           rootPath: process.env.STATIC_DIR || join(__dirname, '..', '..', 'web', 'dist'),
-          exclude: ['/api/{*test}', '/socket.io/{*test}', '/avatars/{*test}'],
+          exclude: ['/api/{*test}', '/socket.io/{*test}'],
         }),
       ]
     : []),
