@@ -266,7 +266,17 @@
     "pin_save_error": "PINni saqlab bo'lmadi",
     "pin_err_format": "PIN aniq 4 raqamdan iborat bo'lishi shart",
     "pin_err_mismatch": "Yangi PIN va tasdiq mos kelmadi",
-    "pin_err_current_required": "Joriy PINni kiriting"
+    "pin_err_current_required": "Joriy PINni kiriting",
+    "pwd_title": "Parolni yangilash",
+    "pwd_current": "Joriy parol",
+    "pwd_new": "Yangi parol",
+    "pwd_confirm": "Yangi parolni qayta kiriting",
+    "pwd_submit": "Parolni yangilash",
+    "pwd_saved": "Parol yangilandi",
+    "pwd_err_required": "Barcha maydonlarni to'ldiring",
+    "pwd_err_short": "Yangi parol kamida 6 ta belgidan iborat bo'lishi shart",
+    "pwd_err_mismatch": "Yangi parol va tasdiq mos kelmadi",
+    "pwd_err_save": "Parolni yangilab bo'lmadi"
   },
   "external_mail": {
     "section_title": "Tashqi pochta",

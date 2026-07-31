@@ -33,6 +33,14 @@ class SetProtectedLoginsDto {
   logins?: string[];
 }
 
+class ChangePasswordDto {
+  @IsString()
+  currentPassword: string;
+
+  @IsString()
+  newPassword: string;
+}
+
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
@@ -80,6 +88,15 @@ export class UsersController {
     @Body() dto: UpdatePreferencesDto,
   ) {
     return this.users.update(user.id, { notifyEdo: dto.notifyEdo });
+  }
+
+  // Parolni yangilash — foydalanuvchining o'zi (joriy parol tekshiriladi)
+  @Post('me/change-password')
+  changeMyPassword(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.users.changeMyPassword(user.id, dto.currentPassword, dto.newPassword);
   }
 
   // EDO tasdiqlash PIN-kodini o'rnatish/yangilash — foydalanuvchining o'zi

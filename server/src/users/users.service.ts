@@ -236,6 +236,42 @@ export class UsersService {
     return { ok: true };
   }
 
+  // Foydalanuvchining o'zi parolini yangilashi — joriy parol tekshiriladi.
+  async changeMyPassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    if (!currentPassword || !newPassword) {
+      throw new BadRequestException('Joriy va yangi parolni kiriting');
+    }
+    if (newPassword.length < 6) {
+      throw new BadRequestException("Yangi parol kamida 6 ta belgidan iborat bo'lishi shart");
+    }
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { passwordHash: true },
+    });
+    if (!user) throw new NotFoundException('Foydalanuvchi topilmadi');
+
+    const ok = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!ok) throw new BadRequestException("Joriy parol noto'g'ri");
+
+    // Yangi parol eskisi bilan bir xil bo'lmasin
+    const same = await bcrypt.compare(newPassword, user.passwordHash);
+    if (same) {
+      throw new BadRequestException('Yangi parol eskisidan farq qilishi kerak');
+    }
+
+    const rounds = parseInt(this.config.get('BCRYPT_ROUNDS', '12'), 10);
+    const passwordHash = await bcrypt.hash(newPassword, rounds);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash, failedLoginCount: 0, lockedUntil: null },
+    });
+    return { ok: true };
+  }
+
   async setActive(id: string, isActive: boolean) {
     await this.prisma.user.update({ where: { id }, data: { isActive } });
     return { ok: true };

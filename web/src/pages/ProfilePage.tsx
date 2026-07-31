@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Camera, Trash2, Mail, CheckCircle2, AlertCircle, Loader2, LinkIcon, Unlink, RefreshCw, Stethoscope, X, Bell, ShieldCheck, Lock } from 'lucide-react';
+import { Camera, Trash2, Mail, CheckCircle2, AlertCircle, Loader2, LinkIcon, Unlink, RefreshCw, Stethoscope, X, Bell, ShieldCheck, Lock, KeyRound } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { Avatar } from '../components/Avatar';
@@ -70,6 +70,9 @@ export function ProfilePage() {
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
+      {/* Parolni yangilash — profilning eng tepasida, ixcham blok */}
+      <PasswordSection />
+
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
         <div className="flex items-center gap-5 pb-6 border-b border-slate-100">
           <div className="relative group">
@@ -448,6 +451,128 @@ function ApprovalPinSection() {
             <span>{msg.text}</span>
           </div>
         )}
+      </form>
+    </div>
+  );
+}
+
+// ============================================================
+// Parolni yangilash — ixcham blok (profilning eng tepasida)
+// ============================================================
+function PasswordSection() {
+  const { t } = useTranslation();
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMsg(null);
+    if (!current || !next || !confirm) {
+      setMsg({ kind: 'err', text: t('profile.pwd_err_required') });
+      return;
+    }
+    if (next.length < 6) {
+      setMsg({ kind: 'err', text: t('profile.pwd_err_short') });
+      return;
+    }
+    if (next !== confirm) {
+      setMsg({ kind: 'err', text: t('profile.pwd_err_mismatch') });
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.post('/users/me/change-password', {
+        currentPassword: current,
+        newPassword: next,
+      });
+      setMsg({ kind: 'ok', text: t('profile.pwd_saved') });
+      setCurrent('');
+      setNext('');
+      setConfirm('');
+    } catch (err: any) {
+      setMsg({ kind: 'err', text: err.response?.data?.message || t('profile.pwd_err_save') });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputCls =
+    'w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none text-sm';
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-brand-50/50 to-white">
+        <div className="w-9 h-9 rounded-xl bg-brand-100 text-brand-700 flex items-center justify-center">
+          <KeyRound size={18} />
+        </div>
+        <h2 className="text-base font-semibold text-slate-900">{t('profile.pwd_title')}</h2>
+      </div>
+      <form onSubmit={submit} className="p-6 space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              {t('profile.pwd_current')}
+            </label>
+            <SecretInput
+              name="cur-pass"
+              autoComplete="current-password"
+              value={current}
+              onChange={(e) => setCurrent(e.target.value)}
+              placeholder="••••••"
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              {t('profile.pwd_new')}
+            </label>
+            <SecretInput
+              name="new-pass"
+              autoComplete="new-password"
+              value={next}
+              onChange={(e) => setNext(e.target.value)}
+              placeholder="••••••"
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              {t('profile.pwd_confirm')}
+            </label>
+            <SecretInput
+              name="confirm-pass"
+              autoComplete="new-password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              placeholder="••••••"
+              className={inputCls}
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-3 pt-1">
+          <button
+            type="submit"
+            disabled={saving}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gradient-to-b from-brand-500 to-brand-600 text-white text-sm font-semibold shadow-sm hover:shadow-md disabled:opacity-50 transition"
+          >
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />}
+            {t('profile.pwd_submit')}
+          </button>
+          {msg && (
+            <span
+              className={cn(
+                'inline-flex items-center gap-1.5 text-xs font-medium',
+                msg.kind === 'ok' ? 'text-emerald-700' : 'text-red-600',
+              )}
+            >
+              {msg.kind === 'ok' ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+              {msg.text}
+            </span>
+          )}
+        </div>
       </form>
     </div>
   );

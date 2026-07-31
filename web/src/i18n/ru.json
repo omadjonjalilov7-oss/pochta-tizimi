@@ -266,7 +266,17 @@
     "pin_save_error": "Не удалось сохранить PIN",
     "pin_err_format": "PIN должен состоять ровно из 4 цифр",
     "pin_err_mismatch": "Новый PIN и подтверждение не совпадают",
-    "pin_err_current_required": "Введите текущий PIN"
+    "pin_err_current_required": "Введите текущий PIN",
+    "pwd_title": "Смена пароля",
+    "pwd_current": "Текущий пароль",
+    "pwd_new": "Новый пароль",
+    "pwd_confirm": "Повторите новый пароль",
+    "pwd_submit": "Сменить пароль",
+    "pwd_saved": "Пароль изменён",
+    "pwd_err_required": "Заполните все поля",
+    "pwd_err_short": "Новый пароль должен содержать не менее 6 символов",
+    "pwd_err_mismatch": "Новый пароль и подтверждение не совпадают",
+    "pwd_err_save": "Не удалось изменить пароль"
   },
   "external_mail": {
     "section_title": "Внешняя почта",
