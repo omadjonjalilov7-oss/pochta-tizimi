@@ -23,7 +23,7 @@ import { ReportService } from './report.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { SendDocumentDto } from './dto/send-document.dto';
-import { ApproveDocumentDto, ApproveOverdueDocumentDto, CommentDto, ExtendDeadlineDto, ForwardDto, RejectDto } from './dto/document-action.dto';
+import { ApproveDocumentDto, ApproveOverdueDocumentDto, CommentDto, ExtendDeadlineDto, ForwardDto, PresentToLeaderDto, RejectDto } from './dto/document-action.dto';
 import { CompleteTargetDto, CreateResolutionDto } from './dto/resolution.dto';
 import { SignDocumentDto } from './dto/sign.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -360,6 +360,15 @@ export class DocumentsController {
     @Body() dto: CreateResolutionDto,
   ) {
     return this.docs.addResolution(user.id, id, dto, user.role);
+  }
+
+  @Post(':id/present-to-leader')
+  presentToLeader(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: PresentToLeaderDto,
+  ) {
+    return this.docs.presentToLeader(user.id, id, dto, user.role);
   }
 
   @Post(':id/sign')

@@ -597,6 +597,18 @@
       "err_no_executor": "Kamida bitta ijrochi tanlang",
       "err_no_text": "Topshiriq mazmunini yozing"
     },
+    "present_leader": {
+      "title": "Rahbarga ma'ruza",
+      "hint": "Hujjatni ko'rib chiqish uchun rahbarga yuboring — u rezolyutsiya (topshiriq) yozadi.",
+      "button": "Rahbarga yuborish",
+      "leader_label": "Rahbarni tanlang",
+      "leader_search": "Rahbarni qidirish...",
+      "no_users": "Xodim topilmadi",
+      "note_label": "Izoh (ixtiyoriy)",
+      "note_ph": "Rahbarga qisqacha izoh...",
+      "submit": "Rahbarga yuborish",
+      "err_no_leader": "Rahbarni tanlang"
+    },
     "control": {
       "section": "NAZORAT",
       "soon_badge": "tez orada",

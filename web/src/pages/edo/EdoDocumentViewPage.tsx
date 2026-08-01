@@ -26,9 +26,11 @@ import {
   X,
   ZoomIn,
   ZoomOut,
+  UserCheck,
 } from 'lucide-react';
 import { EimzoSignModal } from '../../components/edo/EimzoSignModal';
 import { ControlAssignmentModal } from '../../components/edo/ControlAssignmentModal';
+import { PresentToLeaderModal } from '../../components/edo/PresentToLeaderModal';
 import { api } from '../../lib/api';
 import type { DocumentStatus, EdoDocument, User } from '../../lib/types';
 import { Avatar } from '../../components/Avatar';
@@ -102,6 +104,11 @@ export function EdoDocumentViewPage() {
       (await api.post<EdoDocument>(`/documents/${id}/resolution`, vars)).data,
     onSuccess: invalidate,
   });
+  const present = useMutation({
+    mutationFn: async (vars: { leaderId: string; note?: string }) =>
+      (await api.post<EdoDocument>(`/documents/${id}/present-to-leader`, vars)).data,
+    onSuccess: invalidate,
+  });
   const completeTarget = useMutation({
     mutationFn: async (vars: { targetId: string; note?: string }) =>
       (
@@ -142,6 +149,7 @@ export function EdoDocumentViewPage() {
   const [showChainModal, setShowChainModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showControlModal, setShowControlModal] = useState(false);
+  const [showPresentModal, setShowPresentModal] = useState(false);
   // Hujjat matnini kattalashtirish/kichraytirish (ayniqsa mobil qurilmada A4 varaqni ko'rish uchun).
   // Mobil ekranda A4 varaq (794px) ekranga to'liq sig'ishi uchun boshlang'ich zoom hisoblanadi.
   const [docZoom, setDocZoom] = useState(() => {
@@ -573,6 +581,35 @@ export function EdoDocumentViewPage() {
             />
           )}
 
+          {/* Rahbarga ma'ruza — kiruvchi hujjat uchun (kanselyariya/yaratuvchi) */}
+          {doc.type === 'incoming' &&
+            (isCreator || isStaff) &&
+            doc.status !== 'done' &&
+            doc.status !== 'rejected' && (
+              <div className="bg-white border border-slate-200 rounded-2xl p-4">
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="h-9 w-9 rounded-xl bg-asaka-50 text-asaka-600 flex items-center justify-center shrink-0">
+                    <UserCheck size={18} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-slate-900">
+                      {t('edo.present_leader.title')}
+                    </h3>
+                    <p className="text-sm text-slate-500">
+                      {t('edo.present_leader.hint')}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowPresentModal(true)}
+                  className="inline-flex items-center gap-2 bg-asaka-600 hover:bg-asaka-700 text-white font-semibold px-4 py-2 rounded-lg"
+                >
+                  <UserCheck size={16} />
+                  {t('edo.present_leader.button')}
+                </button>
+              </div>
+            )}
+
           {/* Rezolyutsiyalar / nazorat bandi bo'limi */}
           <ResolutionSection
             doc={doc}
@@ -584,6 +621,23 @@ export function EdoDocumentViewPage() {
           <CommentsSection doc={doc} onComment={(t) => comment.mutate(t)} sending={comment.isPending} />
         </div>
       </div>
+
+      {/* Rahbarga ma'ruza modali — kiruvchi hujjat uchun rahbar tanlash */}
+      {showPresentModal && (
+        <PresentToLeaderModal
+          documentNumber={doc.number}
+          documentSubject={doc.subject}
+          submitting={present.isPending}
+          error={extractError(present.error)}
+          onClose={() => setShowPresentModal(false)}
+          onSubmit={(leaderId, note) =>
+            present.mutate(
+              { leaderId, note },
+              { onSuccess: () => setShowPresentModal(false) },
+            )
+          }
+        />
+      )}
 
       {/* Nazorat bandi modali — ijrochi + topshiriq + muddat */}
       {showControlModal && (

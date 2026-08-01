@@ -85,6 +85,19 @@ export class ForwardDto {
   additionalApproverIds?: string[];
 }
 
+// Kiruvchi hujjatni rahbarga ma'ruza qilish — kanselyariya/yaratuvchi
+// ro'yxatdan rahbarni tanlaydi, hujjat unga ko'rib chiqish uchun boradi va
+// rahbar rezolyutsiya (topshiriq) yozadi.
+export class PresentToLeaderDto {
+  @IsUUID()
+  leaderId: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+}
+
 // Muddati o'tgan hujjatlarni director tasdiqlab berish
 // Overdue xujjat — muddati o'tgani sababli director ruxsati kerak
 export class ApproveOverdueDocumentDto {

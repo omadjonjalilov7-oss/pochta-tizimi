@@ -30,6 +30,7 @@ import {
   CommentDto,
   ExtendDeadlineDto,
   ForwardDto,
+  PresentToLeaderDto,
   RejectDto,
 } from './dto/document-action.dto';
 import { CompleteTargetDto, CreateResolutionDto } from './dto/resolution.dto';
@@ -1188,7 +1189,10 @@ export class DocumentsService {
         p.status === ParticipantStatus.approved,
     );
     const isStaff = role === 'admin' || role === 'chancellery';
-    if (!isCreator && !isApprover && !isStaff) {
+    // Rahbarga ma'ruza qilingan hujjatning joriy egasi (rahbar) rezolyutsiya
+    // yozadi — u hali "approved" bo'lmasa ham topshiriq bera oladi.
+    const isHolder = doc.currentHolderId === userId;
+    if (!isCreator && !isApprover && !isStaff && !isHolder) {
       throw new ForbiddenException("Sizda rezolyutsiya yozish huquqi yo'q");
     }
 
@@ -1263,6 +1267,75 @@ export class DocumentsService {
     for (const t of dto.targets) {
       await this.notifyExecutor(t.userId, userId, id, doc.number, doc.subject, dto.text);
     }
+
+    return this.findOne(userId, id);
+  }
+
+  // Kiruvchi hujjatni rahbarga ma'ruza qilish: kanselyariya/yaratuvchi rahbarni
+  // tanlaydi, hujjat unga ko'rib chiqish uchun boradi (in_review, joriy egasi —
+  // rahbar) va rahbar rezolyutsiya (topshiriq) yozadi.
+  async presentToLeader(
+    userId: string,
+    id: string,
+    dto: PresentToLeaderDto,
+    role?: string,
+  ) {
+    const doc = await this.prisma.document.findUnique({
+      where: { id },
+      include: { participants: true },
+    });
+    if (!doc) throw new NotFoundException('Hujjat topilmadi');
+
+    const isCreator = doc.createdById === userId;
+    const isStaff = role === 'admin' || role === 'chancellery';
+    if (!isCreator && !isStaff) {
+      throw new ForbiddenException("Sizda hujjatni rahbarga ma'ruza qilish huquqi yo'q");
+    }
+    if (doc.status === 'done' || doc.status === 'rejected') {
+      throw new BadRequestException("Yakunlangan hujjatni rahbarga ma'ruza qilib bo'lmaydi");
+    }
+
+    const leader = await this.prisma.user.findFirst({
+      where: { id: dto.leaderId, isActive: true },
+      select: { id: true },
+    });
+    if (!leader) throw new BadRequestException('Rahbar topilmadi yoki bloklangan');
+
+    const maxOrder = Math.max(0, ...doc.participants.map((p) => p.order));
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.documentParticipant.upsert({
+        where: {
+          documentId_userId_role: {
+            documentId: id,
+            userId: dto.leaderId,
+            role: ParticipantRole.approver,
+          },
+        },
+        create: {
+          documentId: id,
+          userId: dto.leaderId,
+          role: ParticipantRole.approver,
+          order: maxOrder + 1,
+          status: ParticipantStatus.pending,
+        },
+        update: { status: ParticipantStatus.pending, actedAt: null },
+      });
+      await tx.document.update({
+        where: { id },
+        data: { status: DocumentStatus.in_review, currentHolderId: dto.leaderId },
+      });
+      await tx.documentAuditLog.create({
+        data: {
+          documentId: id,
+          actorId: userId,
+          action: 'presented_to_leader',
+          payload: { leaderId: dto.leaderId, note: dto.note ?? null } as any,
+        },
+      });
+    });
+
+    await this.notifyApprover(dto.leaderId, userId, id, doc.number, doc.subject);
 
     return this.findOne(userId, id);
   }
