@@ -136,6 +136,9 @@ export function EdoDocumentViewPage() {
   const [extendDeadlineValue, setExtendDeadlineValue] = useState('');
   const [extendReasonValue, setExtendReasonValue] = useState('');
   const [sendApproverIds, setSendApproverIds] = useState<string[]>([]);
+  // Qoralamani yuborish usuli: 'normal' — odatdagi tasdiqlash zanjiri;
+  // 'separate' — topshiriq (poruchenie) orqali alohida yuborish.
+  const [sendMode, setSendMode] = useState<'normal' | 'separate'>('normal');
   const [showChainModal, setShowChainModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showControlModal, setShowControlModal] = useState(false);
@@ -194,7 +197,10 @@ export function EdoDocumentViewPage() {
   const canAssignControl =
     canResolve ||
     (isStaff &&
-      (doc.status === 'in_review' || doc.status === 'in_progress' || doc.status === 'done'));
+      (doc.status === 'in_review' || doc.status === 'in_progress' || doc.status === 'done')) ||
+    // Qoralamada topshiriq (poruchenie) tugmasi doim yoniq — «alohida-alohida
+    // yuborish» usuli uchun: yaratuvchi hujjatni topshiriq orqali jo'natadi.
+    (isCreator && doc.status === 'draft');
 
   // Mening pending ijro vazifalarim
   const myPendingTargets = (doc.resolutions ?? [])
@@ -448,14 +454,36 @@ export function EdoDocumentViewPage() {
           {/* Amallar */}
           {isCreator && doc.status === 'draft' && (
             <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-4">
-              <ApproverChainPicker
-                users={allUsers}
-                value={sendApproverIds}
-                onChange={setSendApproverIds}
-                excludeUserIds={[doc.createdById]}
-                label={t('edo.view.approvers_label')}
-                hint={t('edo.view.approvers_hint')}
-              />
+              {/* Yuborish usuli combobox */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  {t('edo.view.send_mode_label')}
+                </label>
+                <select
+                  value={sendMode}
+                  onChange={(e) => setSendMode(e.target.value as 'normal' | 'separate')}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-asaka-500"
+                >
+                  <option value="normal">{t('edo.view.send_mode_normal')}</option>
+                  <option value="separate">{t('edo.view.send_mode_separate')}</option>
+                </select>
+              </div>
+
+              {sendMode === 'normal' ? (
+                <ApproverChainPicker
+                  users={allUsers}
+                  value={sendApproverIds}
+                  onChange={setSendApproverIds}
+                  excludeUserIds={[doc.createdById]}
+                  label={t('edo.view.approvers_label')}
+                  hint={t('edo.view.approvers_hint')}
+                />
+              ) : (
+                <p className="text-sm text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-3">
+                  {t('edo.view.send_mode_separate_hint')}
+                </p>
+              )}
+
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => navigate(`/edo/compose?id=${doc.id}`)}
@@ -464,14 +492,16 @@ export function EdoDocumentViewPage() {
                   <Pencil size={16} />
                   {t('edo.view.edit')}
                 </button>
-                <button
-                  onClick={() => send.mutate(sendApproverIds)}
-                  disabled={send.isPending || sendApproverIds.length === 0}
-                  className="inline-flex items-center gap-2 bg-asaka-600 hover:bg-asaka-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg"
-                >
-                  <Send size={16} />
-                  {send.isPending ? t('common.sending') : t('edo.view.send_for_approval')}
-                </button>
+                {sendMode === 'normal' && (
+                  <button
+                    onClick={() => send.mutate(sendApproverIds)}
+                    disabled={send.isPending}
+                    className="inline-flex items-center gap-2 bg-asaka-600 hover:bg-asaka-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg"
+                  >
+                    <Send size={16} />
+                    {send.isPending ? t('common.sending') : t('edo.view.send_for_approval')}
+                  </button>
+                )}
                 {send.error && (
                   <div className="basis-full text-sm text-red-600 mt-1">
                     {extractError(send.error)}

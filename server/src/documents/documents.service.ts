@@ -1165,7 +1165,15 @@ export class DocumentsService {
       include: { participants: true },
     });
     if (!doc) throw new NotFoundException('Hujjat topilmadi');
-    if (doc.status !== 'in_review' && doc.status !== 'in_progress' && doc.status !== 'done') {
+    // Qoralamada (draft) faqat yaratuvchi «alohida-alohida yuborish» usuli orqali
+    // topshiriq bera oladi — bu hujjatni to'g'ridan-to'g'ri ijroga o'tkazadi.
+    const isDraftSeparate = doc.status === 'draft' && doc.createdById === userId;
+    if (
+      !isDraftSeparate &&
+      doc.status !== 'in_review' &&
+      doc.status !== 'in_progress' &&
+      doc.status !== 'done'
+    ) {
       throw new BadRequestException(
         "Rezolyutsiya faqat tasdiqlangan yoki ijrodagi hujjatga yoziladi",
       );
