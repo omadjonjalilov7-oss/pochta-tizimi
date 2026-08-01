@@ -964,7 +964,11 @@
       "empty_department": "Bo'limingizga tegishli hujjat yo'q.",
       "select_for_delete": "O'chirish uchun belgilash",
       "delete_selected": "O'chirish ({{count}})",
-      "delete_confirm": "{{count}} ta hujjat butunlay o'chiriladi. Davom etilsinmi?"
+      "delete_confirm": "{{count}} ta hujjat butunlay o'chiriladi. Davom etilsinmi?",
+      "control_legend": "Nazorat",
+      "control_green": "Muddat yetarli",
+      "control_yellow": "Muddat yaqinlashdi",
+      "control_red": "Muddat o'tgan"
     },
     "calendar": {
       "title": "Taqvim",

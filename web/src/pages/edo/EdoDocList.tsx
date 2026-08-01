@@ -90,6 +90,12 @@ export function DocList({ queryKey, endpoint, titleKey, emptyKey, showHolder }: 
         )}
       </div>
 
+      {docs.some((d) => d.deadline && d.status !== 'done') && (
+        <div className="mb-3">
+          <ControlLegend />
+        </div>
+      )}
+
       {isLoading ? (
         <div className="text-slate-400 p-6">{t('common.loading')}</div>
       ) : docs.length === 0 ? (
@@ -123,6 +129,7 @@ export function DocList({ queryKey, endpoint, titleKey, emptyKey, showHolder }: 
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                    <TrafficDot traffic={deadlineTraffic(d.deadline, d.status)} />
                     <span className="font-mono text-[11px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
                       {d.number}
                     </span>
@@ -196,6 +203,63 @@ function isDeadlinePast(iso: string, status: DocumentStatus): boolean {
 function isDeadlineSoon(iso: string): boolean {
   const ms = new Date(iso).getTime() - Date.now();
   return ms >= 0 && ms < 24 * 60 * 60 * 1000;
+}
+
+// Svetofor nazorati (PF-6118): muddatga qarab yagona nazorat holati.
+//  green  — muddat yetarli (48 soatdan ko'p)
+//  yellow — muddat yaqin (48 soat ichida)
+//  red    — muddat o'tgan (va hujjat bajarilmagan)
+//  done   — nazoratdan chiqqan (bajarilgan)
+type Traffic = 'green' | 'yellow' | 'red' | 'done' | null;
+function deadlineTraffic(
+  deadline: string | null | undefined,
+  status: DocumentStatus,
+): Traffic {
+  if (status === 'done') return 'done';
+  if (!deadline) return null;
+  const ms = new Date(deadline).getTime() - Date.now();
+  if (ms < 0) return 'red';
+  if (ms < 48 * 60 * 60 * 1000) return 'yellow';
+  return 'green';
+}
+
+function TrafficDot({ traffic }: { traffic: Traffic }) {
+  const { t } = useTranslation();
+  if (!traffic) return null;
+  const cfg: Record<Exclude<Traffic, null>, { cls: string; label: string }> = {
+    green: { cls: 'bg-emerald-500', label: t('edo.list.control_green') },
+    yellow: { cls: 'bg-amber-400', label: t('edo.list.control_yellow') },
+    red: { cls: 'bg-red-500 animate-pulse', label: t('edo.list.control_red') },
+    done: { cls: 'bg-slate-300', label: t('edo.status.done') },
+  };
+  const c = cfg[traffic];
+  return (
+    <span
+      className={cn('inline-block h-2.5 w-2.5 rounded-full shrink-0', c.cls)}
+      title={c.label}
+      aria-label={c.label}
+    />
+  );
+}
+
+function ControlLegend() {
+  const { t } = useTranslation();
+  const items: { cls: string; label: string }[] = [
+    { cls: 'bg-emerald-500', label: t('edo.list.control_green') },
+    { cls: 'bg-amber-400', label: t('edo.list.control_yellow') },
+    { cls: 'bg-red-500', label: t('edo.list.control_red') },
+  ];
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
+      <span className="font-medium text-slate-600">{t('edo.list.control_legend')}:</span>
+      {items.map((it) => (
+        <span key={it.label} className="inline-flex items-center gap-1.5">
+          <span className={cn('inline-block h-2.5 w-2.5 rounded-full', it.cls)} />
+          {it.label}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 export function EdoMyDocsPage() {

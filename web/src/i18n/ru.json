@@ -964,7 +964,11 @@
       "empty_department": "Документов вашего отдела нет.",
       "select_for_delete": "Отметить для удаления",
       "delete_selected": "Удалить ({{count}})",
-      "delete_confirm": "Будет безвозвратно удалено документов: {{count}}. Продолжить?"
+      "delete_confirm": "Будет безвозвратно удалено документов: {{count}}. Продолжить?",
+      "control_legend": "Контроль",
+      "control_green": "Срок в запасе",
+      "control_yellow": "Срок приближается",
+      "control_red": "Срок истёк"
     },
     "calendar": {
       "title": "Календарь",
