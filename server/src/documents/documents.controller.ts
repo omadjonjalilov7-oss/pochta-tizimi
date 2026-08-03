@@ -15,7 +15,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { createReadStream } from 'fs';
+import { createReadStream, existsSync } from 'fs';
 import type { Response } from 'express';
 import { DocumentsService } from './documents.service';
 import { QrApprovalService } from './qr-approval.service';
@@ -425,6 +425,27 @@ export class DocumentsController {
       'Content-Type': f.mimeType,
       'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(f.filename)}`,
       'Content-Length': String(f.sizeBytes),
+    });
+    createReadStream(f.fullPath).pipe(res);
+  }
+
+  // Biriktirmani online ko'rish uchun PDF ko'rinishida beradi (Office fayllar
+  // LibreOffice orqali PDF'ga aylantiriladi va keshlanadi).
+  @Get(':id/attachments/:attId/pdf')
+  async attachmentPdf(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('attId', new ParseUUIDPipe()) attId: string,
+    @Res() res: Response,
+  ) {
+    const f = await this.docs.getAttachmentAsPdf(user.id, id, attId);
+    if (!existsSync(f.fullPath)) {
+      res.status(404).send('Not found');
+      return;
+    }
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `inline; filename*=UTF-8''${encodeURIComponent(f.filename)}`,
     });
     createReadStream(f.fullPath).pipe(res);
   }

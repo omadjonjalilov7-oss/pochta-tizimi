@@ -23,6 +23,7 @@ import { UpdateDocumentDto } from './dto/update-document.dto';
 import { SendDocumentDto } from './dto/send-document.dto';
 import { sanitizeRichHtml } from '../common/sanitize';
 import { decodeMulterFilename } from '../common/filename';
+import { convertOfficeToPdf } from '../common/office-to-pdf';
 import { randomBytes, createHash } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import * as QRCode from 'qrcode';
@@ -175,6 +176,7 @@ const FULL_INCLUDE = {
 export class DocumentsService {
   private readonly attDir: string;
   private readonly attMaxBytes: number;
+  private readonly pdfCacheDir: string;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -193,6 +195,8 @@ export class DocumentsService {
       this.config.get<string>('ATTACHMENTS_DIR') || 'C:\\D\\pochta\\storage\\attachments';
     this.attMaxBytes =
       parseInt(this.config.get('MAX_FILE_SIZE_MB', '50'), 10) * 1024 * 1024;
+    // Office fayllardan yasalgan PDF'lar keshi.
+    this.pdfCacheDir = path.join(this.attDir, '_pdf_cache');
   }
 
   // ── YARATISH / TAHRIRLASH ──────────────────────────────────────────────
@@ -2571,6 +2575,55 @@ export class DocumentsService {
       mimeType: att.mimeType,
       sizeBytes: Number(att.sizeBytes),
     };
+  }
+
+  // Biriktirmani PDF ko'rinishida qaytaradi (online ko'rish uchun).
+  // Agar fayl allaqachon PDF bo'lsa — o'zini beradi. Office (Word/Excel/
+  // PowerPoint) bo'lsa — LibreOffice orqali PDF'ga aylantiradi va keshlaydi.
+  async getAttachmentAsPdf(userId: string, docId: string, attId: string) {
+    const att = await this.prisma.documentAttachment.findUnique({
+      where: { id: attId },
+      include: { document: { select: { id: true, createdById: true } } },
+    });
+    if (!att || !att.document || att.documentId !== docId) {
+      throw new NotFoundException('Fayl topilmadi');
+    }
+    await this.requireAccess(userId, att.document);
+
+    const srcPath = path.join(this.attDir, att.storedPath);
+    const ext = path.extname(att.filename).toLowerCase();
+    const pdfName = att.filename.replace(/\.[^.]+$/, '') + '.pdf';
+
+    // Allaqachon PDF — to'g'ridan-to'g'ri beramiz.
+    if (ext === '.pdf') {
+      return { fullPath: srcPath, filename: att.filename };
+    }
+
+    // Kesh: <attId>.pdf. Manba fayldan eski bo'lsa — qayta yasaymiz.
+    await fs.mkdir(this.pdfCacheDir, { recursive: true });
+    const cachePath = path.join(this.pdfCacheDir, `${attId}.pdf`);
+    try {
+      const [cacheStat, srcStat] = await Promise.all([
+        fs.stat(cachePath),
+        fs.stat(srcPath),
+      ]);
+      if (cacheStat.mtimeMs >= srcStat.mtimeMs) {
+        return { fullPath: cachePath, filename: pdfName };
+      }
+    } catch {
+      /* kesh yo'q — quyida yasaymiz */
+    }
+
+    // LibreOffice orqali PDF yasaymiz. Chiqish nomi manba asosidan kelib
+    // chiqadi (`<attId>.pdf`), u to'g'ridan-to'g'ri kesh yo'liga tushadi.
+    const outPath = await convertOfficeToPdf(srcPath, this.pdfCacheDir);
+    if (outPath !== cachePath) {
+      // Ehtiyot chorasi: nomi mos kelmasa — ko'chiramiz.
+      await fs.rename(outPath, cachePath).catch(async () => {
+        await fs.copyFile(outPath, cachePath);
+      });
+    }
+    return { fullPath: cachePath, filename: pdfName };
   }
 
   async deleteAttachment(userId: string, docId: string, attId: string) {

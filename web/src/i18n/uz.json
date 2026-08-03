@@ -614,6 +614,7 @@
       "button": "Online ochish",
       "hint": "Faylni brauzerda ko'rish (yuklab olmasdan)",
       "loading": "Fayl yuklanmoqda...",
+      "converting": "Fayl tayyorlanmoqda (bir necha soniya)...",
       "err_load": "Faylni ochib bo'lmadi. Yuklab olib ko'ring.",
       "unsupported": "Bu turdagi faylni brauzerda ko'rsatib bo'lmaydi. Ko'rish uchun yuklab oling (Word/Excel fayllarni \"Online tahrirlash\" tugmasi orqali ham ochish mumkin)."
     },
