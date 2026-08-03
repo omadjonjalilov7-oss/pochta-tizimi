@@ -40,6 +40,7 @@ export default function AttachmentViewerModal({
   const kind = detectKind(filename);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [textContent, setTextContent] = useState<string | null>(null);
   const [xlsxHtml, setXlsxHtml] = useState<string | null>(null);
@@ -100,9 +101,14 @@ export default function AttachmentViewerModal({
           setBlobUrl(url);
         }
         setLoading(false);
-      } catch {
+      } catch (e: any) {
         if (!cancelled) {
+          // eslint-disable-next-line no-console
+          console.error('[AttachmentViewer] xatolik:', e);
           setError(true);
+          setErrorDetail(
+            e?.message ? String(e.message) : String(e ?? 'nomalum'),
+          );
           setLoading(false);
         }
       }
@@ -170,6 +176,11 @@ export default function AttachmentViewerModal({
         {!loading && error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center px-6">
             <p className="text-sm text-red-600">{t('edo.viewer.err_load')}</p>
+            {errorDetail && (
+              <p className="text-xs text-slate-400 max-w-lg break-words font-mono">
+                {errorDetail}
+              </p>
+            )}
             <button
               type="button"
               onClick={handleDownload}
