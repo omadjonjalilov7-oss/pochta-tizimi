@@ -3,7 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Download, Loader2, FileText } from 'lucide-react';
 import { renderAsync } from 'docx-preview';
 import * as XLSX from 'xlsx';
+// Eski `.xls` (BIFF, kirill/cp1251) fayllarni o'qish uchun kod sahifasi
+// (codepage) jadvalini SheetJS'ga ulaymiz. Busiz .xls "indexOf" xatosini beradi.
+import * as cptable from 'xlsx/dist/cpexcel.full.mjs';
 import { api } from '../../lib/api';
+
+XLSX.set_cptable(cptable);
 
 interface Props {
   documentId: string;
