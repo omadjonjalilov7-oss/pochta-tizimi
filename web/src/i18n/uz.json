@@ -19,6 +19,7 @@
     "edit": "Tahrirlash",
     "close": "Yopish",
     "back": "Orqaga",
+    "download": "Yuklab olish",
     "loading": "Yuklanmoqda...",
     "saving": "Saqlanmoqda...",
     "uploading": "Yuklanmoqda...",
@@ -608,6 +609,13 @@
       "note_ph": "Rahbarga qisqacha izoh...",
       "submit": "Rahbarga yuborish",
       "err_no_leader": "Rahbarni tanlang"
+    },
+    "viewer": {
+      "button": "Online ochish",
+      "hint": "Faylni brauzerda ko'rish (yuklab olmasdan)",
+      "loading": "Fayl yuklanmoqda...",
+      "err_load": "Faylni ochib bo'lmadi. Yuklab olib ko'ring.",
+      "unsupported": "Bu turdagi faylni brauzerda ko'rsatib bo'lmaydi. Ko'rish uchun yuklab oling (Word/Excel fayllarni \"Online tahrirlash\" tugmasi orqali ham ochish mumkin)."
     },
     "online_edit": {
       "button": "Online tahrirlash",

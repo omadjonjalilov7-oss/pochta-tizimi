@@ -375,9 +375,6 @@ export function EdoComposePage() {
     setTagInput('');
   }
 
-  const showOutgoingWarning =
-    type === 'outgoing' && !user?.canSignExternal && !user?.canSendExternal;
-
   const numberPreview =
     doc?.number && doc.status !== 'draft'
       ? doc.number
@@ -431,12 +428,6 @@ export function EdoComposePage() {
       {error && (
         <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
           {error}
-        </div>
-      )}
-
-      {showOutgoingWarning && (
-        <div className="mb-4 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg px-4 py-3">
-          {t('edo.compose.warn_external')}
         </div>
       )}
 

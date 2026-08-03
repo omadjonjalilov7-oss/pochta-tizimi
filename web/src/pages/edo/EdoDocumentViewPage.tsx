@@ -27,11 +27,13 @@ import {
   ZoomIn,
   ZoomOut,
   UserCheck,
+  Eye,
 } from 'lucide-react';
 import { EimzoSignModal } from '../../components/edo/EimzoSignModal';
 import { ControlAssignmentModal } from '../../components/edo/ControlAssignmentModal';
 import { PresentToLeaderModal } from '../../components/edo/PresentToLeaderModal';
 import OnlyOfficeEditorModal from '../../components/edo/OnlyOfficeEditorModal';
+import AttachmentViewerModal from '../../components/edo/AttachmentViewerModal';
 import { api } from '../../lib/api';
 import type { DocumentStatus, EdoDocument, User } from '../../lib/types';
 import { Avatar } from '../../components/Avatar';
@@ -179,6 +181,9 @@ export function EdoDocumentViewPage() {
   const [wordEditAttId, setWordEditAttId] = useState<string | null>(null);
   // OnlyOffice online tahrirlash muharriri ochilgan biriktirma.
   const [onlineEditAtt, setOnlineEditAtt] = useState<{ id: string; filename: string } | null>(null);
+
+  // Online ko'rish (yuklab olmasdan) uchun ochilgan biriktirma.
+  const [viewAtt, setViewAtt] = useState<{ id: string; filename: string } | null>(null);
 
   // OnlyOffice serveri sozlanganmi (tugmani ko'rsatish uchun).
   const { data: ooEnabled } = useQuery({
@@ -480,6 +485,17 @@ export function EdoDocumentViewPage() {
                               <span className="text-xs text-slate-400 shrink-0">{formatBytes(a.sizeBytes)}</span>
                               <Download size={14} className="text-slate-400 group-hover:text-asaka-600 shrink-0" />
                             </a>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setViewAtt({ id: a.id, filename: a.filename })
+                              }
+                              className="inline-flex items-center gap-1 text-xs font-medium text-asaka-600 hover:text-asaka-700 shrink-0 px-2 py-1 rounded-md hover:bg-asaka-50"
+                              title={t('edo.viewer.hint')}
+                            >
+                              <Eye size={13} />
+                              <span className="hidden sm:inline">{t('edo.viewer.button')}</span>
+                            </button>
                             {editable && ooEnabled && (
                               <button
                                 type="button"
@@ -763,6 +779,16 @@ export function EdoDocumentViewPage() {
           onSaved={() =>
             queryClient.invalidateQueries({ queryKey: ['edo-doc', doc.id] })
           }
+        />
+      )}
+
+      {/* Biriktirmani online ko'rish (yuklab olmasdan) */}
+      {viewAtt && (
+        <AttachmentViewerModal
+          documentId={doc.id}
+          attId={viewAtt.id}
+          filename={viewAtt.filename}
+          onClose={() => setViewAtt(null)}
         />
       )}
 

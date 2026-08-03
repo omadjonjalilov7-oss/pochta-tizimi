@@ -205,17 +205,9 @@ export class DocumentsService {
       .slice(2, 6)
       .toUpperCase()}`;
 
-    if (dto.type === 'outgoing') {
-      const me = await this.prisma.user.findUnique({
-        where: { id: userId },
-        select: { canSignExternal: true, canSendExternal: true },
-      });
-      if (!me?.canSignExternal && !me?.canSendExternal) {
-        throw new ForbiddenException(
-          'Tashqi hujjat yaratish uchun maxsus huquq talab qilinadi',
-        );
-      }
-    }
+    // Har qanday foydalanuvchi istalgan turdagi hujjatni (jumladan chiquvchi)
+    // yarata oladi. Tashqi hujjatni IMZOLASH/YUBORISH esa alohida huquq
+    // (canSignExternal/canSendExternal) talab qiladi — u o'z joyida tekshiriladi.
 
     // Ro'yxatga olish jurnali har doim yaratuvchining bo'limi bo'ladi —
     // hech kim (admin ham) uni o'zgartira olmaydi.
