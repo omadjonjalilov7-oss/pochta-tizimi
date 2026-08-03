@@ -82,11 +82,26 @@ export default function OnlyOfficeEditorModal({
             onDocumentReady: () => {
               if (!cancelled) setLoading(false);
             },
-            onError: () => {
+            onError: (event: any) => {
               if (!cancelled) {
-                setError(t('edo.online_edit.err_editor'));
+                // OnlyOffice xato kodi/matnini ekranга chiqaramiz (diagnostika).
+                const code =
+                  event?.data?.errorCode ?? event?.data ?? undefined;
+                const desc = event?.data?.errorDescription;
+                // eslint-disable-next-line no-console
+                console.error('[OnlyOffice] onError', event);
+                let msg = t('edo.online_edit.err_editor');
+                if (code !== undefined && code !== null && code !== '') {
+                  msg += ` (kod: ${typeof code === 'object' ? JSON.stringify(code) : code})`;
+                }
+                if (desc) msg += ` — ${desc}`;
+                setError(msg);
                 setLoading(false);
               }
+            },
+            onWarning: (event: any) => {
+              // eslint-disable-next-line no-console
+              console.warn('[OnlyOffice] onWarning', event);
             },
             // Hujjat o'zgartirilib saqlangani haqida signal.
             onDocumentStateChange: (e: any) => {
