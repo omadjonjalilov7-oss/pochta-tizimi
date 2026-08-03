@@ -2614,15 +2614,8 @@ export class DocumentsService {
       /* kesh yo'q — quyida yasaymiz */
     }
 
-    // LibreOffice orqali PDF yasaymiz. Chiqish nomi manba asosidan kelib
-    // chiqadi (`<attId>.pdf`), u to'g'ridan-to'g'ri kesh yo'liga tushadi.
-    const outPath = await convertOfficeToPdf(srcPath, this.pdfCacheDir);
-    if (outPath !== cachePath) {
-      // Ehtiyot chorasi: nomi mos kelmasa — ko'chiramiz.
-      await fs.rename(outPath, cachePath).catch(async () => {
-        await fs.copyFile(outPath, cachePath);
-      });
-    }
+    // LibreOffice orqali PDF yasab, to'g'ridan-to'g'ri kesh yo'liga yozamiz.
+    await convertOfficeToPdf(srcPath, cachePath);
     return { fullPath: cachePath, filename: pdfName };
   }
 
