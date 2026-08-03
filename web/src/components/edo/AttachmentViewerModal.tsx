@@ -83,7 +83,8 @@ export default function AttachmentViewerModal({
         } else if (kind === 'xlsx') {
           const buf = await blob.arrayBuffer();
           if (cancelled) return;
-          const wb = XLSX.read(buf, { type: 'array' });
+          // SheetJS `array` turi Uint8Array kutadi (ArrayBuffer emas).
+          const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
           const parts: string[] = [];
           wb.SheetNames.forEach((name) => {
             const html = XLSX.utils.sheet_to_html(wb.Sheets[name]);
