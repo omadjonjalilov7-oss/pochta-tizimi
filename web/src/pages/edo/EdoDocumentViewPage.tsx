@@ -31,6 +31,7 @@ import {
 import { EimzoSignModal } from '../../components/edo/EimzoSignModal';
 import { ControlAssignmentModal } from '../../components/edo/ControlAssignmentModal';
 import { PresentToLeaderModal } from '../../components/edo/PresentToLeaderModal';
+import OnlyOfficeEditorModal from '../../components/edo/OnlyOfficeEditorModal';
 import { api } from '../../lib/api';
 import type { DocumentStatus, EdoDocument, User } from '../../lib/types';
 import { Avatar } from '../../components/Avatar';
@@ -176,6 +177,18 @@ export function EdoDocumentViewPage() {
   const replaceInputRef = useRef<HTMLInputElement>(null);
   const replaceTargetRef = useRef<string | null>(null);
   const [wordEditAttId, setWordEditAttId] = useState<string | null>(null);
+  // OnlyOffice online tahrirlash muharriri ochilgan biriktirma.
+  const [onlineEditAtt, setOnlineEditAtt] = useState<{ id: string; filename: string } | null>(null);
+
+  // OnlyOffice serveri sozlanganmi (tugmani ko'rsatish uchun).
+  const { data: ooEnabled } = useQuery({
+    queryKey: ['onlyoffice-enabled'],
+    queryFn: async () => {
+      const res = await api.get('/public/onlyoffice/enabled');
+      return !!res.data?.enabled;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
   // Biriktirilgan faylni yuklab olish (Word'da ochish uchun ham ishlatiladi).
   const downloadAttachment = async (docId: string, attId: string, filename: string) => {
@@ -467,7 +480,20 @@ export function EdoDocumentViewPage() {
                               <span className="text-xs text-slate-400 shrink-0">{formatBytes(a.sizeBytes)}</span>
                               <Download size={14} className="text-slate-400 group-hover:text-asaka-600 shrink-0" />
                             </a>
-                            {editable && (
+                            {editable && ooEnabled && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setOnlineEditAtt({ id: a.id, filename: a.filename })
+                                }
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-white bg-asaka-600 hover:bg-asaka-700 shrink-0 px-2.5 py-1 rounded-md"
+                                title={t('edo.online_edit.hint')}
+                              >
+                                <Pencil size={13} />
+                                {t('edo.online_edit.button')}
+                              </button>
+                            )}
+                            {editable && !ooEnabled && (
                               <button
                                 type="button"
                                 onClick={() => {
@@ -723,6 +749,19 @@ export function EdoDocumentViewPage() {
               { leaderId, note },
               { onSuccess: () => setShowPresentModal(false) },
             )
+          }
+        />
+      )}
+
+      {/* OnlyOffice online tahrirlash muharriri */}
+      {onlineEditAtt && (
+        <OnlyOfficeEditorModal
+          documentId={doc.id}
+          attId={onlineEditAtt.id}
+          filename={onlineEditAtt.filename}
+          onClose={() => setOnlineEditAtt(null)}
+          onSaved={() =>
+            queryClient.invalidateQueries({ queryKey: ['edo-doc', doc.id] })
           }
         />
       )}

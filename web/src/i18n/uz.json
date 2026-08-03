@@ -609,6 +609,16 @@
       "submit": "Rahbarga yuborish",
       "err_no_leader": "Rahbarni tanlang"
     },
+    "online_edit": {
+      "button": "Online tahrirlash",
+      "hint": "Faylni brauzerda oching va o'zgarishlar avtomatik saqlanadi",
+      "autosave_hint": "O'zgarishlar avtomatik saqlanadi",
+      "loading": "Muharrir yuklanmoqda...",
+      "err_editor": "Muharrirda xatolik yuz berdi",
+      "err_connect": "Tahrirlash serveriga ulanib bo'lmadi. Administratorga murojaat qiling.",
+      "err_disabled": "Online tahrirlash yoqilmagan",
+      "err_generic": "Muharrirni ochib bo'lmadi"
+    },
     "control": {
       "section": "NAZORAT",
       "soon_badge": "tez orada",

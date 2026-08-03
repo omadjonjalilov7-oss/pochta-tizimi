@@ -402,6 +402,17 @@ export class DocumentsController {
     return this.docs.replaceAttachment(user.id, id, attId, file);
   }
 
+  // OnlyOffice online muharriri uchun konfiguratsiya (imzolangan token bilan)
+  @Get(':id/attachments/:attId/onlyoffice-config')
+  onlyOfficeConfig(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('attId', new ParseUUIDPipe()) attId: string,
+    @Query('lang') lang?: string,
+  ) {
+    return this.docs.buildOnlyOfficeConfig(user.id, id, attId, lang);
+  }
+
   @Get(':id/attachments/:attId/download')
   async downloadAttachment(
     @CurrentUser() user: CurrentUserPayload,

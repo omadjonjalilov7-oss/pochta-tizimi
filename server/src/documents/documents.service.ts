@@ -22,7 +22,8 @@ import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { SendDocumentDto } from './dto/send-document.dto';
 import { sanitizeRichHtml } from '../common/sanitize';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
+import { JwtService } from '@nestjs/jwt';
 import * as QRCode from 'qrcode';
 import {
   ApproveDocumentDto,
@@ -185,6 +186,7 @@ export class DocumentsService {
     private readonly settings: SettingsService,
     @Inject(forwardRef(() => QrApprovalService))
     private readonly qrApproval: QrApprovalService,
+    private readonly jwt: JwtService,
   ) {
     this.attDir =
       this.config.get<string>('ATTACHMENTS_DIR') || 'C:\\D\\pochta\\storage\\attachments';
@@ -2302,6 +2304,245 @@ export class DocumentsService {
       mimeType: updated.mimeType,
       sizeBytes: Number(updated.sizeBytes),
     };
+  }
+
+  // ── ONLYOFFICE (online sinxron tahrirlash) ─────────────────────────────
+  // OnlyOffice Document Server bilan integratsiya. Foydalanuvchi Word/Excel/
+  // PowerPoint faylni brauzerda ochib, real vaqtda tahrirlaydi. Saqlanganda
+  // OnlyOffice serveri callback orqali yangilangan faylni bizga yuboradi.
+
+  isOnlyOfficeEnabled(): boolean {
+    return (
+      !!this.config.get<string>('ONLYOFFICE_URL') &&
+      !!this.config.get<string>('ONLYOFFICE_JWT_SECRET')
+    );
+  }
+
+  private onlyOfficeCallbackBase(): string {
+    return (
+      this.config.get<string>('ONLYOFFICE_CALLBACK_BASE') ||
+      this.config.get<string>('SERVER_PUBLIC_URL') ||
+      'http://localhost:3000'
+    ).replace(/\/+$/, '');
+  }
+
+  private onlyOfficeDocType(ext: string): 'word' | 'cell' | 'slide' {
+    const e = ext.toLowerCase().replace(/^\./, '');
+    if (['xls', 'xlsx', 'xlsm', 'xlsb', 'ods', 'csv'].includes(e)) return 'cell';
+    if (['ppt', 'pptx', 'pptm', 'odp'].includes(e)) return 'slide';
+    return 'word';
+  }
+
+  // Frontend uchun OnlyOffice muharriri konfiguratsiyasini quradi.
+  async buildOnlyOfficeConfig(
+    userId: string,
+    docId: string,
+    attId: string,
+    lang?: string,
+  ) {
+    const ooUrl = this.config.get<string>('ONLYOFFICE_URL');
+    const ooSecret = this.config.get<string>('ONLYOFFICE_JWT_SECRET');
+    if (!ooUrl || !ooSecret) {
+      throw new BadRequestException('OnlyOffice sozlanmagan');
+    }
+
+    const att = await this.prisma.documentAttachment.findUnique({
+      where: { id: attId },
+      include: {
+        document: { select: { id: true, createdById: true, status: true } },
+      },
+    });
+    if (!att || !att.document || att.documentId !== docId) {
+      throw new NotFoundException('Fayl topilmadi');
+    }
+    await this.requireAccess(userId, att.document);
+
+    const editable = ['draft', 'in_review', 'in_progress'].includes(
+      att.document.status,
+    );
+    const ext = path.extname(att.filename).toLowerCase().replace(/^\./, '');
+
+    const me = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { fullName: true },
+    });
+
+    // Fayl yuklab olish uchun imzolangan token (Bearer sarlavhasi kerak emas —
+    // OnlyOffice serveri uni URL orqali ishlatadi). O'z JWT_SECRET'imiz bilan.
+    const fileToken = await this.jwt.signAsync(
+      { docId, attId, userId, purpose: 'oo' },
+      { expiresIn: '24h' },
+    );
+
+    const base = this.onlyOfficeCallbackBase();
+    // Har bir versiya uchun noyob kalit (mazmun o'zgarsa — o'zgaradi).
+    const key = createHash('md5')
+      .update(`${att.id}:${att.storedPath}`)
+      .digest('hex');
+
+    const config: any = {
+      document: {
+        fileType: ext,
+        key,
+        title: att.filename,
+        url: `${base}/api/public/onlyoffice/file/${fileToken}`,
+        permissions: {
+          edit: editable,
+          download: true,
+          print: true,
+        },
+      },
+      documentType: this.onlyOfficeDocType(ext),
+      editorConfig: {
+        mode: editable ? 'edit' : 'view',
+        lang: lang === 'ru' ? 'ru' : lang === 'en' ? 'en' : 'ru',
+        callbackUrl: `${base}/api/public/onlyoffice/callback/${fileToken}`,
+        user: { id: userId, name: me?.fullName || 'Foydalanuvchi' },
+        customization: {
+          forcesave: true,
+          autosave: true,
+          compactHeader: false,
+          chat: false,
+          comments: false,
+        },
+      },
+    };
+
+    // Butun konfiguratsiyani OnlyOffice bilan bo'lishilgan maxfiy kalit bilan
+    // imzolaymiz (JWT yoqilgan bo'lsa OnlyOffice buni talab qiladi).
+    const token = await this.jwt.signAsync(config, { secret: ooSecret });
+
+    return {
+      scriptUrl: `${ooUrl.replace(/\/+$/, '')}/web-apps/apps/api/documents/api.js`,
+      config: { ...config, token },
+    };
+  }
+
+  // OnlyOffice serveri faylni yuklab olish uchun chaqiradigan endpoint (public).
+  async getOnlyOfficeFile(fileToken: string) {
+    let payload: any;
+    try {
+      payload = await this.jwt.verifyAsync(fileToken);
+    } catch {
+      throw new NotFoundException('Token yaroqsiz');
+    }
+    if (payload?.purpose !== 'oo' || !payload.attId) {
+      throw new NotFoundException('Token yaroqsiz');
+    }
+    const att = await this.prisma.documentAttachment.findUnique({
+      where: { id: payload.attId },
+    });
+    if (!att || att.documentId !== payload.docId) {
+      throw new NotFoundException('Fayl topilmadi');
+    }
+    return {
+      fullPath: path.join(this.attDir, att.storedPath),
+      filename: att.filename,
+      mimeType: att.mimeType || 'application/octet-stream',
+    };
+  }
+
+  // OnlyOffice serveri saqlanganda chaqiradigan callback (public).
+  // body — OnlyOffice yuborgan holat obyekti (JWT ichida ham keladi).
+  async handleOnlyOfficeCallback(
+    fileToken: string,
+    body: any,
+  ): Promise<{ error: number }> {
+    const ooSecret = this.config.get<string>('ONLYOFFICE_JWT_SECRET');
+    if (!ooSecret) return { error: 1 };
+
+    // Token'dan qaysi faylga tegishli ekanini aniqlaymiz.
+    let tok: any;
+    try {
+      tok = await this.jwt.verifyAsync(fileToken);
+    } catch {
+      return { error: 1 };
+    }
+    if (tok?.purpose !== 'oo' || !tok.attId) return { error: 1 };
+
+    // OnlyOffice JWT'sini tekshiramiz (body.token yoki body o'zi imzolangan).
+    let data: any = body;
+    if (body?.token) {
+      try {
+        data = await this.jwt.verifyAsync(body.token, { secret: ooSecret });
+      } catch {
+        return { error: 1 };
+      }
+    }
+
+    const status = data?.status;
+    // 2 = saqlashga tayyor, 6 = majburiy saqlash (forcesave)
+    if (status === 2 || status === 6) {
+      const downloadUrl: string | undefined = data.url;
+      if (!downloadUrl) return { error: 1 };
+      try {
+        const res = await fetch(downloadUrl);
+        if (!res.ok) return { error: 1 };
+        const buffer = Buffer.from(await res.arrayBuffer());
+        const actorId =
+          (Array.isArray(data.users) && data.users[0]) || tok.userId;
+        await this.overwriteAttachmentFromBuffer(tok.attId, buffer, actorId);
+      } catch {
+        return { error: 1 };
+      }
+    }
+    // 1 (tahrirlanmoqda), 4 (o'zgarishsiz yopildi) va boshqalar — shunchaki OK.
+    return { error: 0 };
+  }
+
+  // OnlyOffice callback'idan kelgan yangilangan faylni diskka yozadi va
+  // biriktirma yozuvini yangilaydi (id va nom saqlanadi).
+  private async overwriteAttachmentFromBuffer(
+    attId: string,
+    buffer: Buffer,
+    actorId?: string,
+  ) {
+    const att = await this.prisma.documentAttachment.findUnique({
+      where: { id: attId },
+    });
+    if (!att) return;
+
+    const ext = path.extname(att.filename).toLowerCase();
+    const now = new Date();
+    const subDir = path.join(
+      'edo',
+      String(now.getFullYear()),
+      String(now.getMonth() + 1).padStart(2, '0'),
+    );
+    const fullDir = path.join(this.attDir, subDir);
+    await fs.mkdir(fullDir, { recursive: true });
+
+    const newId = uuid();
+    const storedFilename = `${newId}${ext}`;
+    const relativePath = path.join(subDir, storedFilename);
+    await fs.writeFile(path.join(fullDir, storedFilename), buffer);
+
+    const oldPath = att.storedPath;
+    await this.prisma.documentAttachment.update({
+      where: { id: attId },
+      data: {
+        storedPath: relativePath,
+        sizeBytes: BigInt(buffer.length),
+        ...(actorId ? { uploadedById: actorId } : {}),
+      },
+    });
+
+    try {
+      await fs.unlink(path.join(this.attDir, oldPath));
+    } catch {}
+
+    try {
+      if (att.documentId) {
+        await this.prisma.documentAuditLog.create({
+          data: {
+            documentId: att.documentId,
+            actorId: actorId || att.uploadedById,
+            action: 'attachment_online_edited',
+            payload: { attachmentId: attId, filename: att.filename } as any,
+          },
+        });
+      }
+    } catch {}
   }
 
   async downloadAttachment(userId: string, docId: string, attId: string) {
