@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   Post,
   Res,
@@ -49,7 +50,10 @@ export class PublicController {
   }
 
   // OnlyOffice saqlaganda callback yuboradi (JWT ichida holat keladi).
+  // DIQQAT: OnlyOffice faqat HTTP 200 ni qabul qiladi (201 emas) — aks holda
+  // "ulanishni tekshiring" xatosini beradi.
   @Post('onlyoffice/callback/:token')
+  @HttpCode(200)
   async onlyOfficeCallback(
     @Param('token') token: string,
     @Body() body: any,
