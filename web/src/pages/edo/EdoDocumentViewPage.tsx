@@ -472,29 +472,28 @@ export function EdoDocumentViewPage() {
                       return (
                         <li key={a.id} className="rounded-lg hover:bg-slate-50 transition-colors">
                           <div className="flex items-center gap-2 px-2 py-1.5">
-                            <a
-                              href={`/api/documents/${doc.id}/attachments/${a.id}/download`}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                downloadAttachment(doc.id, a.id, a.filename);
-                              }}
-                              className="group flex items-center gap-2 text-sm text-slate-700 hover:text-asaka-700 flex-1 min-w-0"
-                            >
-                              <Paperclip size={14} className="text-slate-400 group-hover:text-asaka-600 shrink-0" />
-                              <span className="truncate flex-1">{a.filename}</span>
-                              <span className="text-xs text-slate-400 shrink-0">{formatBytes(a.sizeBytes)}</span>
-                              <Download size={14} className="text-slate-400 group-hover:text-asaka-600 shrink-0" />
-                            </a>
                             <button
                               type="button"
                               onClick={() =>
                                 setViewAtt({ id: a.id, filename: a.filename })
                               }
-                              className="inline-flex items-center gap-1 text-xs font-medium text-asaka-600 hover:text-asaka-700 shrink-0 px-2 py-1 rounded-md hover:bg-asaka-50"
+                              className="group flex items-center gap-2 text-sm text-slate-700 hover:text-asaka-700 flex-1 min-w-0 text-left"
                               title={t('edo.viewer.hint')}
                             >
-                              <Eye size={13} />
-                              <span className="hidden sm:inline">{t('edo.viewer.button')}</span>
+                              <Paperclip size={14} className="text-slate-400 group-hover:text-asaka-600 shrink-0" />
+                              <span className="truncate flex-1">{a.filename}</span>
+                              <span className="text-xs text-slate-400 shrink-0">{formatBytes(a.sizeBytes)}</span>
+                              <Eye size={14} className="text-slate-400 group-hover:text-asaka-600 shrink-0" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                downloadAttachment(doc.id, a.id, a.filename)
+                              }
+                              className="inline-flex items-center justify-center text-slate-400 hover:text-asaka-600 shrink-0 p-1 rounded-md hover:bg-slate-100"
+                              title={t('common.download')}
+                            >
+                              <Download size={15} />
                             </button>
                             {editable && ooEnabled && (
                               <button

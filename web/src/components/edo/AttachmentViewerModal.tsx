@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Download, Loader2, FileText } from 'lucide-react';
+import { renderAsync } from 'docx-preview';
+import * as XLSX from 'xlsx';
 import { api } from '../../lib/api';
 
 interface Props {
@@ -10,7 +12,7 @@ interface Props {
   onClose: () => void;
 }
 
-type Kind = 'pdf' | 'image' | 'text' | 'other';
+type Kind = 'pdf' | 'image' | 'text' | 'docx' | 'xlsx' | 'other';
 
 function detectKind(filename: string): Kind {
   const dot = filename.lastIndexOf('.');
@@ -20,12 +22,14 @@ function detectKind(filename: string): Kind {
     return 'image';
   if (['.txt', '.csv', '.log', '.json', '.xml', '.md', '.html', '.htm'].includes(ext))
     return 'text';
+  if (ext === '.docx') return 'docx';
+  if (['.xlsx', '.xls', '.xlsm', '.ods'].includes(ext)) return 'xlsx';
   return 'other';
 }
 
 // Biriktirilgan faylni brauzerda (yuklab olmasdan) ko'rish uchun modal.
-// PDF/rasm/matn fayllar bevosita ko'rsatiladi. Boshqa (Office) fayllar uchun
-// yuklab olish taklif qilinadi. Yagona "Orqaga" tugmasi hujjatga qaytaradi.
+// PDF/rasm/matn, shuningdek Word (.docx) va Excel (.xlsx) fayllar bevosita
+// ko'rsatiladi. Yagona "Orqaga" tugmasi hujjatga qaytaradi.
 export default function AttachmentViewerModal({
   documentId,
   attId,
@@ -38,12 +42,14 @@ export default function AttachmentViewerModal({
   const [error, setError] = useState(false);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [textContent, setTextContent] = useState<string | null>(null);
+  const [xlsxHtml, setXlsxHtml] = useState<string | null>(null);
   const urlRef = useRef<string | null>(null);
+  const docxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    // Office/noma'lum fayllarni yuklab bo'lmaydi — darrov to'xtaymiz.
+    // Noma'lum (masalan eski .doc, .ppt) fayllarni ko'rsatib bo'lmaydi.
     if (kind === 'other') {
       setLoading(false);
       return;
@@ -56,12 +62,39 @@ export default function AttachmentViewerModal({
           { responseType: 'blob' },
         );
         if (cancelled) return;
+        const blob = res.data as Blob;
+
         if (kind === 'text') {
-          const txt = await (res.data as Blob).text();
+          const txt = await blob.text();
           if (cancelled) return;
           setTextContent(txt);
+        } else if (kind === 'docx') {
+          const host = docxRef.current;
+          if (host) {
+            host.innerHTML = '';
+            await renderAsync(blob, host, undefined, {
+              className: 'docx',
+              inWrapper: true,
+              ignoreWidth: false,
+              ignoreHeight: false,
+            });
+          }
+          if (cancelled) return;
+        } else if (kind === 'xlsx') {
+          const buf = await blob.arrayBuffer();
+          if (cancelled) return;
+          const wb = XLSX.read(buf, { type: 'array' });
+          const parts: string[] = [];
+          wb.SheetNames.forEach((name) => {
+            const html = XLSX.utils.sheet_to_html(wb.Sheets[name]);
+            parts.push(
+              `<div class="xlsx-sheet"><div class="xlsx-sheet-name">${name}</div>${html}</div>`,
+            );
+          });
+          setXlsxHtml(parts.join(''));
         } else {
-          const url = URL.createObjectURL(res.data as Blob);
+          // pdf / image
+          const url = URL.createObjectURL(blob);
           urlRef.current = url;
           setBlobUrl(url);
         }
@@ -169,6 +202,24 @@ export default function AttachmentViewerModal({
           <pre className="p-4 text-sm text-slate-800 whitespace-pre-wrap break-words font-mono">
             {textContent}
           </pre>
+        )}
+
+        {/* Word (.docx) — docx-preview shu konteynerga chizadi. DOM doim
+            mavjud bo'lishi kerak (ref), shuning uchun display bilan boshqaramiz. */}
+        <div
+          className="attachment-docx flex justify-center py-4"
+          style={{
+            display: !loading && !error && kind === 'docx' ? 'flex' : 'none',
+          }}
+        >
+          <div ref={docxRef} className="bg-white shadow-sm" />
+        </div>
+
+        {!loading && !error && kind === 'xlsx' && xlsxHtml !== null && (
+          <div
+            className="attachment-xlsx p-4 overflow-auto"
+            dangerouslySetInnerHTML={{ __html: xlsxHtml }}
+          />
         )}
 
         {!loading && !error && kind === 'other' && (
