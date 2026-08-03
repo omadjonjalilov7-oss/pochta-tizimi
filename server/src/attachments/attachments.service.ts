@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { promises as fs } from 'fs';
 import * as path from 'path';
+import { decodeMulterFilename } from '../common/filename';
 import { v4 as uuid } from 'uuid';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -36,7 +37,8 @@ export class AttachmentsService {
       );
     }
 
-    const ext = path.extname(file.originalname).toLowerCase();
+    const originalName = decodeMulterFilename(file.originalname);
+    const ext = path.extname(originalName).toLowerCase();
     if (TAQIQLANGAN_KENGAYTMALAR.includes(ext)) {
       throw new BadRequestException(`'${ext}' kengaytmali fayllar taqiqlangan`);
     }
@@ -60,7 +62,7 @@ export class AttachmentsService {
       data: {
         id,
         uploadedBy,
-        filename: file.originalname,
+        filename: originalName,
         storedPath: relativePath,
         sizeBytes: BigInt(file.size),
         mimeType: file.mimetype,

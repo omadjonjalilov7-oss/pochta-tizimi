@@ -22,6 +22,7 @@ import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { SendDocumentDto } from './dto/send-document.dto';
 import { sanitizeRichHtml } from '../common/sanitize';
+import { decodeMulterFilename } from '../common/filename';
 import { randomBytes, createHash } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import * as QRCode from 'qrcode';
@@ -2177,7 +2178,8 @@ export class DocumentsService {
       );
     }
 
-    const ext = path.extname(file.originalname).toLowerCase();
+    const originalName = decodeMulterFilename(file.originalname);
+    const ext = path.extname(originalName).toLowerCase();
     if (FORBIDDEN_EXTS.includes(ext)) {
       throw new BadRequestException(`'${ext}' kengaytmali fayllar taqiqlangan`);
     }
@@ -2201,7 +2203,7 @@ export class DocumentsService {
         id,
         documentId: docId,
         uploadedById: userId,
-        filename: file.originalname,
+        filename: originalName,
         storedPath: relativePath,
         sizeBytes: BigInt(file.size),
         mimeType: file.mimetype,
@@ -2243,7 +2245,7 @@ export class DocumentsService {
         `Fayl ${this.attMaxBytes / 1024 / 1024} MB dan katta bo'lmasligi kerak`,
       );
     }
-    const ext = path.extname(file.originalname).toLowerCase();
+    const ext = path.extname(decodeMulterFilename(file.originalname)).toLowerCase();
     if (FORBIDDEN_EXTS.includes(ext)) {
       throw new BadRequestException(`'${ext}' kengaytmali fayllar taqiqlangan`);
     }

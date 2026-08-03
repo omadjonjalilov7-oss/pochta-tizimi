@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { promises as fs } from 'fs';
 import * as path from 'path';
+import { decodeMulterFilename } from '../common/filename';
 import { v4 as uuid } from 'uuid';
 
 const CHAT_MAX_BYTES = 50 * 1024 * 1024; // 50 MB
@@ -197,7 +198,8 @@ export class ChatGroupService {
         if (file.size > CHAT_MAX_BYTES) {
           throw new BadRequestException("Fayl 50 MB dan katta bo'lmasligi kerak");
         }
-        const ext = path.extname(file.originalname).toLowerCase();
+        const grpOriginalName = decodeMulterFilename(file.originalname);
+        const ext = path.extname(grpOriginalName).toLowerCase();
         if (FORBIDDEN_EXTS.includes(ext)) {
           throw new BadRequestException(`'${ext}' kengaytmali fayllar taqiqlangan`);
         }
@@ -215,7 +217,7 @@ export class ChatGroupService {
         await tx.chatGroupAttachment.create({
           data: {
             messageId: msg.id,
-            filename: file.originalname,
+            filename: grpOriginalName,
             storedPath: path.join(subDir, storedFilename),
             sizeBytes: BigInt(file.size),
             mimeType: file.mimetype,
