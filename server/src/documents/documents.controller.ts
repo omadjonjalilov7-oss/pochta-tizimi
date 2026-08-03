@@ -390,6 +390,18 @@ export class DocumentsController {
     return this.docs.uploadAttachment(user.id, id, file);
   }
 
+  // Biriktirilgan faylni (Word'da tahrirlangandan so'ng) o'rniga qayta yuklash.
+  @Post(':id/attachments/:attId/replace')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 50 * 1024 * 1024 } }))
+  replaceAttachment(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('attId', new ParseUUIDPipe()) attId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.docs.replaceAttachment(user.id, id, attId, file);
+  }
+
   @Get(':id/attachments/:attId/download')
   async downloadAttachment(
     @CurrentUser() user: CurrentUserPayload,

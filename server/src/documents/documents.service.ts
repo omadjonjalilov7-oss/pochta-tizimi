@@ -2221,6 +2221,89 @@ export class DocumentsService {
     };
   }
 
+  // Mavjud biriktirilgan faylni o'rniga qayta yuklash (Word'da tahrirlangandan
+  // keyin). Fayl identifikatori (id) va nomi saqlanadi, faqat mazmuni yangilanadi.
+  async replaceAttachment(
+    userId: string,
+    docId: string,
+    attId: string,
+    file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('Fayl yuborilmagan');
+    const att = await this.prisma.documentAttachment.findUnique({
+      where: { id: attId },
+      include: { document: true },
+    });
+    if (!att || !att.document || att.documentId !== docId) {
+      throw new NotFoundException('Fayl topilmadi');
+    }
+    const doc = att.document;
+    await this.requireAccess(userId, doc);
+    if (!['draft', 'in_review', 'in_progress'].includes(doc.status)) {
+      throw new BadRequestException(
+        'Fayllar bajarilgan yoki rad etilgan hujjatlarda tahrirlanmaydi',
+      );
+    }
+    if (file.size > this.attMaxBytes) {
+      throw new BadRequestException(
+        `Fayl ${this.attMaxBytes / 1024 / 1024} MB dan katta bo'lmasligi kerak`,
+      );
+    }
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (FORBIDDEN_EXTS.includes(ext)) {
+      throw new BadRequestException(`'${ext}' kengaytmali fayllar taqiqlangan`);
+    }
+
+    const now = new Date();
+    const subDir = path.join(
+      'edo',
+      String(now.getFullYear()),
+      String(now.getMonth() + 1).padStart(2, '0'),
+    );
+    const fullDir = path.join(this.attDir, subDir);
+    await fs.mkdir(fullDir, { recursive: true });
+
+    const newId = uuid();
+    const storedFilename = `${newId}${ext}`;
+    const relativePath = path.join(subDir, storedFilename);
+    await fs.writeFile(path.join(fullDir, storedFilename), file.buffer);
+
+    // Eski faylni diskdan o'chiramiz (yozuv id'si saqlanadi)
+    const oldPath = att.storedPath;
+
+    const updated = await this.prisma.documentAttachment.update({
+      where: { id: attId },
+      data: {
+        storedPath: relativePath,
+        sizeBytes: BigInt(file.size),
+        mimeType: file.mimetype || att.mimeType,
+        uploadedById: userId,
+      },
+    });
+
+    try {
+      await fs.unlink(path.join(this.attDir, oldPath));
+    } catch {}
+
+    try {
+      await this.prisma.documentAuditLog.create({
+        data: {
+          documentId: docId,
+          actorId: userId,
+          action: 'attachment_replaced',
+          payload: { attachmentId: attId, filename: att.filename } as any,
+        },
+      });
+    } catch {}
+
+    return {
+      id: updated.id,
+      filename: updated.filename,
+      mimeType: updated.mimeType,
+      sizeBytes: Number(updated.sizeBytes),
+    };
+  }
+
   async downloadAttachment(userId: string, docId: string, attId: string) {
     const att = await this.prisma.documentAttachment.findUnique({
       where: { id: attId },

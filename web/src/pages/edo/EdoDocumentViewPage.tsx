@@ -131,6 +131,18 @@ export function EdoDocumentViewPage() {
     },
     onSuccess: invalidate,
   });
+  const replaceAttachment = useMutation({
+    mutationFn: async (vars: { attId: string; file: File }) => {
+      const form = new FormData();
+      form.append('file', vars.file);
+      return (
+        await api.post(`/documents/${id}/attachments/${vars.attId}/replace`, form, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        })
+      ).data;
+    },
+    onSuccess: invalidate,
+  });
   const extendDeadline = useMutation({
     mutationFn: async (vars: { newDeadline: string; reason?: string }) =>
       (await api.patch<EdoDocument>(`/documents/${id}/extend-deadline`, vars)).data,
@@ -159,6 +171,28 @@ export function EdoDocumentViewPage() {
     return Math.max(40, Math.round(((w - 32) / 794) * 100));
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Word'da tahrirlangan faylni qayta yuklash uchun: qaysi biriktirma
+  // almashtirilayotganini eslab qolamiz.
+  const replaceInputRef = useRef<HTMLInputElement>(null);
+  const replaceTargetRef = useRef<string | null>(null);
+  const [wordEditAttId, setWordEditAttId] = useState<string | null>(null);
+
+  // Biriktirilgan faylni yuklab olish (Word'da ochish uchun ham ishlatiladi).
+  const downloadAttachment = async (docId: string, attId: string, filename: string) => {
+    try {
+      const res = await api.get(`/documents/${docId}/attachments/${attId}/download`, {
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(res.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      /* xatolik — foydalanuvchi qayta urinadi */
+    }
+  };
 
   if (isLoading) {
     return <div className="p-8 text-slate-400">{t('common.loading')}</div>;
@@ -413,34 +447,72 @@ export function EdoDocumentViewPage() {
                 </div>
                 {(doc.attachments?.length ?? 0) > 0 && (
                   <ul className="space-y-1.5">
-                    {doc.attachments!.map((a) => (
-                      <li key={a.id}>
-                        <a
-                          href={`/api/documents/${doc.id}/attachments/${a.id}/download`}
-                          onClick={async (e) => {
-                            e.preventDefault();
-                            try {
-                              const res = await api.get(
-                                `/documents/${doc.id}/attachments/${a.id}/download`,
-                                { responseType: 'blob' },
-                              );
-                              const url = URL.createObjectURL(res.data);
-                              const link = document.createElement('a');
-                              link.href = url;
-                              link.download = a.filename;
-                              link.click();
-                              URL.revokeObjectURL(url);
-                            } catch {}
-                          }}
-                          className="group flex items-center gap-2 text-sm text-slate-700 hover:text-asaka-700 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
-                        >
-                          <Paperclip size={14} className="text-slate-400 group-hover:text-asaka-600 shrink-0" />
-                          <span className="truncate flex-1">{a.filename}</span>
-                          <span className="text-xs text-slate-400 shrink-0">{formatBytes(a.sizeBytes)}</span>
-                          <Download size={14} className="text-slate-400 group-hover:text-asaka-600 shrink-0" />
-                        </a>
-                      </li>
-                    ))}
+                    {doc.attachments!.map((a) => {
+                      const editable = canUploadAttachment && isOfficeEditable(a.filename);
+                      const inEdit = wordEditAttId === a.id;
+                      const saving = replaceAttachment.isPending && replaceTargetRef.current === a.id;
+                      return (
+                        <li key={a.id} className="rounded-lg hover:bg-slate-50 transition-colors">
+                          <div className="flex items-center gap-2 px-2 py-1.5">
+                            <a
+                              href={`/api/documents/${doc.id}/attachments/${a.id}/download`}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                downloadAttachment(doc.id, a.id, a.filename);
+                              }}
+                              className="group flex items-center gap-2 text-sm text-slate-700 hover:text-asaka-700 flex-1 min-w-0"
+                            >
+                              <Paperclip size={14} className="text-slate-400 group-hover:text-asaka-600 shrink-0" />
+                              <span className="truncate flex-1">{a.filename}</span>
+                              <span className="text-xs text-slate-400 shrink-0">{formatBytes(a.sizeBytes)}</span>
+                              <Download size={14} className="text-slate-400 group-hover:text-asaka-600 shrink-0" />
+                            </a>
+                            {editable && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  // 1) Word'da ochish uchun faylni yuklab beramiz
+                                  downloadAttachment(doc.id, a.id, a.filename);
+                                  // 2) Qayta yuklash qadamini ochamiz
+                                  setWordEditAttId(a.id);
+                                }}
+                                className="inline-flex items-center gap-1 text-xs font-medium text-asaka-600 hover:text-asaka-700 shrink-0 px-2 py-1 rounded-md hover:bg-asaka-50"
+                                title={t('edo.view.word_edit_hint')}
+                              >
+                                <Pencil size={13} />
+                                {t('edo.view.word_edit')}
+                              </button>
+                            )}
+                          </div>
+                          {inEdit && (
+                            <div className="mx-2 mb-2 rounded-lg bg-asaka-50 border border-asaka-100 px-3 py-2 text-xs text-slate-600 space-y-2">
+                              <p>{t('edo.view.word_edit_steps')}</p>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  disabled={saving}
+                                  onClick={() => {
+                                    replaceTargetRef.current = a.id;
+                                    replaceInputRef.current?.click();
+                                  }}
+                                  className="inline-flex items-center gap-1.5 bg-asaka-600 hover:bg-asaka-700 disabled:opacity-50 text-white font-semibold px-3 py-1.5 rounded-md"
+                                >
+                                  <Paperclip size={13} />
+                                  {saving ? t('common.saving') : t('edo.view.word_reupload')}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setWordEditAttId(null)}
+                                  className="text-slate-500 hover:text-slate-700 px-2 py-1.5"
+                                >
+                                  {t('common.cancel')}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
                 <input
@@ -453,6 +525,22 @@ export function EdoDocumentViewPage() {
                       uploadAttachment.mutate({ file });
                       e.target.value = '';
                     }
+                  }}
+                />
+                <input
+                  ref={replaceInputRef}
+                  type="file"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    const attId = replaceTargetRef.current;
+                    if (file && attId) {
+                      replaceAttachment.mutate(
+                        { attId, file },
+                        { onSuccess: () => setWordEditAttId(null) },
+                      );
+                    }
+                    e.target.value = '';
                   }}
                 />
               </div>
@@ -1985,4 +2073,17 @@ function extractError(e: any): string | null {
   if (!e) return null;
   const msg = e?.response?.data?.message;
   return Array.isArray(msg) ? msg.join(', ') : msg || e?.message || null;
+}
+
+// Office (Word/Excel/PowerPoint) hujjatlari — desktop dasturda tahrirlab,
+// qayta yuklash mumkin bo'lgan kengaytmalar.
+const OFFICE_EDITABLE_EXTS = [
+  '.doc', '.docx', '.docm', '.rtf', '.odt',
+  '.xls', '.xlsx', '.xlsm', '.ods',
+  '.ppt', '.pptx', '.odp',
+];
+function isOfficeEditable(filename: string): boolean {
+  const dot = filename.lastIndexOf('.');
+  if (dot < 0) return false;
+  return OFFICE_EDITABLE_EXTS.includes(filename.slice(dot).toLowerCase());
 }
