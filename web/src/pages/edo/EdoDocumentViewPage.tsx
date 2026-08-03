@@ -27,7 +27,6 @@ import {
   ZoomIn,
   ZoomOut,
   UserCheck,
-  Eye,
 } from 'lucide-react';
 import { EimzoSignModal } from '../../components/edo/EimzoSignModal';
 import { ControlAssignmentModal } from '../../components/edo/ControlAssignmentModal';
@@ -483,7 +482,6 @@ export function EdoDocumentViewPage() {
                               <Paperclip size={14} className="text-slate-400 group-hover:text-asaka-600 shrink-0" />
                               <span className="truncate flex-1">{a.filename}</span>
                               <span className="text-xs text-slate-400 shrink-0">{formatBytes(a.sizeBytes)}</span>
-                              <Eye size={14} className="text-slate-400 group-hover:text-asaka-600 shrink-0" />
                             </button>
                             <button
                               type="button"
