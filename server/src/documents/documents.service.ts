@@ -2473,8 +2473,25 @@ export class DocumentsService {
     const status = data?.status;
     // 2 = saqlashga tayyor, 6 = majburiy saqlash (forcesave)
     if (status === 2 || status === 6) {
-      const downloadUrl: string | undefined = data.url;
+      let downloadUrl: string | undefined = data.url;
       if (!downloadUrl) return { error: 1 };
+      // OnlyOffice yuborgan yuklab olish manzilining hostini konteynerning
+      // ichki (backend'dan ko'rinadigan) manziliga almashtiramiz — shunda
+      // proxy/domen/sertifikat muammolarisiz to'g'ridan-to'g'ri yuklab olamiz.
+      const internal =
+        this.config.get<string>('ONLYOFFICE_INTERNAL_URL') ||
+        this.config.get<string>('ONLYOFFICE_URL');
+      if (internal) {
+        try {
+          const u = new URL(downloadUrl);
+          const b = new URL(internal);
+          u.protocol = b.protocol;
+          u.host = b.host;
+          downloadUrl = u.toString();
+        } catch {
+          /* asl manzilni ishlatamiz */
+        }
+      }
       try {
         const res = await fetch(downloadUrl);
         if (!res.ok) return { error: 1 };
