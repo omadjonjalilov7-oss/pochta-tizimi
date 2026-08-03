@@ -31,7 +31,7 @@ import {
 import { EimzoSignModal } from '../../components/edo/EimzoSignModal';
 import { ControlAssignmentModal } from '../../components/edo/ControlAssignmentModal';
 import { PresentToLeaderModal } from '../../components/edo/PresentToLeaderModal';
-import OnlyOfficeEditorModal from '../../components/edo/OnlyOfficeEditorModal';
+import WordEditorModal from '../../components/edo/WordEditorModal';
 import AttachmentViewerModal from '../../components/edo/AttachmentViewerModal';
 import { api } from '../../lib/api';
 import type { DocumentStatus, EdoDocument, User } from '../../lib/types';
@@ -133,18 +133,6 @@ export function EdoDocumentViewPage() {
     },
     onSuccess: invalidate,
   });
-  const replaceAttachment = useMutation({
-    mutationFn: async (vars: { attId: string; file: File }) => {
-      const form = new FormData();
-      form.append('file', vars.file);
-      return (
-        await api.post(`/documents/${id}/attachments/${vars.attId}/replace`, form, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        })
-      ).data;
-    },
-    onSuccess: invalidate,
-  });
   const extendDeadline = useMutation({
     mutationFn: async (vars: { newDeadline: string; reason?: string }) =>
       (await api.patch<EdoDocument>(`/documents/${id}/extend-deadline`, vars)).data,
@@ -173,26 +161,11 @@ export function EdoDocumentViewPage() {
     return Math.max(40, Math.round(((w - 32) / 794) * 100));
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
-  // Word'da tahrirlangan faylni qayta yuklash uchun: qaysi biriktirma
-  // almashtirilayotganini eslab qolamiz.
-  const replaceInputRef = useRef<HTMLInputElement>(null);
-  const replaceTargetRef = useRef<string | null>(null);
-  const [wordEditAttId, setWordEditAttId] = useState<string | null>(null);
-  // OnlyOffice online tahrirlash muharriri ochilgan biriktirma.
-  const [onlineEditAtt, setOnlineEditAtt] = useState<{ id: string; filename: string } | null>(null);
+  // O'z brauzer ichi Word muharririmizда ochilgan biriktirma.
+  const [editAtt, setEditAtt] = useState<{ id: string; filename: string } | null>(null);
 
   // Online ko'rish (yuklab olmasdan) uchun ochilgan biriktirma.
   const [viewAtt, setViewAtt] = useState<{ id: string; filename: string } | null>(null);
-
-  // OnlyOffice serveri sozlanganmi (tugmani ko'rsatish uchun).
-  const { data: ooEnabled } = useQuery({
-    queryKey: ['onlyoffice-enabled'],
-    queryFn: async () => {
-      const res = await api.get('/public/onlyoffice/enabled');
-      return !!res.data?.enabled;
-    },
-    staleTime: 5 * 60 * 1000,
-  });
 
   // Biriktirilgan faylni yuklab olish (Word'da ochish uchun ham ishlatiladi).
   const downloadAttachment = async (docId: string, attId: string, filename: string) => {
@@ -465,9 +438,7 @@ export function EdoDocumentViewPage() {
                 {(doc.attachments?.length ?? 0) > 0 && (
                   <ul className="space-y-1.5">
                     {doc.attachments!.map((a) => {
-                      const editable = canUploadAttachment && isOfficeEditable(a.filename);
-                      const inEdit = wordEditAttId === a.id;
-                      const saving = replaceAttachment.isPending && replaceTargetRef.current === a.id;
+                      const editable = canUploadAttachment && isWordEditable(a.filename);
                       return (
                         <li key={a.id} className="rounded-lg hover:bg-slate-50 transition-colors">
                           <div className="flex items-center gap-2 px-2 py-1.5">
@@ -493,62 +464,20 @@ export function EdoDocumentViewPage() {
                             >
                               <Download size={15} />
                             </button>
-                            {editable && ooEnabled && (
+                            {editable && (
                               <button
                                 type="button"
                                 onClick={() =>
-                                  setOnlineEditAtt({ id: a.id, filename: a.filename })
+                                  setEditAtt({ id: a.id, filename: a.filename })
                                 }
                                 className="inline-flex items-center gap-1 text-xs font-semibold text-white bg-asaka-600 hover:bg-asaka-700 shrink-0 px-2.5 py-1 rounded-md"
-                                title={t('edo.online_edit.hint')}
+                                title={t('edo.editor.hint')}
                               >
                                 <Pencil size={13} />
-                                {t('edo.online_edit.button')}
-                              </button>
-                            )}
-                            {editable && !ooEnabled && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  // 1) Word'da ochish uchun faylni yuklab beramiz
-                                  downloadAttachment(doc.id, a.id, a.filename);
-                                  // 2) Qayta yuklash qadamini ochamiz
-                                  setWordEditAttId(a.id);
-                                }}
-                                className="inline-flex items-center gap-1 text-xs font-medium text-asaka-600 hover:text-asaka-700 shrink-0 px-2 py-1 rounded-md hover:bg-asaka-50"
-                                title={t('edo.view.word_edit_hint')}
-                              >
-                                <Pencil size={13} />
-                                {t('edo.view.word_edit')}
+                                {t('edo.editor.button')}
                               </button>
                             )}
                           </div>
-                          {inEdit && (
-                            <div className="mx-2 mb-2 rounded-lg bg-asaka-50 border border-asaka-100 px-3 py-2 text-xs text-slate-600 space-y-2">
-                              <p>{t('edo.view.word_edit_steps')}</p>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  disabled={saving}
-                                  onClick={() => {
-                                    replaceTargetRef.current = a.id;
-                                    replaceInputRef.current?.click();
-                                  }}
-                                  className="inline-flex items-center gap-1.5 bg-asaka-600 hover:bg-asaka-700 disabled:opacity-50 text-white font-semibold px-3 py-1.5 rounded-md"
-                                >
-                                  <Paperclip size={13} />
-                                  {saving ? t('common.saving') : t('edo.view.word_reupload')}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setWordEditAttId(null)}
-                                  className="text-slate-500 hover:text-slate-700 px-2 py-1.5"
-                                >
-                                  {t('common.cancel')}
-                                </button>
-                              </div>
-                            </div>
-                          )}
                         </li>
                       );
                     })}
@@ -564,22 +493,6 @@ export function EdoDocumentViewPage() {
                       uploadAttachment.mutate({ file });
                       e.target.value = '';
                     }
-                  }}
-                />
-                <input
-                  ref={replaceInputRef}
-                  type="file"
-                  style={{ display: 'none' }}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    const attId = replaceTargetRef.current;
-                    if (file && attId) {
-                      replaceAttachment.mutate(
-                        { attId, file },
-                        { onSuccess: () => setWordEditAttId(null) },
-                      );
-                    }
-                    e.target.value = '';
                   }}
                 />
               </div>
@@ -766,13 +679,13 @@ export function EdoDocumentViewPage() {
         />
       )}
 
-      {/* OnlyOffice online tahrirlash muharriri */}
-      {onlineEditAtt && (
-        <OnlyOfficeEditorModal
+      {/* O'z brauzer ichi Word muharririmiz */}
+      {editAtt && (
+        <WordEditorModal
           documentId={doc.id}
-          attId={onlineEditAtt.id}
-          filename={onlineEditAtt.filename}
-          onClose={() => setOnlineEditAtt(null)}
+          attId={editAtt.id}
+          filename={editAtt.filename}
+          onClose={() => setEditAtt(null)}
           onSaved={() =>
             queryClient.invalidateQueries({ queryKey: ['edo-doc', doc.id] })
           }
@@ -2137,15 +2050,11 @@ function extractError(e: any): string | null {
   return Array.isArray(msg) ? msg.join(', ') : msg || e?.message || null;
 }
 
-// Office (Word/Excel/PowerPoint) hujjatlari — desktop dasturda tahrirlab,
-// qayta yuklash mumkin bo'lgan kengaytmalar.
-const OFFICE_EDITABLE_EXTS = [
-  '.doc', '.docx', '.docm', '.rtf', '.odt',
-  '.xls', '.xlsx', '.xlsm', '.ods',
-  '.ppt', '.pptx', '.odp',
-];
-function isOfficeEditable(filename: string): boolean {
+// Brauzer ichi Word muharririmizда tahrirlash mumkin bo'lgan matn-hujjat
+// kengaytmalari (Word/ODT/RTF). Jadval/taqdimot bu muharrirга mos emas.
+const WORD_EDITABLE_EXTS = ['.doc', '.docx', '.docm', '.rtf', '.odt'];
+function isWordEditable(filename: string): boolean {
   const dot = filename.lastIndexOf('.');
   if (dot < 0) return false;
-  return OFFICE_EDITABLE_EXTS.includes(filename.slice(dot).toLowerCase());
+  return WORD_EDITABLE_EXTS.includes(filename.slice(dot).toLowerCase());
 }

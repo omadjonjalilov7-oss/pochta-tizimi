@@ -402,15 +402,26 @@ export class DocumentsController {
     return this.docs.replaceAttachment(user.id, id, attId, file);
   }
 
-  // OnlyOffice online muharriri uchun konfiguratsiya (imzolangan token bilan)
-  @Get(':id/attachments/:attId/onlyoffice-config')
-  onlyOfficeConfig(
+  // O'zimizning brauzer ichi muharriri: biriktirmani tahrirlash uchun HTML
+  // ko'rinishда beradi (LibreOffice orqali Word/ODT/RTF → HTML).
+  @Get(':id/attachments/:attId/html')
+  getAttachmentHtml(
     @CurrentUser() user: CurrentUserPayload,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Param('attId', new ParseUUIDPipe()) attId: string,
-    @Query('lang') lang?: string,
   ) {
-    return this.docs.buildOnlyOfficeConfig(user.id, id, attId, lang);
+    return this.docs.getAttachmentAsHtml(user.id, id, attId);
+  }
+
+  // Tahrirlangan HTML'ни yana asl formatga aylantirib saqlaydi.
+  @Post(':id/attachments/:attId/html')
+  saveAttachmentHtml(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('attId', new ParseUUIDPipe()) attId: string,
+    @Body('html') html: string,
+  ) {
+    return this.docs.saveAttachmentFromHtml(user.id, id, attId, html ?? '');
   }
 
   @Get(':id/attachments/:attId/download')

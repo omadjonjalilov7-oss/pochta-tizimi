@@ -13,9 +13,17 @@ const LO_BIN = process.env.LIBREOFFICE_BIN || 'libreoffice';
 // ko'p ishga tushmasligi uchun oddiy ketma-ket navbat).
 let queue: Promise<unknown> = Promise.resolve();
 
-// LibreOffice'ni bitta faylda ishga tushiradi. `workDir` ichida
-// `<asos>.pdf` hosil bo'ladi.
-function runLibreOffice(srcPath: string, workDir: string): Promise<string> {
+// LibreOffice'ni bitta faylда ishga tushiradi. `convertTo` — LibreOffice
+// `--convert-to` argumenti (masalan 'pdf', 'html:HTML (StarWriter)',
+// 'docx:MS Word 2007 XML'). `outExt` — hosil bo'ladigan fayl kengaytmasi
+// (masalan 'pdf', 'html', 'docx'). `workDir` ichida `<asos>.<outExt>` hosil
+// bo'ladi va uning yo'li qaytariladi.
+function runLibreOffice(
+  srcPath: string,
+  workDir: string,
+  convertTo: string,
+  outExt: string,
+): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const profile = path.join(os.tmpdir(), `lo_profile_${randomUUID()}`);
     const args = [
@@ -25,7 +33,7 @@ function runLibreOffice(srcPath: string, workDir: string): Promise<string> {
       '--nofirststartwizard',
       `-env:UserInstallation=file://${profile}`,
       '--convert-to',
-      'pdf',
+      convertTo,
       '--outdir',
       workDir,
       srcPath,
@@ -33,7 +41,7 @@ function runLibreOffice(srcPath: string, workDir: string): Promise<string> {
     execFile(
       LO_BIN,
       args,
-      { timeout: 120_000, maxBuffer: 10 * 1024 * 1024 },
+      { timeout: 120_000, maxBuffer: 64 * 1024 * 1024 },
       (err, _stdout, stderr) => {
         fs.rm(profile, { recursive: true, force: true }, () => {});
         if (err) {
@@ -41,15 +49,25 @@ function runLibreOffice(srcPath: string, workDir: string): Promise<string> {
           return;
         }
         const base = path.basename(srcPath, path.extname(srcPath));
-        const out = path.join(workDir, `${base}.pdf`);
+        const out = path.join(workDir, `${base}.${outExt}`);
         if (!fs.existsSync(out)) {
-          reject(new Error(`pdf_not_created${stderr ? `: ${stderr}` : ''}`));
+          reject(new Error(`convert_failed${stderr ? `: ${stderr}` : ''}`));
           return;
         }
         resolve(out);
       },
     );
   });
+}
+
+// Navbatga qo'yib, funksiyani ketma-ket bajaradi.
+function enqueue<T>(fn: () => Promise<T>): Promise<T> {
+  const result = queue.then(fn, fn);
+  queue = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
 }
 
 // Office (Word/Excel/PowerPoint) faylni PDF ga aylantirib, `destPdfPath` ga
@@ -66,7 +84,7 @@ export function convertOfficeToPdf(
     const tmpSrc = path.join(workDir, `source${ext}`);
     try {
       await fsp.copyFile(srcPath, tmpSrc);
-      const tmpPdf = await runLibreOffice(tmpSrc, workDir);
+      const tmpPdf = await runLibreOffice(tmpSrc, workDir, 'pdf', 'pdf');
       await fsp.mkdir(path.dirname(destPdfPath), { recursive: true });
       await fsp.copyFile(tmpPdf, destPdfPath);
       return destPdfPath;
@@ -74,11 +92,115 @@ export function convertOfficeToPdf(
       await fsp.rm(workDir, { recursive: true, force: true }).catch(() => {});
     }
   };
+  return enqueue(run);
+}
 
-  const result = queue.then(run, run);
-  queue = result.then(
-    () => undefined,
-    () => undefined,
-  );
-  return result;
+// Rasm kengaytmasi → MIME turi (HTML ichiga data-URI qilib joylash uchun).
+const IMG_MIME: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.bmp': 'image/bmp',
+  '.svg': 'image/svg+xml',
+  '.webp': 'image/webp',
+};
+
+// LibreOffice HTML eksportда rasmlarни alohida fayllarга (masalan
+// source_html_1.png) yozadi va ularga `src="..."` bilan murojaat qiladi.
+// Brauzerда ko'rsatish uchun barcha rasmlarни o'qib, data-URI qilib HTML
+// ichiga joylaymiz — natijaда bitta o'zini-o'zi ta'minlaydigan HTML bo'ladi.
+async function inlineHtmlImages(html: string, workDir: string): Promise<string> {
+  const srcRe = /src\s*=\s*(["'])(.*?)\1/gi;
+  const matches = [...html.matchAll(srcRe)];
+  let out = html;
+  for (const m of matches) {
+    const ref = m[2];
+    if (/^data:/i.test(ref) || /^https?:/i.test(ref)) continue;
+    const decoded = decodeURIComponent(ref);
+    const imgPath = path.join(workDir, path.basename(decoded));
+    try {
+      const buf = await fsp.readFile(imgPath);
+      const mime = IMG_MIME[path.extname(imgPath).toLowerCase()] || 'image/png';
+      const dataUri = `data:${mime};base64,${buf.toString('base64')}`;
+      out = out.split(m[0]).join(`src="${dataUri}"`);
+    } catch {
+      /* rasm topilmadi — o'zini qoldiramiz */
+    }
+  }
+  return out;
+}
+
+// Faqat <body> ichini ajratib oladi (butun HTML hujjat o'rniga tahrirlash
+// uchun asosiy matnни).
+function extractBody(html: string): string {
+  const m = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  return m ? m[1] : html;
+}
+
+// Word/ODT/RTF faylни tahrirlash uchun HTML matnга aylantiradi. Rasmlar
+// data-URI qilib ichига joylanadi. Faqat <body> ichи qaytariladi.
+export function convertDocToHtml(srcPath: string): Promise<string> {
+  const run = async (): Promise<string> => {
+    const ext = path.extname(srcPath) || '.docx';
+    const workDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'doc2html_'));
+    const tmpSrc = path.join(workDir, `source${ext}`);
+    try {
+      await fsp.copyFile(srcPath, tmpSrc);
+      const tmpHtml = await runLibreOffice(
+        tmpSrc,
+        workDir,
+        'html:HTML (StarWriter)',
+        'html',
+      );
+      const raw = await fsp.readFile(tmpHtml, 'utf8');
+      const inlined = await inlineHtmlImages(raw, workDir);
+      return extractBody(inlined);
+    } finally {
+      await fsp.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    }
+  };
+  return enqueue(run);
+}
+
+// Fayl kengaytmasига mos LibreOffice eksport filtri.
+function docConvertTarget(ext: string): { convertTo: string; outExt: string } {
+  const e = ext.toLowerCase().replace(/^\./, '');
+  switch (e) {
+    case 'doc':
+      return { convertTo: 'doc:MS Word 97', outExt: 'doc' };
+    case 'rtf':
+      return { convertTo: 'rtf:Rich Text Format', outExt: 'rtf' };
+    case 'odt':
+      return { convertTo: 'odt:writer8', outExt: 'odt' };
+    case 'docx':
+    default:
+      return { convertTo: 'docx:MS Word 2007 XML', outExt: 'docx' };
+  }
+}
+
+// Tahrirlangan HTML matnни yana Office faylига (asl kengaytмада) aylantirib,
+// `destPath` ga yozadi. Rasmlar data-URI ko'rinishда bo'lса LibreOffice ularни
+// import qiladi.
+export function convertHtmlToDoc(
+  html: string,
+  destPath: string,
+): Promise<string> {
+  const run = async (): Promise<string> => {
+    const ext = path.extname(destPath) || '.docx';
+    const { convertTo, outExt } = docConvertTarget(ext);
+    const workDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'html2doc_'));
+    const tmpSrc = path.join(workDir, 'source.html');
+    try {
+      const full = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>${html}</body></html>`;
+      await fsp.writeFile(tmpSrc, full, 'utf8');
+      const tmpOut = await runLibreOffice(tmpSrc, workDir, convertTo, outExt);
+      await fsp.mkdir(path.dirname(destPath), { recursive: true });
+      await fsp.copyFile(tmpOut, destPath);
+      return destPath;
+    } finally {
+      await fsp.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    }
+  };
+  return enqueue(run);
 }
