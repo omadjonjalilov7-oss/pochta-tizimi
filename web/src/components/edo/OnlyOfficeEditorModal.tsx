@@ -98,6 +98,19 @@ export default function OnlyOfficeEditorModal({
           },
         };
 
+        // OnlyOffice DOM'ini React'dan TO'LIQ ajratamiz: placeholder div'ni
+        // imperativ (DOM API) orqali yaratamiz. Shunda React uning ichidagi
+        // iframe'ni hech qachon boshqarmaydi va "insertBefore" to'qnashuvi
+        // yuz bermaydi.
+        const host = containerRef.current;
+        if (!host) throw new Error('no_host');
+        host.innerHTML = '';
+        const holder = document.createElement('div');
+        holder.id = 'onlyoffice-editor-root';
+        holder.style.width = '100%';
+        holder.style.height = '100%';
+        host.appendChild(holder);
+
         editorRef.current = new window.DocsAPI.DocEditor(
           'onlyoffice-editor-root',
           config,
@@ -153,30 +166,35 @@ export default function OnlyOfficeEditorModal({
       </div>
 
       <div className="relative flex-1 bg-slate-100">
-        {loading && !error && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-500">
-            <Loader2 size={28} className="animate-spin" />
-            <span className="text-sm">{t('edo.online_edit.loading')}</span>
-          </div>
-        )}
-        {error && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center px-6">
-            <p className="text-sm text-red-600 max-w-md">{error}</p>
-            <button
-              type="button"
-              onClick={handleClose}
-              className="text-sm bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-1.5 rounded-md"
-            >
-              {t('common.close')}
-            </button>
-          </div>
-        )}
+        {/* OnlyOffice shu bo'sh konteyner ichiga o'z div/iframe'ini qo'yadi.
+            React bu div'ning bolalarini boshqarmaydi. */}
         <div
-          id="onlyoffice-editor-root"
           ref={containerRef}
           className="w-full h-full"
           style={{ visibility: error ? 'hidden' : 'visible' }}
         />
+        {/* Overlaylar DOIM mount qilingan — faqat display o'zgaradi (React
+            hech qachon tugun qo'shib-o'chirmaydi → to'qnashuv yo'q). */}
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-500 bg-slate-100"
+          style={{ display: loading && !error ? 'flex' : 'none' }}
+        >
+          <Loader2 size={28} className="animate-spin" />
+          <span className="text-sm">{t('edo.online_edit.loading')}</span>
+        </div>
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center px-6 bg-slate-100"
+          style={{ display: error ? 'flex' : 'none' }}
+        >
+          <p className="text-sm text-red-600 max-w-md">{error}</p>
+          <button
+            type="button"
+            onClick={handleClose}
+            className="text-sm bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-1.5 rounded-md"
+          >
+            {t('common.close')}
+          </button>
+        </div>
       </div>
     </div>
   );
