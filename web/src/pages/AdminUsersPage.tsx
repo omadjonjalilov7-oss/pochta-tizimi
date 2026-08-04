@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Plus, Pencil, Trash2, X, KeyRound, Lock, Unlock, ShieldCheck, ShieldOff, Globe, Eye, EyeOff } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, KeyRound, Lock, Unlock, ShieldCheck, Settings, Globe, Eye, EyeOff } from 'lucide-react';
 import { api } from '../lib/api';
 import { Avatar } from '../components/Avatar';
 import { useAuth } from '../context/AuthContext';
@@ -57,11 +57,16 @@ export function AdminUsersPage() {
   };
 
   const clearPin = async (u: User) => {
-    if (!u.hasApprovalPin) return;
-    if (!confirm(t('admin.clear_pin_confirm', { name: u.fullName }))) return;
+    // PIN o'rnatilmagan bo'lsa — o'chirishga hojat yo'q, xabar beramiz.
+    if (!u.hasApprovalPin) {
+      alert(t('admin.pin_not_set_info', { name: cyrName(u.fullName) }));
+      return;
+    }
+    if (!confirm(t('admin.clear_pin_confirm', { name: cyrName(u.fullName) }))) return;
     try {
       await api.post(`/users/${u.id}/approval-pin/clear`);
       refresh();
+      alert(t('admin.clear_pin_done'));
     } catch (err: any) {
       alert(err?.response?.data?.message || t('common.error'));
     }
@@ -176,15 +181,17 @@ export function AdminUsersPage() {
                         >
                           {u.canSeeProtected ? <Eye size={16} /> : <EyeOff size={16} />}
                         </button>
-                        {u.hasApprovalPin && (
-                          <button
-                            onClick={() => clearPin(u)}
-                            title={t('admin.tooltip_clear_pin')}
-                            className="p-1.5 text-slate-500 hover:text-orange-600 hover:bg-orange-50 rounded"
-                          >
-                            <ShieldOff size={16} />
-                          </button>
-                        )}
+                        <button
+                          onClick={() => clearPin(u)}
+                          title={t('admin.tooltip_clear_pin')}
+                          className={
+                            u.hasApprovalPin
+                              ? 'p-1.5 text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded'
+                              : 'p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded'
+                          }
+                        >
+                          <Settings size={16} />
+                        </button>
                         <button
                           onClick={() => toggleActive(u)}
                           title={u.isActive ? t('admin.tooltip_block') : t('admin.tooltip_activate')}
