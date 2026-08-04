@@ -24,7 +24,11 @@ import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { SendDocumentDto } from './dto/send-document.dto';
 import { ApproveDocumentDto, ApproveOverdueDocumentDto, CommentDto, ExtendDeadlineDto, ForwardDto, PresentToLeaderDto, RejectDto } from './dto/document-action.dto';
-import { CompleteTargetDto, CreateResolutionDto } from './dto/resolution.dto';
+import {
+  CompleteTargetDto,
+  CreateResolutionDto,
+  UpdateResolutionDto,
+} from './dto/resolution.dto';
 import { SignDocumentDto } from './dto/sign.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserPayload } from '../auth/decorators/current-user.decorator';
@@ -246,7 +250,35 @@ export class DocumentsController {
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: CompleteTargetDto,
   ) {
-    return this.docs.completeTarget(user.id, id, dto);
+    return this.docs.completeTarget(user.id, id, dto, user.role);
+  }
+
+  // Ijrochi xodim topshiriqqa izoh (javob) yozadi — bajarilgan deb belgilamaydi
+  @Post('resolution-target/:id/note')
+  addTargetNote(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: CompleteTargetDto,
+  ) {
+    return this.docs.addTargetNote(user.id, id, dto);
+  }
+
+  // Rezolyutsiyani tahrirlash / o'chirish — muallif yoki kanselyariya
+  @Patch('resolution/:id')
+  updateResolution(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: UpdateResolutionDto,
+  ) {
+    return this.docs.updateResolution(user.id, id, dto.text, user.role);
+  }
+
+  @Delete('resolution/:id')
+  deleteResolution(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.docs.deleteResolution(user.id, id, user.role);
   }
 
   @Get(':id')

@@ -39,3 +39,10 @@ export class CompleteTargetDto {
   @MaxLength(2000)
   note?: string;
 }
+
+export class UpdateResolutionDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(5000)
+  text: string;
+}

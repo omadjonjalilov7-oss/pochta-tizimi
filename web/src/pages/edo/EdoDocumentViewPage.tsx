@@ -11,6 +11,7 @@ import {
   FileText,
   Send,
   Pencil,
+  Trash2,
   AlertTriangle,
   ChevronRight,
   ShieldCheck,
@@ -119,6 +120,32 @@ export function EdoDocumentViewPage() {
           { note: vars.note },
         )
       ).data,
+    onSuccess: invalidate,
+  });
+  // Ijrochi xodim topshiriqqa izoh yozadi (bajarilgan deb belgilamaydi)
+  const saveTargetNote = useMutation({
+    mutationFn: async (vars: { targetId: string; note?: string }) =>
+      (
+        await api.post<EdoDocument>(
+          `/documents/resolution-target/${vars.targetId}/note`,
+          { note: vars.note },
+        )
+      ).data,
+    onSuccess: invalidate,
+  });
+  // Rezolyutsiyani tahrirlash / o'chirish
+  const updateResolution = useMutation({
+    mutationFn: async (vars: { resolutionId: string; text: string }) =>
+      (
+        await api.patch<EdoDocument>(`/documents/resolution/${vars.resolutionId}`, {
+          text: vars.text,
+        })
+      ).data,
+    onSuccess: invalidate,
+  });
+  const deleteResolution = useMutation({
+    mutationFn: async (vars: { resolutionId: string }) =>
+      (await api.delete<EdoDocument>(`/documents/resolution/${vars.resolutionId}`)).data,
     onSuccess: invalidate,
   });
   const uploadAttachment = useMutation({
@@ -611,13 +638,13 @@ export function EdoDocumentViewPage() {
           {/* Imzolar paneli — tashqi hujjat uchun */}
           {doc.type === 'outgoing' && <SignaturesPanel doc={doc} />}
 
-          {/* Mening ijro vazifalarim — agar pending bo'lsa */}
+          {/* Mening ijro vazifalarim — ijrochi izoh yozadi (bajarilishini kanselyariya belgilaydi) */}
           {myPendingTargets.length > 0 && (
             <MyTasksBox
               targets={myPendingTargets}
-              onComplete={(targetId, note) => completeTarget.mutate({ targetId, note })}
-              loading={completeTarget.isPending}
-              error={extractError(completeTarget.error)}
+              onSaveNote={(targetId, note) => saveTargetNote.mutate({ targetId, note })}
+              loading={saveTargetNote.isPending}
+              error={extractError(saveTargetNote.error)}
             />
           )}
 
@@ -654,7 +681,14 @@ export function EdoDocumentViewPage() {
           <ResolutionSection
             doc={doc}
             canAssign={canAssignControl}
+            canManage={isStaff || isCreator}
             onAddClick={() => setShowControlModal(true)}
+            onCompleteTarget={(targetId) => completeTarget.mutate({ targetId })}
+            onEditResolution={(resolutionId, text) =>
+              updateResolution.mutate({ resolutionId, text })
+            }
+            onDeleteResolution={(resolutionId) => deleteResolution.mutate({ resolutionId })}
+            completing={completeTarget.isPending}
           />
 
           {/* Izohlar va Audit */}
@@ -1868,23 +1902,26 @@ function PanelModal({
 
 function MyTasksBox({
   targets,
-  onComplete,
+  onSaveNote,
   loading,
   error,
 }: {
   targets: Array<{
     id: string;
     deadline?: string | null;
-    resolution: { text: string; author: { fullName: string } };
+    doneNote?: string | null;
+    resolution: { text: string };
   }>;
-  onComplete: (targetId: string, note?: string) => void;
+  onSaveNote: (targetId: string, note?: string) => void;
   loading: boolean;
   error: string | null;
 }) {
   const { t, i18n } = useTranslation();
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [note, setNote] = useState('');
+  // Har bir topshiriq izohi (mavjud bo'lsa oldindan to'ldiriladi)
+  const [notes, setNotes] = useState<Record<string, string>>({});
   const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
+  const getNote = (tg: { id: string; doneNote?: string | null }) =>
+    notes[tg.id] ?? tg.doneNote ?? '';
 
   return (
     <div className="bg-white border-2 border-sky-200 rounded-2xl p-4 space-y-3">
@@ -1895,61 +1932,35 @@ function MyTasksBox({
       <ul className="space-y-3">
         {targets.map((tg) => (
           <li key={tg.id} className="border border-slate-200 rounded-lg p-3 bg-slate-50">
-            <div className="text-xs text-slate-500 mb-1">
-              {t('edo.view.assigned_by')}: <span className="font-medium text-slate-700">{cyrName(tg.resolution.author.fullName)}</span>
-              {tg.deadline && (
-                <span className="ml-2">
-                  · {t('edo.view.deadline')}: {new Date(tg.deadline).toLocaleString(lang)}
-                </span>
-              )}
-            </div>
-            <p className="text-sm text-slate-800 whitespace-pre-wrap mb-2">{tg.resolution.text}</p>
-            {openId === tg.id ? (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  onComplete(tg.id, note.trim() || undefined);
-                  setOpenId(null);
-                  setNote('');
-                }}
-                className="space-y-2"
-              >
-                <textarea
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  rows={2}
-                  placeholder={t('edo.view.done_note_ph')}
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none"
-                />
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold px-3 py-1.5 rounded-lg text-sm"
-                  >
-                    {t('edo.view.confirm_done')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setOpenId(null);
-                      setNote('');
-                    }}
-                    className="text-slate-600 hover:bg-slate-100 font-medium px-3 py-1.5 rounded-lg text-sm"
-                  >
-                    {t('common.cancel')}
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <button
-                onClick={() => setOpenId(tg.id)}
-                className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3 py-1.5 rounded-lg text-sm"
-              >
-                <CheckCircle2 size={14} />
-                {t('edo.view.mark_done')}
-              </button>
+            {tg.deadline && (
+              <div className="text-xs text-slate-500 mb-1">
+                {t('edo.view.deadline')}: {new Date(tg.deadline).toLocaleString(lang)}
+              </div>
             )}
+            <p className="text-sm text-slate-800 whitespace-pre-wrap mb-2">{tg.resolution.text}</p>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                onSaveNote(tg.id, getNote(tg).trim() || undefined);
+              }}
+              className="space-y-2"
+            >
+              <textarea
+                value={getNote(tg)}
+                onChange={(e) => setNotes((m) => ({ ...m, [tg.id]: e.target.value }))}
+                rows={2}
+                placeholder={t('edo.view.executor_note_ph')}
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none"
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="inline-flex items-center gap-1 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-semibold px-3 py-1.5 rounded-lg text-sm"
+              >
+                <ClipboardList size={14} />
+                {t('edo.view.save_note')}
+              </button>
+            </form>
           </li>
         ))}
       </ul>
@@ -1961,14 +1972,26 @@ function MyTasksBox({
 function ResolutionSection({
   doc,
   canAssign,
+  canManage,
   onAddClick,
+  onCompleteTarget,
+  onEditResolution,
+  onDeleteResolution,
+  completing,
 }: {
   doc: EdoDocument;
   canAssign: boolean;
+  canManage: boolean;
   onAddClick: () => void;
+  onCompleteTarget: (targetId: string) => void;
+  onEditResolution: (resolutionId: string, text: string) => void;
+  onDeleteResolution: (resolutionId: string) => void;
+  completing: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
 
   const resolutions = doc.resolutions ?? [];
 
@@ -1996,43 +2019,120 @@ function ResolutionSection({
         )}
         {resolutions.map((r) => (
           <article key={r.id} className="border border-slate-200 rounded-lg p-3 bg-slate-50">
-            <div className="flex items-center gap-2 mb-2">
-              <Avatar fullName={r.author.fullName} avatarPath={r.author.avatarPath} size="sm" />
-              <div>
-                <div className="text-sm font-medium text-slate-900">{cyrName(r.author.fullName)}</div>
-                <div className="text-xs text-slate-400">{new Date(r.createdAt).toLocaleString(lang)}</div>
+            {/* Topshiriqni kiritgan xodim (muallif) ko'rsatilmaydi — faqat sana va boshqaruv */}
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="text-xs text-slate-400">
+                {new Date(r.createdAt).toLocaleString(lang)}
               </div>
+              {canManage && editId !== r.id && (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => {
+                      setEditId(r.id);
+                      setEditText(r.text);
+                    }}
+                    title={t('common.edit')}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-asaka-600 hover:bg-white"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm(t('edo.view.delete_resolution_confirm'))) {
+                        onDeleteResolution(r.id);
+                      }
+                    }}
+                    title={t('common.delete')}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-white"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              )}
             </div>
-            <p className="text-sm text-slate-800 whitespace-pre-wrap mb-3">{r.text}</p>
+            {editId === r.id ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (editText.trim().length >= 2) {
+                    onEditResolution(r.id, editText.trim());
+                    setEditId(null);
+                  }
+                }}
+                className="mb-3 space-y-2"
+              >
+                <textarea
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    className="bg-asaka-600 hover:bg-asaka-700 text-white font-semibold px-3 py-1.5 rounded-lg text-sm"
+                  >
+                    {t('common.save')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditId(null)}
+                    className="text-slate-600 hover:bg-slate-100 font-medium px-3 py-1.5 rounded-lg text-sm"
+                  >
+                    {t('common.cancel')}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <p className="text-sm text-slate-800 whitespace-pre-wrap mb-3">{r.text}</p>
+            )}
             <ul className="space-y-1.5">
               {r.targets.map((tg) => (
                 <li
                   key={tg.id}
-                  className="flex items-center gap-2 text-sm bg-white border border-slate-200 rounded px-2 py-1.5"
+                  className="bg-white border border-slate-200 rounded px-2 py-1.5"
                 >
-                  <Avatar fullName={tg.user.fullName} avatarPath={tg.user.avatarPath} size="sm" />
-                  <span className="flex-1 min-w-0">
-                    <span className="font-medium text-slate-800">{cyrName(tg.user.fullName)}</span>
-                    {tg.deadline && (
-                      <span className="text-xs text-slate-500 ml-2">
-                        ⏰ {new Date(tg.deadline).toLocaleString(lang)}
-                      </span>
-                    )}
-                  </span>
-                  {tg.status === 'done' ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-                      <CheckCircle2 size={12} />
-                      {t('edo.task_status.done')}
-                      {tg.doneAt && (
-                        <span className="text-slate-400 ml-1">
-                          {new Date(tg.doneAt).toLocaleDateString(lang)}
+                  <div className="flex items-center gap-2 text-sm">
+                    <Avatar fullName={tg.user.fullName} avatarPath={tg.user.avatarPath} size="sm" />
+                    <span className="flex-1 min-w-0">
+                      <span className="font-medium text-slate-800">{cyrName(tg.user.fullName)}</span>
+                      {tg.deadline && (
+                        <span className="text-xs text-slate-500 ml-2">
+                          ⏰ {new Date(tg.deadline).toLocaleString(lang)}
                         </span>
                       )}
                     </span>
-                  ) : (
-                    <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
-                      {t('edo.task_status.pending')}
-                    </span>
+                    {tg.status === 'done' ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                        <CheckCircle2 size={12} />
+                        {t('edo.task_status.done')}
+                        {tg.doneAt && (
+                          <span className="text-slate-400 ml-1">
+                            {new Date(tg.doneAt).toLocaleDateString(lang)}
+                          </span>
+                        )}
+                      </span>
+                    ) : canManage ? (
+                      <button
+                        onClick={() => onCompleteTarget(tg.id)}
+                        disabled={completing}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 px-2 py-1 rounded"
+                      >
+                        <CheckCircle2 size={12} />
+                        {t('edo.view.mark_done')}
+                      </button>
+                    ) : (
+                      <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
+                        {t('edo.task_status.pending')}
+                      </span>
+                    )}
+                  </div>
+                  {/* Ijrochi xodim yozgan izoh */}
+                  {tg.doneNote && (
+                    <div className="mt-1.5 ml-8 text-xs text-slate-600 bg-slate-50 border-l-2 border-sky-300 pl-2 py-1 whitespace-pre-wrap">
+                      <span className="font-medium text-slate-500">{t('edo.view.executor_note')}: </span>
+                      {tg.doneNote}
+                    </div>
                   )}
                 </li>
               ))}

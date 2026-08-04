@@ -1319,14 +1319,26 @@ export class DocumentsService {
     return this.findOne(userId, id);
   }
 
-  async completeTarget(userId: string, targetId: string, dto: CompleteTargetDto) {
+  // Topshiriqni «bajarildi» deb belgilash — endi buni faqat kanselyariya/admin
+  // amalga oshiradi. Ijrochi xodim izoh yozadi (addTargetNote), kanselyariya esa
+  // topshiriqni yakunlaydi. Yaratuvchi ham (alohida-alohida yuborishda) yopa oladi.
+  async completeTarget(
+    userId: string,
+    targetId: string,
+    dto: CompleteTargetDto,
+    role?: string,
+  ) {
     const target = await this.prisma.resolutionTarget.findUnique({
       where: { id: targetId },
       include: { resolution: { include: { document: true } } },
     });
     if (!target) throw new NotFoundException('Topshiriq topilmadi');
-    if (target.userId !== userId) {
-      throw new ForbiddenException("Bu vazifa siznikiga tegishli emas");
+    const isStaff = role === 'admin' || role === 'chancellery';
+    const isDocCreator = target.resolution.document.createdById === userId;
+    if (!isStaff && !isDocCreator) {
+      throw new ForbiddenException(
+        "Topshiriqni faqat kanselyariya bajarilgan deb belgilaydi",
+      );
     }
     if (target.status === 'done') {
       throw new BadRequestException('Vazifa allaqachon bajarilgan');
@@ -1340,11 +1352,12 @@ export class DocumentsService {
         data: {
           status: 'done',
           doneAt: new Date(),
-          doneNote: dto.note,
+          // Ijrochi yozgan izohni saqlaymiz; kanselyariya qo'shimcha izoh bersa — yangilaymiz.
+          ...(dto.note ? { doneNote: dto.note } : {}),
         },
       });
       await tx.documentParticipant.updateMany({
-        where: { documentId: docId, userId, role: ParticipantRole.executor },
+        where: { documentId: docId, userId: target.userId, role: ParticipantRole.executor },
         data: { status: ParticipantStatus.done, actedAt: new Date() },
       });
       await tx.documentAuditLog.create({
@@ -1388,6 +1401,117 @@ export class DocumentsService {
       await this.notifyTaskDone(doc.createdById, userId, docId, doc.number, doc.subject, dto.note);
     }
 
+    return this.findOne(userId, docId);
+  }
+
+  // Ijrochi xodim topshiriqqa izoh (javob) yozadi — topshiriqni «bajarildi» deb
+  // belgilamaydi (uni kanselyariya yopadi). Izohni istagancha yangilashi mumkin.
+  async addTargetNote(userId: string, targetId: string, dto: CompleteTargetDto) {
+    const target = await this.prisma.resolutionTarget.findUnique({
+      where: { id: targetId },
+      include: { resolution: true },
+    });
+    if (!target) throw new NotFoundException('Topshiriq topilmadi');
+    if (target.userId !== userId) {
+      throw new ForbiddenException('Bu vazifa sizga tegishli emas');
+    }
+    if (target.status === 'done') {
+      throw new BadRequestException('Vazifa allaqachon bajarilgan');
+    }
+    const docId = target.resolution.documentId;
+    await this.prisma.$transaction(async (tx) => {
+      await tx.resolutionTarget.update({
+        where: { id: targetId },
+        data: { doneNote: dto.note ?? null },
+      });
+      await tx.documentAuditLog.create({
+        data: {
+          documentId: docId,
+          actorId: userId,
+          action: 'task_note_added',
+          payload: { targetId, note: dto.note ?? null } as any,
+        },
+      });
+    });
+    // Kanselyariya va rezolyutsiya muallifini xabardor qilamiz
+    const doc = await this.prisma.document.findUnique({ where: { id: docId } });
+    if (doc) {
+      await this.notifyTaskDone(
+        target.resolution.authorId,
+        userId,
+        docId,
+        doc.number,
+        doc.subject,
+        dto.note,
+      );
+    }
+    return this.findOne(userId, docId);
+  }
+
+  // Rezolyutsiya (topshiriq) matnini tahrirlash — muallif yoki kanselyariya/admin.
+  async updateResolution(
+    userId: string,
+    resolutionId: string,
+    text: string,
+    role?: string,
+  ) {
+    const res = await this.prisma.resolution.findUnique({
+      where: { id: resolutionId },
+    });
+    if (!res) throw new NotFoundException('Rezolyutsiya topilmadi');
+    const isStaff = role === 'admin' || role === 'chancellery';
+    if (res.authorId !== userId && !isStaff) {
+      throw new ForbiddenException("Sizda tahrirlash huquqi yo'q");
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.resolution.update({ where: { id: resolutionId }, data: { text } });
+      await tx.documentAuditLog.create({
+        data: {
+          documentId: res.documentId,
+          actorId: userId,
+          action: 'resolution_updated',
+          payload: { resolutionId } as any,
+        },
+      });
+    });
+    return this.findOne(userId, res.documentId);
+  }
+
+  // Rezolyutsiyani o'chirish — muallif yoki kanselyariya/admin. Bog'liq topshiriqlar
+  // (ResolutionTarget) kaskad orqali o'chadi.
+  async deleteResolution(userId: string, resolutionId: string, role?: string) {
+    const res = await this.prisma.resolution.findUnique({
+      where: { id: resolutionId },
+      include: { targets: true },
+    });
+    if (!res) throw new NotFoundException('Rezolyutsiya topilmadi');
+    const isStaff = role === 'admin' || role === 'chancellery';
+    if (res.authorId !== userId && !isStaff) {
+      throw new ForbiddenException("Sizda o'chirish huquqi yo'q");
+    }
+    const docId = res.documentId;
+    await this.prisma.$transaction(async (tx) => {
+      // Shu rezolyutsiya qo'shgan ijrochi qatnashchilarni pending bo'lsa olib tashlaymiz
+      for (const tg of res.targets) {
+        await tx.documentParticipant.deleteMany({
+          where: {
+            documentId: docId,
+            userId: tg.userId,
+            role: ParticipantRole.executor,
+            status: ParticipantStatus.pending,
+          },
+        });
+      }
+      await tx.resolution.delete({ where: { id: resolutionId } });
+      await tx.documentAuditLog.create({
+        data: {
+          documentId: docId,
+          actorId: userId,
+          action: 'resolution_deleted',
+          payload: { resolutionId } as any,
+        },
+      });
+    });
     return this.findOne(userId, docId);
   }
 
