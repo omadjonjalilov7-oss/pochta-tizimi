@@ -147,7 +147,9 @@ export function EdoTemplatesPage() {
           {grouped.map(([category, items]) => (
             <div key={category}>
               <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
-                {category}
+                {['internal', 'incoming', 'outgoing'].includes(category)
+                  ? t(`edo.doc_type.${category}`)
+                  : category}
               </div>
               <div className="space-y-2">
                 {items.map((tpl) => (
@@ -315,14 +317,20 @@ function TemplateFormModal({
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
               {t('edo.templates.f_category')}
             </label>
-            <input
-              type="text"
+            <select
               value={form.category}
               onChange={(e) => onChange({ ...form, category: e.target.value })}
-              maxLength={64}
-              placeholder={t('edo.templates.category_ph')}
-              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none"
-            />
+              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none bg-white"
+            >
+              <option value="">{t('edo.templates.category_ph')}</option>
+              <option value="internal">{t('edo.doc_type.internal')}</option>
+              <option value="incoming">{t('edo.doc_type.incoming')}</option>
+              <option value="outgoing">{t('edo.doc_type.outgoing')}</option>
+              {form.category &&
+                !['internal', 'incoming', 'outgoing'].includes(form.category) && (
+                  <option value={form.category}>{form.category}</option>
+                )}
+            </select>
           </div>
           <div>
             <div className="flex items-center justify-between mb-1.5">

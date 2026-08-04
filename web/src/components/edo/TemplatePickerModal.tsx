@@ -92,7 +92,9 @@ export function TemplatePickerModal({
               {grouped.map(([category, items]) => (
                 <div key={category}>
                   <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
-                    {category}
+                    {['internal', 'incoming', 'outgoing'].includes(category)
+                      ? t(`edo.doc_type.${category}`)
+                      : category}
                   </div>
                   <div className="space-y-1.5">
                     {items.map((tpl) => (

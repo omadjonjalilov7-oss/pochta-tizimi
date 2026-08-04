@@ -1511,6 +1511,17 @@ export class DocumentsService {
           payload: { resolutionId } as any,
         },
       });
+      // Boshqa rezolyutsiya qolmagan bo'lsa — hujjat qoralamaga qaytadi
+      const remaining = await tx.resolution.count({ where: { documentId: docId } });
+      if (remaining === 0) {
+        await tx.document.update({
+          where: { id: docId },
+          data: {
+            status: DocumentStatus.draft,
+            currentHolderId: null,
+          },
+        });
+      }
     });
     return this.findOne(userId, docId);
   }

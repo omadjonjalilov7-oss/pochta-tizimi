@@ -57,6 +57,9 @@ const INCOMING_DOC_KINDS = [
 // Yetkazish turi (Доставка документа) — combobox
 const DELIVERY_TYPES = ['post', 'email', 'courier', 'hand', 'telegram', 'other'] as const;
 
+// Rahbar rezolyutsiyasi uchun — faqat shu 5 rahbar tanlanadi
+const LEADER_LOGINS = ['avazbek', 'abduxalil', 'saodat', 'dilrabo', 'mirzaxid'] as const;
+
 export function EdoComposePage() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
@@ -74,6 +77,8 @@ export function EdoComposePage() {
   const [body, setBody] = useState('');
   const [numberDeptId, setNumberDeptId] = useState<string>('');
   const [targetDeptId, setTargetDeptId] = useState<string>('');
+  // Kiruvchi hujjatda rahbar rezolyutsiyasi — tanlangan rahbar (present-to-leader)
+  const [resolutionLeaderId, setResolutionLeaderId] = useState<string>('');
   const [senderOrgId, setSenderOrgId] = useState('');
   const [journalId, setJournalId] = useState('');
   const [showOrgModal, setShowOrgModal] = useState(false);
@@ -126,6 +131,26 @@ export function EdoComposePage() {
   const { data: organizations = [] } = useQuery({
     queryKey: ['organizations'],
     queryFn: async () => (await api.get<Organization[]>('/organizations')).data,
+    staleTime: 60_000,
+  });
+
+  // Rahbar rezolyutsiyasi ro'yxati uchun foydalanuvchilar
+  const { data: allUsers = [] } = useQuery({
+    queryKey: ['users'],
+    queryFn: async () =>
+      (await api.get<{ id: string; login: string; fullName: string }[]>('/users')).data,
+    staleTime: 60_000,
+  });
+  const leaders = useMemo(
+    () => allUsers.filter((u) => LEADER_LOGINS.includes(u.login as any)),
+    [allUsers],
+  );
+
+  // Kiruvchi hujjatga avtomatik biriktiriladigan "kiruvchi" shabloni uchun
+  const { data: allTemplates = [] } = useQuery({
+    queryKey: ['edo-templates'],
+    queryFn: async () =>
+      (await api.get<{ id: string; category: string }[]>('/templates')).data,
     staleTime: 60_000,
   });
 
@@ -201,6 +226,15 @@ export function EdoComposePage() {
     const tp = searchParams.get('type');
     if (tp === 'internal' || tp === 'incoming' || tp === 'outgoing') setType(tp);
   }, [searchParams, draftId]);
+
+  // Kiruvchi hujjatga har doim "kiruvchi" shablonini avtomatik biriktiramiz
+  useEffect(() => {
+    if (type !== 'incoming') return;
+    if (pickedTemplateId) return;
+    if (doc?.templateId) return; // saqlangan hujjatning o'z shabloni bor
+    const kiruvchi = allTemplates.find((tpl) => tpl.category === 'incoming');
+    if (kiruvchi) setPickedTemplateId(kiruvchi.id);
+  }, [type, pickedTemplateId, allTemplates, doc]);
 
   // Hujjat ochilmaganda — yaratuvchining bo'limini default qilamiz
   useEffect(() => {
@@ -334,6 +368,18 @@ export function EdoComposePage() {
     }
     try {
       const saved = await saveDraft.mutateAsync();
+      // Kiruvchi hujjatda rahbar tanlangan bo'lsa — hujjatni o'sha rahbarga
+      // rezolyutsiya uchun yuboramiz (present-to-leader)
+      if (type === 'incoming' && resolutionLeaderId) {
+        try {
+          await api.post(`/documents/${saved.id}/present-to-leader`, {
+            leaderId: resolutionLeaderId,
+          });
+        } catch (err) {
+          setError(extractError(err));
+          return;
+        }
+      }
       // Saqlangach hujjat ko'rish sahifasiga — u yerda xodimlar tanlanib yuboriladi
       navigate(`/edo/documents/${saved.id}`);
     } catch {
@@ -828,16 +874,15 @@ export function EdoComposePage() {
                     <span className="text-red-500">*</span>
                   </label>
                   <select
-                    value={targetDeptId}
-                    onChange={(e) => setTargetDeptId(e.target.value)}
+                    value={resolutionLeaderId}
+                    onChange={(e) => setResolutionLeaderId(e.target.value)}
                     disabled={!isDraft}
                     className={fieldCls}
                   >
                     <option value="">{t('edo.compose.incoming.ph_resolution_to')}</option>
-                    {departments.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.code ? `[${d.code}] ` : ''}
-                        {trDyn(d.name)}
+                    {leaders.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {i18n.language === 'ru' ? cyrName(l.fullName) : l.fullName}
                       </option>
                     ))}
                   </select>
