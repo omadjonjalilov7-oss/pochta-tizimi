@@ -122,26 +122,33 @@ export default function WordEditorModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentId, attId]);
 
-  // Tanlov o'zgarganда kursor qaysи jadval katагида turганини eslab boramiz.
-  useEffect(() => {
-    const onSelChange = () => {
-      const sel = window.getSelection();
-      let node: Node | null = sel?.anchorNode || null;
-      const root = editorRef.current;
-      if (!root || !node || !root.contains(node)) return;
-      while (node && node !== root) {
-        if (node.nodeType === Node.ELEMENT_NODE) {
-          const tag = (node as HTMLElement).tagName;
-          if (tag === 'TD' || tag === 'TH') {
-            lastCellRef.current = node as HTMLTableCellElement;
-            return;
-          }
-        }
-        node = node.parentNode;
+  // Berilган tugundан yuqoriга chиqиб jadval katагини topadi (root ичida).
+  const cellFromNode = (node: Node | null): HTMLTableCellElement | null => {
+    const root = editorRef.current;
+    while (node && node !== root) {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const tag = (node as HTMLElement).tagName;
+        if (tag === 'TD' || tag === 'TH') return node as HTMLTableCellElement;
       }
-    };
-    document.addEventListener('selectionchange', onSelChange);
-    return () => document.removeEventListener('selectionchange', onSelChange);
+      node = node.parentNode;
+    }
+    return null;
+  };
+
+  // Joriy tanlovdан kursor qaysи katакда turганини eslab qo'yamiz.
+  const trackCell = () => {
+    const sel = window.getSelection();
+    const node = sel?.anchorNode || null;
+    if (!node || !editorRef.current?.contains(node)) return;
+    const cell = cellFromNode(node);
+    if (cell) lastCellRef.current = cell;
+  };
+
+  // Tanlov o'zgарganда ham kursor turган katакни kuzatib boramiz.
+  useEffect(() => {
+    document.addEventListener('selectionchange', trackCell);
+    return () => document.removeEventListener('selectionchange', trackCell);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Tanlangan matn diapazonini eslab qolamiz (toolbar bosilganda yo'qolmasин).
@@ -153,6 +160,7 @@ export default function WordEditorModal({
         savedRange.current = range.cloneRange();
       }
     }
+    trackCell();
   };
 
   const restoreSelection = () => {
@@ -347,16 +355,7 @@ export default function WordEditorModal({
   // Kursor turgan jadval katagini topadi (yo'q bo'lsa null).
   const currentCell = (): HTMLTableCellElement | null => {
     const sel = window.getSelection();
-    let node: Node | null = sel?.anchorNode || null;
-    const root = editorRef.current;
-    while (node && node !== root) {
-      if (node.nodeType === Node.ELEMENT_NODE) {
-        const tag = (node as HTMLElement).tagName;
-        if (tag === 'TD' || tag === 'TH') return node as HTMLTableCellElement;
-      }
-      node = node.parentNode;
-    }
-    return null;
+    return cellFromNode(sel?.anchorNode || null);
   };
 
   // Jadval amallari: yangi jadval / qator qo'shish / ustun qo'shish /
@@ -379,10 +378,10 @@ export default function WordEditorModal({
       window.alert(t('edo.editor.table_need_cursor'));
       return;
     }
-    const row = cell.parentElement as HTMLTableRowElement;
+    const row = cell.closest('tr') as HTMLTableRowElement | null;
     const table = cell.closest('table') as HTMLTableElement | null;
     const idx = cell.cellIndex;
-    if (!table) return;
+    if (!table || !row) return;
 
     if (action === 'row_add') {
       const nr = row.cloneNode(true) as HTMLTableRowElement;
@@ -741,13 +740,10 @@ export default function WordEditorModal({
         </div>
       )}
 
-      {/* Sahifа ichидаги kontent uslublарини me'yorlaymiz (oq fon doim
-          kontентни to'liq qamrab olsин; rasm/jadval sahифадан chиqиб ketmasин). */}
+      {/* Sahifа ichидаги rasm sahифадан kengроq bo'lса kichraytiramiz. Jadval
+          uslубларига tegmaymiz — asl fayldагидек ko'rinsин. */}
       <style>{`
-        .wordedit-page { color: #111; }
         .wordedit-page img { max-width: 100%; height: auto; }
-        .wordedit-page table { max-width: 100%; }
-        .wordedit-page td, .wordedit-page th { word-break: break-word; }
       `}</style>
 
       {/* Tahrirlash maydoni */}
