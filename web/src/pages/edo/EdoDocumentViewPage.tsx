@@ -567,7 +567,7 @@ export function EdoDocumentViewPage() {
                   <Pencil size={16} />
                   {t('edo.view.edit')}
                 </button>
-                {sendMode === 'normal' && (
+                {sendMode === 'normal' ? (
                   <button
                     onClick={() => send.mutate(sendApproverIds)}
                     disabled={send.isPending}
@@ -575,6 +575,14 @@ export function EdoDocumentViewPage() {
                   >
                     <Send size={16} />
                     {send.isPending ? t('common.sending') : t('edo.view.send_for_approval')}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setShowControlModal(true)}
+                    className="inline-flex items-center gap-2 bg-asaka-600 hover:bg-asaka-700 text-white font-semibold px-4 py-2 rounded-lg"
+                  >
+                    <UserPlus size={16} />
+                    {t('edo.view.separate_assign_btn')}
                   </button>
                 )}
                 {send.error && (

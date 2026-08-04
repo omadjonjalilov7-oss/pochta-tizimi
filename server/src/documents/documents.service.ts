@@ -1538,11 +1538,23 @@ export class DocumentsService {
       doc.renderedBody = rendered;
       return;
     }
-    // Shablon yo'q — matn ichida embedded {{xujjat_n}} / {{sana_soat}} bo'lsa to'ldiramiz.
+    // Shablon yo'q — matn ichida embedded {{xujjat_n}} / {{sana_soat}} / kiruvchi
+    // tokenlari bo'lsa to'ldiramiz.
     if (doc.body) {
+      const firstRes = (doc.resolutions ?? [])[0];
+      const firstTarget = firstRes?.targets?.[0];
+      const avazbek = (doc.participants ?? []).find(
+        (p: any) =>
+          p.user?.login?.toLowerCase() === 'avazbek' &&
+          p.status === ParticipantStatus.approved,
+      );
       const filled = fillCustomPlaceholders(doc.body, {
         number: doc.number ?? '',
         date: this.effectiveDocDate(doc),
+        docId: doc.id,
+        xodim: firstTarget?.user?.fullName ?? '',
+        xodimTopshiriq: firstRes?.text ?? '',
+        approveDate: avazbek?.actedAt ?? null,
       });
       if (filled !== doc.body) doc.renderedBody = filled;
     }
@@ -1564,8 +1576,12 @@ export class DocumentsService {
     // {{matn}} → hujjat matni, {{xujjat_n}} → raqam, {{sana_soat}} → sana.
     // {{qr_kod}} → hujjat QR kodi, faqat hujjat "bajarildi" (done) bo'lganda.
     if (!doc.autoFilled) {
+      // Kiruvchi hujjat blankasi uchun QR har doim (topshiriq berilgach)
+      // ko'rsatiladi; boshqa turlar uchun faqat hujjat "bajarildi" bo'lganda.
+      const wantQr =
+        doc.status === DocumentStatus.done || doc.type === 'incoming';
       let qrHtml = '';
-      if (doc.status === DocumentStatus.done) {
+      if (wantQr) {
         try {
           const token = await this.ensurePublicToken(doc.id, doc.publicToken);
           const qrDataUrl = await QRCode.toDataURL(this.buildScanUrl(token), {
@@ -1582,12 +1598,31 @@ export class DocumentsService {
           qrHtml = ''; // QR yaratilmasa — bo'sh qoladi
         }
       }
+
+      // Kiruvchi hujjat blankasi tokenlari: kanselyariya kiritgan topshiriq
+      // (poruchenie) — birinchi rezolyutsiya va uning birinchi ijrochisi.
+      const firstRes = (doc.resolutions ?? [])[0];
+      const firstTarget = firstRes?.targets?.[0];
+      const xodim: string = firstTarget?.user?.fullName ?? '';
+      const xodimTopshiriq: string = firstRes?.text ?? '';
+      // {{sana}} — avazbek (bosh direktor) tasdiqlagan sana.
+      const avazbek = (doc.participants ?? []).find(
+        (p: any) =>
+          p.user?.login?.toLowerCase() === 'avazbek' &&
+          p.status === ParticipantStatus.approved,
+      );
+      const approveDate: Date | null = avazbek?.actedAt ?? null;
+
       return fillCustomPlaceholders(tpl.bodyTemplate, {
         matn: doc.body ?? '',
         mavzu: doc.subject ?? '',
         number: doc.number ?? '',
         date: this.effectiveDocDate(doc),
         qr: qrHtml,
+        docId: doc.id,
+        xodim,
+        xodimTopshiriq,
+        approveDate,
       });
     }
 

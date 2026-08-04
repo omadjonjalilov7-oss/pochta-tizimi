@@ -76,6 +76,22 @@ function fmtCyrDate(d: Date | null | undefined): string {
   return `${t.getUTCDate()} ${CYR_MONTHS[t.getUTCMonth()]} ${t.getUTCFullYear()} йил`;
 }
 
+// Lotin oy nomlari — "2026 yil 04 avgust" ko'rinishi uchun.
+const LAT_MONTHS = [
+  'yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun',
+  'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr',
+];
+
+// Sana Toshkent vaqti (UTC+5) bo'yicha lotincha: "2026 yil 04 avgust".
+function fmtLatinDate(d: Date | null | undefined): string {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (Number.isNaN(dt.getTime())) return '';
+  const t = new Date(dt.getTime() + 5 * 60 * 60 * 1000);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${t.getUTCFullYear()} yil ${p(t.getUTCDate())} ${LAT_MONTHS[t.getUTCMonth()]}`;
+}
+
 // Foydalanuvchi blankasidagi maxsus o'zgaruvchilar:
 //   {{xujjat_n}}     → hujjat tartib raqami (escape)
 //   {{sana_soat}}    → kirill sana "28 июль 2026 йил" (escape)
@@ -83,6 +99,12 @@ function fmtCyrDate(d: Date | null | undefined): string {
 //   {{xujjat_matni}} → hujjat asosiy matni (xom HTML — escape qilinmaydi)
 //   {{matn}}         → {{xujjat_matni}} ning eski nomi (moslik uchun)
 //   {{qr_kod}}       → hujjat QR kodi <img> (faqat hujjat bajarilganda; xom HTML)
+// Kiruvchi hujjat blankasi uchun qo'shimcha o'zgaruvchilar:
+//   {{kod1}}          → hujjat identifikatori (UUID)
+//   {{xodim}}         → topshiriq berilgan xodim F.I.Sh. (kanselyariya kiritgan poruchenie)
+//   {{xodim_topshiriq}} → xodimga berilgan topshiriq matni
+//   {{xujjat_raqami}} → hujjat raqami ({{xujjat_n}} bilan bir xil)
+//   {{sana}}          → avazbek (bosh direktor) tasdiqlagan sana "2026 yil 04 avgust"
 // Faqat mavjud bo'lsagina almashadi.
 export function fillCustomPlaceholders(
   html: string,
@@ -92,6 +114,10 @@ export function fillCustomPlaceholders(
     matn?: string;
     mavzu?: string;
     qr?: string;
+    docId?: string;
+    xodim?: string;
+    xodimTopshiriq?: string;
+    approveDate?: Date | null;
   },
 ): string {
   return html
@@ -99,8 +125,16 @@ export function fillCustomPlaceholders(
     .replace(/\{\{\s*matn\s*\}\}/g, input.matn ?? '')
     .replace(/\{\{\s*mavzu\s*\}\}/g, escapeHtml(input.mavzu ?? ''))
     .replace(/\{\{\s*qr_kod\s*\}\}/g, input.qr ?? '')
+    .replace(/\{\{\s*kod1\s*\}\}/g, escapeHtml(input.docId ?? ''))
+    .replace(/\{\{\s*xodim_topshiriq\s*\}\}/g, escapeHtml(input.xodimTopshiriq ?? ''))
+    .replace(/\{\{\s*xodim\s*\}\}/g, escapeHtml(input.xodim ?? ''))
+    .replace(/\{\{\s*xujjat_raqami\s*\}\}/g, escapeHtml(input.number))
     .replace(/\{\{\s*xujjat_n\s*\}\}/g, escapeHtml(input.number))
-    .replace(/\{\{\s*sana_soat\s*\}\}/g, escapeHtml(fmtCyrDate(input.date)));
+    .replace(/\{\{\s*sana_soat\s*\}\}/g, escapeHtml(fmtCyrDate(input.date)))
+    .replace(
+      /\{\{\s*sana\s*\}\}/g,
+      escapeHtml(fmtLatinDate(input.approveDate ?? input.date)),
+    );
 }
 
 export function buildIchkiTokens(input: AutoFillInput): {
