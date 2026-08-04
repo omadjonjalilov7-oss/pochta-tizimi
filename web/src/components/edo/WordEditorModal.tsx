@@ -8,12 +8,23 @@ import {
   Italic,
   Underline,
   Strikethrough,
+  Subscript,
+  Superscript,
+  RemoveFormatting,
+  AArrowUp,
+  AArrowDown,
   AlignLeft,
   AlignCenter,
   AlignRight,
   AlignJustify,
+  IndentIncrease,
+  IndentDecrease,
   List,
   ListOrdered,
+  Link as LinkIcon,
+  Unlink,
+  Image as ImageIcon,
+  Table as TableIcon,
   Undo2,
   Redo2,
   Baseline,
@@ -60,8 +71,8 @@ const COLOR_PRESETS = [
 
 // O'zimizning brauzer ichi Word muharririmiz. Fayl serverda LibreOffice orqali
 // HTML'ga aylantirilib ochiladi; foydalanuvchi to'g'ridan-to'g'ri matnни
-// tahrirlaydi (shrift, xajm, joylashuv, rang, interval); saqlanганда HTML yana
-// asl Office formatига qaytariladi. OnlyOffice/ServiceWorker/HTTPS kerak emas.
+// tahrirlaydi; saqlanганда HTML yana asl Office formatига qaytariladi.
+// OnlyOffice/ServiceWorker/HTTPS kerak emas.
 export default function WordEditorModal({
   documentId,
   attId,
@@ -71,6 +82,7 @@ export default function WordEditorModal({
 }: Props) {
   const { t } = useTranslation();
   const editorRef = useRef<HTMLDivElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const savedRange = useRef<Range | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -140,6 +152,12 @@ export default function WordEditorModal({
     rememberSelection();
   };
 
+  // Blok uslubi (Oddiy matn / Sarlavha 1-3).
+  const applyBlock = (tag: string) => {
+    if (!tag) return;
+    exec('formatBlock', tag);
+  };
+
   // Shrift xajmini (pt) qo'llash: execCommand('fontSize') faqat 1-7 ni oladi,
   // shuning uchun avval 7 bilan belgilaymiz, so'ng <font> elementlarини topib
   // haqiqiy pt xajmini beramiz.
@@ -159,6 +177,68 @@ export default function WordEditorModal({
     rememberSelection();
   };
 
+  // Tanlangan matnning joriy pt xajmini (taxminan) o'qiydi.
+  const currentPt = (): number => {
+    const sel = window.getSelection();
+    let node: Node | null = sel?.anchorNode || null;
+    if (node && node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+    const el =
+      (node as HTMLElement) || editorRef.current || document.body;
+    const px = parseFloat(getComputedStyle(el).fontSize) || 16;
+    return Math.round((px * 72) / 96);
+  };
+
+  // Shriftни kattalashtirish/kichraytirish (Word A▲/A▼ kabi).
+  const stepFontSize = (dir: 1 | -1) => {
+    const cur = currentPt();
+    let idx = SIZES.findIndex((s) => s >= cur);
+    if (idx < 0) idx = SIZES.length - 1;
+    if (dir === 1 && SIZES[idx] <= cur) idx += 1;
+    const next = SIZES[Math.min(SIZES.length - 1, Math.max(0, idx + (dir === -1 ? -1 : 0)))];
+    const target = dir === 1 ? SIZES[Math.min(SIZES.length - 1, idx)] : next;
+    setSize(String(target));
+    applyFontSize(String(target));
+  };
+
+  // Faqat tanlangan matn qismini (formatlarни saqlab) o'zgartiradi — regist.
+  const transformSelection = (fn: (s: string) => string) => {
+    if (!editable) return;
+    restoreSelection();
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    if (range.collapsed) return;
+    const rootNode =
+      range.commonAncestorContainer.nodeType === Node.TEXT_NODE
+        ? range.commonAncestorContainer.parentNode
+        : range.commonAncestorContainer;
+    if (!rootNode) return;
+    const walker = document.createTreeWalker(rootNode, NodeFilter.SHOW_TEXT);
+    const nodes: Text[] = [];
+    let n: Node | null;
+    while ((n = walker.nextNode())) {
+      if (range.intersectsNode(n)) nodes.push(n as Text);
+    }
+    nodes.forEach((tn) => {
+      const text = tn.nodeValue || '';
+      let start = 0;
+      let end = text.length;
+      if (tn === range.startContainer) start = range.startOffset;
+      if (tn === range.endContainer) end = range.endOffset;
+      tn.nodeValue =
+        text.slice(0, start) + fn(text.slice(start, end)) + text.slice(end);
+    });
+    editorRef.current?.focus();
+    rememberSelection();
+  };
+
+  const toUpper = () => transformSelection((s) => s.toLocaleUpperCase());
+  const toLower = () => transformSelection((s) => s.toLocaleLowerCase());
+  const toCapitalize = () =>
+    transformSelection((s) =>
+      s.replace(/\S+/g, (w) => w.charAt(0).toLocaleUpperCase() + w.slice(1).toLocaleLowerCase()),
+    );
+
   // Qator intervalini tanlangan bloklarga (paragraflarga) qo'llaymiz.
   const applyLineHeight = (value: string) => {
     if (!editable) return;
@@ -167,14 +247,10 @@ export default function WordEditorModal({
     const editor = editorRef.current;
     if (!sel || sel.rangeCount === 0 || !editor) return;
     const range = sel.getRangeAt(0);
-
-    // Diapazon bilan kesishgan blok elementlarни topamiz.
     const blocks = Array.from(
       editor.querySelectorAll('p, div, li, td, h1, h2, h3, h4, h5, h6'),
     ).filter((el) => range.intersectsNode(el));
-
     if (blocks.length === 0) {
-      // Tanlanmagan bo'lsa — butun hujjatga.
       editor.style.lineHeight = value;
     } else {
       blocks.forEach((el) => {
@@ -183,6 +259,61 @@ export default function WordEditorModal({
     }
     editor.focus();
     rememberSelection();
+  };
+
+  // Havola qo'shish / olib tashlash.
+  const insertLink = () => {
+    rememberSelection();
+    const url = window.prompt(t('edo.editor.link_prompt'), 'https://');
+    if (!url) return;
+    exec('createLink', url);
+  };
+
+  // Rasm qo'shish (faylni base64 data-URI qilib ichига joylaymiz).
+  const pickImage = () => {
+    rememberSelection();
+    imageInputRef.current?.click();
+  };
+  const onImageChosen = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      restoreSelection();
+      document.execCommand('insertImage', false, dataUrl);
+      // Rasm kengligini cheklaymiz (sahifadan chiqib ketmasin).
+      editorRef.current
+        ?.querySelectorAll('img:not([data-sized])')
+        .forEach((img) => {
+          const el = img as HTMLImageElement;
+          el.style.maxWidth = '100%';
+          el.setAttribute('data-sized', '1');
+        });
+      editorRef.current?.focus();
+      rememberSelection();
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Jadval qo'shish (qator × ustun).
+  const insertTable = () => {
+    rememberSelection();
+    const rows = parseInt(window.prompt(t('edo.editor.table_rows'), '3') || '', 10);
+    const cols = parseInt(window.prompt(t('edo.editor.table_cols'), '3') || '', 10);
+    if (!rows || !cols || rows < 1 || cols < 1) return;
+    let html = '<table style="border-collapse:collapse;width:100%" border="1">';
+    for (let r = 0; r < rows; r++) {
+      html += '<tr>';
+      for (let c = 0; c < cols; c++) {
+        html +=
+          '<td style="border:1px solid #888;padding:4px 6px;min-width:2em">&nbsp;</td>';
+      }
+      html += '</tr>';
+    }
+    html += '</table><p><br></p>';
+    exec('insertHTML', html);
   };
 
   const handleSave = async () => {
@@ -236,7 +367,27 @@ export default function WordEditorModal({
 
       {/* Asboblar paneli */}
       {editable && (
-        <div className="flex flex-wrap items-center gap-1.5 px-3 py-1.5 bg-slate-50 border-b border-slate-200 shrink-0">
+        <div className="flex flex-wrap items-center gap-1 px-3 py-1.5 bg-slate-50 border-b border-slate-200 shrink-0">
+          {/* Uslub (Заголовок) */}
+          <select
+            defaultValue=""
+            onMouseDown={rememberSelection}
+            onChange={(e) => {
+              applyBlock(e.target.value);
+              e.target.value = '';
+            }}
+            className="h-8 text-sm border border-slate-300 rounded-md px-1.5 bg-white"
+            title={t('edo.editor.style')}
+          >
+            <option value="" disabled>
+              {t('edo.editor.style')}
+            </option>
+            <option value="P">{t('edo.editor.style_normal')}</option>
+            <option value="H1">{t('edo.editor.style_h1')}</option>
+            <option value="H2">{t('edo.editor.style_h2')}</option>
+            <option value="H3">{t('edo.editor.style_h3')}</option>
+          </select>
+
           {/* Shrift */}
           <select
             value={font}
@@ -274,10 +425,16 @@ export default function WordEditorModal({
               </option>
             ))}
           </select>
+          <ToolBtn onMouseDown={keepFocus} onClick={() => stepFontSize(1)} title={t('edo.editor.grow_font')}>
+            <AArrowUp size={16} />
+          </ToolBtn>
+          <ToolBtn onMouseDown={keepFocus} onClick={() => stepFontSize(-1)} title={t('edo.editor.shrink_font')}>
+            <AArrowDown size={16} />
+          </ToolBtn>
 
           <Divider />
 
-          {/* Uslub */}
+          {/* Uslub belgilar */}
           <ToolBtn onMouseDown={keepFocus} onClick={() => exec('bold')} title={t('edo.editor.bold')}>
             <Bold size={16} />
           </ToolBtn>
@@ -289,6 +446,36 @@ export default function WordEditorModal({
           </ToolBtn>
           <ToolBtn onMouseDown={keepFocus} onClick={() => exec('strikeThrough')} title={t('edo.editor.strike')}>
             <Strikethrough size={16} />
+          </ToolBtn>
+          <ToolBtn onMouseDown={keepFocus} onClick={() => exec('subscript')} title={t('edo.editor.subscript')}>
+            <Subscript size={16} />
+          </ToolBtn>
+          <ToolBtn onMouseDown={keepFocus} onClick={() => exec('superscript')} title={t('edo.editor.superscript')}>
+            <Superscript size={16} />
+          </ToolBtn>
+
+          {/* Regist (Aa) */}
+          <select
+            defaultValue=""
+            onMouseDown={rememberSelection}
+            onChange={(e) => {
+              if (e.target.value === 'upper') toUpper();
+              else if (e.target.value === 'lower') toLower();
+              else if (e.target.value === 'cap') toCapitalize();
+              e.target.value = '';
+            }}
+            className="h-8 text-sm border border-slate-300 rounded-md px-1.5 bg-white"
+            title={t('edo.editor.case')}
+          >
+            <option value="" disabled>
+              Aa
+            </option>
+            <option value="upper">{t('edo.editor.case_upper')}</option>
+            <option value="lower">{t('edo.editor.case_lower')}</option>
+            <option value="cap">{t('edo.editor.case_capitalize')}</option>
+          </select>
+          <ToolBtn onMouseDown={keepFocus} onClick={() => exec('removeFormat')} title={t('edo.editor.clear_format')}>
+            <RemoveFormatting size={16} />
           </ToolBtn>
 
           <Divider />
@@ -318,7 +505,6 @@ export default function WordEditorModal({
               onChange={(e) => exec('hiliteColor', e.target.value)}
             />
           </label>
-          {/* Tez ranglar */}
           <div className="hidden md:flex items-center gap-0.5">
             {COLOR_PRESETS.map((c) => (
               <button
@@ -349,13 +535,14 @@ export default function WordEditorModal({
             <AlignJustify size={16} />
           </ToolBtn>
 
-          <Divider />
-
           {/* Interval */}
           <select
             defaultValue=""
             onMouseDown={rememberSelection}
-            onChange={(e) => applyLineHeight(e.target.value)}
+            onChange={(e) => {
+              applyLineHeight(e.target.value);
+              e.target.value = '';
+            }}
             className="h-8 text-sm border border-slate-300 rounded-md px-1.5 bg-white"
             title={t('edo.editor.line_height')}
           >
@@ -369,6 +556,14 @@ export default function WordEditorModal({
             ))}
           </select>
 
+          {/* Chekinish (otstup) */}
+          <ToolBtn onMouseDown={keepFocus} onClick={() => exec('outdent')} title={t('edo.editor.indent_decrease')}>
+            <IndentDecrease size={16} />
+          </ToolBtn>
+          <ToolBtn onMouseDown={keepFocus} onClick={() => exec('indent')} title={t('edo.editor.indent_increase')}>
+            <IndentIncrease size={16} />
+          </ToolBtn>
+
           <Divider />
 
           {/* Ro'yxat */}
@@ -381,6 +576,22 @@ export default function WordEditorModal({
 
           <Divider />
 
+          {/* Qo'shish: havola / rasm / jadval */}
+          <ToolBtn onMouseDown={keepFocus} onClick={insertLink} title={t('edo.editor.link')}>
+            <LinkIcon size={16} />
+          </ToolBtn>
+          <ToolBtn onMouseDown={keepFocus} onClick={() => exec('unlink')} title={t('edo.editor.unlink')}>
+            <Unlink size={16} />
+          </ToolBtn>
+          <ToolBtn onMouseDown={keepFocus} onClick={pickImage} title={t('edo.editor.image')}>
+            <ImageIcon size={16} />
+          </ToolBtn>
+          <ToolBtn onMouseDown={keepFocus} onClick={insertTable} title={t('edo.editor.table')}>
+            <TableIcon size={16} />
+          </ToolBtn>
+
+          <Divider />
+
           {/* Bekor / Qaytarish */}
           <ToolBtn onMouseDown={keepFocus} onClick={() => exec('undo')} title={t('edo.editor.undo')}>
             <Undo2 size={16} />
@@ -388,6 +599,14 @@ export default function WordEditorModal({
           <ToolBtn onMouseDown={keepFocus} onClick={() => exec('redo')} title={t('edo.editor.redo')}>
             <Redo2 size={16} />
           </ToolBtn>
+
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={onImageChosen}
+          />
         </div>
       )}
 
