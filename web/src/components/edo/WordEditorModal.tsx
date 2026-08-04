@@ -88,6 +88,12 @@ export default function WordEditorModal({
   // dropdown'iga bosilганда tanlov yo'qolса ham, jadval amallари shu katakни
   // ishlatади.
   const lastCellRef = useRef<HTMLTableCellElement | null>(null);
+  // O'zимизнинг bekor/qaytarish (undo/redo) tarихi. execCommand('undo') bizнинг
+  // to'g'ridан-to'g'ri DOM o'zgаришларимизни (jadval, shrift xajmi, regist...)
+  // hisobga olмайди, shuning uchun har bir holatни o'zimиз saqlaymiz.
+  const historyRef = useRef<string[]>([]);
+  const historyPos = useRef<number>(-1);
+  const snapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,6 +113,9 @@ export default function WordEditorModal({
         setEditable(res.data?.editable !== false);
         if (editorRef.current) {
           editorRef.current.innerHTML = res.data?.html || '';
+          // Boshlang'ich holatni tarixга yozamiz.
+          historyRef.current = [editorRef.current.innerHTML];
+          historyPos.current = 0;
         }
         setLoading(false);
       } catch {
@@ -172,6 +181,50 @@ export default function WordEditorModal({
     }
   };
 
+  // Joriy holatни tarихга yozamiz (avvалги holat bilan bir xil bo'lса — o'tkazиб).
+  const recordHistory = () => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const html = editor.innerHTML;
+    if (historyRef.current[historyPos.current] === html) return;
+    // Oldинги "qaytarish" (redo) tarихини kesib tashlaymiz.
+    historyRef.current = historyRef.current.slice(0, historyPos.current + 1);
+    historyRef.current.push(html);
+    // Xotira o'sиб ketмасин — oxirgi 100 ta holat.
+    if (historyRef.current.length > 100) historyRef.current.shift();
+    historyPos.current = historyRef.current.length - 1;
+  };
+
+  // Ketма-ket o'zgаришларни birlashtириб yozamiz (yozишда har harfни emas).
+  const recordSoon = () => {
+    if (snapTimer.current) clearTimeout(snapTimer.current);
+    snapTimer.current = setTimeout(recordHistory, 350);
+  };
+
+  const doUndo = () => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    // Kutilаётган o'zgаришни darhol yozib olamiz.
+    if (snapTimer.current) {
+      clearTimeout(snapTimer.current);
+      snapTimer.current = null;
+      recordHistory();
+    }
+    if (historyPos.current <= 0) return;
+    historyPos.current -= 1;
+    editor.innerHTML = historyRef.current[historyPos.current];
+    editor.focus();
+  };
+
+  const doRedo = () => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    if (historyPos.current >= historyRef.current.length - 1) return;
+    historyPos.current += 1;
+    editor.innerHTML = historyRef.current[historyPos.current];
+    editor.focus();
+  };
+
   // Buyruq bajarish (execCommand — barcha brauzerlarда ishlaydi).
   const exec = (command: string, value?: string) => {
     if (!editable) return;
@@ -184,6 +237,7 @@ export default function WordEditorModal({
     document.execCommand(command, false, value);
     editorRef.current?.focus();
     rememberSelection();
+    recordSoon();
   };
 
   // Blok uslubi (Oddiy matn / Sarlavha 1-3).
@@ -209,6 +263,7 @@ export default function WordEditorModal({
     }
     editor?.focus();
     rememberSelection();
+    recordSoon();
   };
 
   // Tanlangan matnning joriy pt xajmini (taxminan) o'qiydi.
@@ -264,6 +319,7 @@ export default function WordEditorModal({
     });
     editorRef.current?.focus();
     rememberSelection();
+    recordSoon();
   };
 
   const toUpper = () => transformSelection((s) => s.toLocaleUpperCase());
@@ -293,6 +349,7 @@ export default function WordEditorModal({
     }
     editor.focus();
     rememberSelection();
+    recordSoon();
   };
 
   // Havola qo'shish / olib tashlash.
@@ -327,6 +384,7 @@ export default function WordEditorModal({
         });
       editorRef.current?.focus();
       rememberSelection();
+      recordSoon();
     };
     reader.readAsDataURL(file);
   };
@@ -413,6 +471,7 @@ export default function WordEditorModal({
     }
     editorRef.current?.focus();
     rememberSelection();
+    recordSoon();
   };
 
   const handleSave = async () => {
@@ -433,6 +492,19 @@ export default function WordEditorModal({
 
   // Toolbar tugmasi bosilганда tanlov yo'qolmasин (mousedown'ni to'xtatamiz).
   const keepFocus = (e: React.MouseEvent) => e.preventDefault();
+
+  // Klaviatura: Ctrl+Z / Ctrl+Y (yoki Ctrl+Shift+Z) — o'zимизнинг tarih.
+  const onEditorKeyDown = (e: React.KeyboardEvent) => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    const k = e.key.toLowerCase();
+    if (k === 'z' && !e.shiftKey) {
+      e.preventDefault();
+      doUndo();
+    } else if (k === 'y' || (k === 'z' && e.shiftKey)) {
+      e.preventDefault();
+      doRedo();
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/80 flex flex-col">
@@ -712,10 +784,10 @@ export default function WordEditorModal({
           <Divider />
 
           {/* Bekor / Qaytarish */}
-          <ToolBtn onMouseDown={keepFocus} onClick={() => exec('undo')} title={t('edo.editor.undo')}>
+          <ToolBtn onMouseDown={keepFocus} onClick={doUndo} title={t('edo.editor.undo')}>
             <Undo2 size={16} />
           </ToolBtn>
-          <ToolBtn onMouseDown={keepFocus} onClick={() => exec('redo')} title={t('edo.editor.redo')}>
+          <ToolBtn onMouseDown={keepFocus} onClick={doRedo} title={t('edo.editor.redo')}>
             <Redo2 size={16} />
           </ToolBtn>
 
@@ -759,7 +831,9 @@ export default function WordEditorModal({
           contentEditable={editable && !loading}
           suppressContentEditableWarning
           onKeyUp={rememberSelection}
+          onKeyDown={onEditorKeyDown}
           onMouseUp={rememberSelection}
+          onInput={recordSoon}
           className="wordedit-page mx-auto bg-white shadow-lg outline-none"
           style={{
             width: 'fit-content',
