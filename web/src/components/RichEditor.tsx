@@ -239,7 +239,7 @@ export function RichEditor({
         suppressContentEditableWarning
         onInput={handleInput}
         data-placeholder={placeholder}
-        style={{ minHeight }}
+        style={{ minHeight, fontFamily: 'Arial, sans-serif' }}
         className={cn(
           'px-4 py-3 outline-none text-sm text-slate-900 overflow-y-auto',
           'empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400',

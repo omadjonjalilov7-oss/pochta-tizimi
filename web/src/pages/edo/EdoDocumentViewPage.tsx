@@ -1921,16 +1921,22 @@ function MyTasksBox({
   error: string | null;
 }) {
   const { t, i18n } = useTranslation();
-  // Har bir topshiriq izohi (mavjud bo'lsa oldindan to'ldiriladi)
+  // Har bir topshiriq izohi — har safar yangi izoh yoziladi (oldingi izoh bilan
+  // to'ldirilmaydi, yuborilgach oyna bo'shaydi).
   const [notes, setNotes] = useState<Record<string, string>>({});
   // Saqlanganini bildiruvchi belgi — muvaffaqiyatdan so'ng ko'rsatiladi, keyin so'nadi
   const [savedId, setSavedId] = useState<string | null>(null);
   const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
-  const getNote = (tg: { id: string; doneNote?: string | null }) =>
-    notes[tg.id] ?? tg.doneNote ?? '';
+  const getNote = (tg: { id: string }) => notes[tg.id] ?? '';
   useEffect(() => {
     if (!loading && savedTargetId) {
       setSavedId(savedTargetId);
+      // Yuborilgach izoh oynasini bo'shatamiz
+      setNotes((m) => {
+        const next = { ...m };
+        delete next[savedTargetId];
+        return next;
+      });
       const h = setTimeout(() => setSavedId(null), 3000);
       return () => clearTimeout(h);
     }
