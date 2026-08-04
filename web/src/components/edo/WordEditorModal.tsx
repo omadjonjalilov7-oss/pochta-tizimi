@@ -84,6 +84,10 @@ export default function WordEditorModal({
   const editorRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const savedRange = useRef<Range | null>(null);
+  // Kursor oxirgi marta turgan jadval katagini doimiy eslab boramiz. Toolbar
+  // dropdown'iga bosilганда tanlov yo'qolса ham, jadval amallари shu katakни
+  // ishlatади.
+  const lastCellRef = useRef<HTMLTableCellElement | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -117,6 +121,28 @@ export default function WordEditorModal({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentId, attId]);
+
+  // Tanlov o'zgarganда kursor qaysи jadval katагида turганини eslab boramiz.
+  useEffect(() => {
+    const onSelChange = () => {
+      const sel = window.getSelection();
+      let node: Node | null = sel?.anchorNode || null;
+      const root = editorRef.current;
+      if (!root || !node || !root.contains(node)) return;
+      while (node && node !== root) {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const tag = (node as HTMLElement).tagName;
+          if (tag === 'TD' || tag === 'TH') {
+            lastCellRef.current = node as HTMLTableCellElement;
+            return;
+          }
+        }
+        node = node.parentNode;
+      }
+    };
+    document.addEventListener('selectionchange', onSelChange);
+    return () => document.removeEventListener('selectionchange', onSelChange);
+  }, []);
 
   // Tanlangan matn diapazonini eslab qolamiz (toolbar bosilganda yo'qolmasин).
   const rememberSelection = () => {
@@ -342,7 +368,13 @@ export default function WordEditorModal({
       return;
     }
     restoreSelection();
-    const cell = currentCell();
+    // Avval joriy tanlovдан katakни izlaymiz; topilмаса — oxirgi eslab qolган
+    // katакни ishlatamiz (dropdown bosilганда tanlov yo'qolган bo'lishi mumkin).
+    let cell = currentCell();
+    if (!cell || !editorRef.current?.contains(cell)) {
+      const last = lastCellRef.current;
+      cell = last && editorRef.current?.contains(last) ? last : null;
+    }
     if (!cell) {
       window.alert(t('edo.editor.table_need_cursor'));
       return;
@@ -709,8 +741,17 @@ export default function WordEditorModal({
         </div>
       )}
 
+      {/* Sahifа ichидаги kontent uslublарини me'yorlaymiz (oq fon doim
+          kontентни to'liq qamrab olsин; rasm/jadval sahифадан chиqиб ketmasин). */}
+      <style>{`
+        .wordedit-page { color: #111; }
+        .wordedit-page img { max-width: 100%; height: auto; }
+        .wordedit-page table { max-width: 100%; }
+        .wordedit-page td, .wordedit-page th { word-break: break-word; }
+      `}</style>
+
       {/* Tahrirlash maydoni */}
-      <div className="relative flex-1 bg-slate-200 overflow-auto py-6">
+      <div className="relative flex-1 bg-slate-200 overflow-auto p-6">
         {loading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-500">
             <Loader2 size={28} className="animate-spin" />
@@ -725,11 +766,11 @@ export default function WordEditorModal({
           onMouseUp={rememberSelection}
           className="wordedit-page mx-auto bg-white shadow-lg outline-none"
           style={{
-            width: '210mm',
+            width: 'fit-content',
+            minWidth: '210mm',
             minHeight: '297mm',
             padding: '25mm 20mm',
             boxSizing: 'border-box',
-            maxWidth: '100%',
           }}
         />
       </div>
