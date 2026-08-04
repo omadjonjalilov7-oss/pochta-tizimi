@@ -16,6 +16,7 @@ import {
   ChevronRight,
   ShieldCheck,
   ClipboardList,
+  CalendarClock,
   UserPlus,
   KeyRound,
   Download,
@@ -118,6 +119,17 @@ export function EdoDocumentViewPage() {
         await api.post<EdoDocument>(
           `/documents/resolution-target/${vars.targetId}/complete`,
           { note: vars.note },
+        )
+      ).data,
+    onSuccess: invalidate,
+  });
+  // Topshiriqni qayta yuklash — muddatni o'zgartirib, ijrochini qayta xabardor qilish
+  const rescheduleTarget = useMutation({
+    mutationFn: async (vars: { targetId: string; deadline: string; note?: string }) =>
+      (
+        await api.patch<EdoDocument>(
+          `/documents/resolution-target/${vars.targetId}/reschedule`,
+          { deadline: vars.deadline, note: vars.note },
         )
       ).data,
     onSuccess: invalidate,
@@ -668,11 +680,15 @@ export function EdoDocumentViewPage() {
             canManage={isStaff || isCreator}
             onAddClick={() => setShowControlModal(true)}
             onCompleteTarget={(targetId) => completeTarget.mutate({ targetId })}
+            onReschedule={(targetId, deadline) =>
+              rescheduleTarget.mutate({ targetId, deadline })
+            }
             onEditResolution={(resolutionId, text) =>
               updateResolution.mutate({ resolutionId, text })
             }
             onDeleteResolution={(resolutionId) => deleteResolution.mutate({ resolutionId })}
             completing={completeTarget.isPending}
+            rescheduling={rescheduleTarget.isPending}
           />
 
           {/* Izohlar va Audit */}
@@ -1959,23 +1975,30 @@ function ResolutionSection({
   canManage,
   onAddClick,
   onCompleteTarget,
+  onReschedule,
   onEditResolution,
   onDeleteResolution,
   completing,
+  rescheduling,
 }: {
   doc: EdoDocument;
   canAssign: boolean;
   canManage: boolean;
   onAddClick: () => void;
   onCompleteTarget: (targetId: string) => void;
+  onReschedule: (targetId: string, deadline: string) => void;
   onEditResolution: (resolutionId: string, text: string) => void;
   onDeleteResolution: (resolutionId: string) => void;
   completing: boolean;
+  rescheduling: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
   const [editId, setEditId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
+  // Qayta yuklash: qaysi topshiriq ochilgan va yangi muddat qiymati
+  const [rescheduleId, setRescheduleId] = useState<string | null>(null);
+  const [rescheduleVal, setRescheduleVal] = useState('');
 
   const resolutions = doc.resolutions ?? [];
 
@@ -2097,20 +2120,71 @@ function ResolutionSection({
                         )}
                       </span>
                     ) : canManage ? (
-                      <button
-                        onClick={() => onCompleteTarget(tg.id)}
-                        disabled={completing}
-                        className="inline-flex items-center gap-1 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 px-2 py-1 rounded"
-                      >
-                        <CheckCircle2 size={12} />
-                        {t('edo.view.mark_done')}
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => {
+                            setRescheduleId((cur) => (cur === tg.id ? null : tg.id));
+                            setRescheduleVal(
+                              tg.deadline
+                                ? new Date(tg.deadline).toISOString().slice(0, 16)
+                                : '',
+                            );
+                          }}
+                          disabled={rescheduling}
+                          className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 disabled:opacity-50 px-2 py-1 rounded"
+                        >
+                          <CalendarClock size={12} />
+                          {t('edo.view.reschedule')}
+                        </button>
+                        <button
+                          onClick={() => onCompleteTarget(tg.id)}
+                          disabled={completing}
+                          className="inline-flex items-center gap-1 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 px-2 py-1 rounded"
+                        >
+                          <CheckCircle2 size={12} />
+                          {t('edo.view.mark_done')}
+                        </button>
+                      </div>
                     ) : (
                       <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
                         {t('edo.task_status.pending')}
                       </span>
                     )}
                   </div>
+                  {/* Qayta yuklash — yangi muddat kiritish */}
+                  {canManage && tg.status !== 'done' && rescheduleId === tg.id && (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (rescheduleVal) {
+                          onReschedule(tg.id, new Date(rescheduleVal).toISOString());
+                          setRescheduleId(null);
+                        }
+                      }}
+                      className="mt-2 ml-8 flex items-center gap-2"
+                    >
+                      <input
+                        type="datetime-local"
+                        value={rescheduleVal}
+                        onChange={(e) => setRescheduleVal(e.target.value)}
+                        className="px-2 py-1 text-xs border border-slate-300 rounded-lg focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none"
+                      />
+                      <button
+                        type="submit"
+                        disabled={!rescheduleVal || rescheduling}
+                        className="text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50 px-2.5 py-1 rounded"
+                      >
+                        {t('common.save')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRescheduleId(null)}
+                        className="text-xs text-slate-500 hover:text-slate-700 px-2 py-1"
+                      >
+                        {t('common.cancel')}
+                      </button>
+                    </form>
+                  )}
                   {/* Ijrochi xodim yozgan izoh */}
                   {tg.doneNote && (
                     <div className="mt-1.5 ml-8 text-xs text-slate-600 bg-slate-50 border-l-2 border-sky-300 pl-2 py-1 whitespace-pre-wrap">

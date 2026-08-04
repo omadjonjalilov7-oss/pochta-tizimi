@@ -27,6 +27,7 @@ import { ApproveDocumentDto, ApproveOverdueDocumentDto, CommentDto, ExtendDeadli
 import {
   CompleteTargetDto,
   CreateResolutionDto,
+  RescheduleTargetDto,
   UpdateResolutionDto,
 } from './dto/resolution.dto';
 import { SignDocumentDto } from './dto/sign.dto';
@@ -261,6 +262,16 @@ export class DocumentsController {
     @Body() dto: CompleteTargetDto,
   ) {
     return this.docs.addTargetNote(user.id, id, dto);
+  }
+
+  // Topshiriqni "qayta yuklash" — muddatni o'zgartirib, ijrochini qayta xabardor qilish
+  @Patch('resolution-target/:id/reschedule')
+  rescheduleTarget(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: RescheduleTargetDto,
+  ) {
+    return this.docs.rescheduleTarget(user.id, id, dto, user.role);
   }
 
   // Rezolyutsiyani tahrirlash / o'chirish — muallif yoki kanselyariya

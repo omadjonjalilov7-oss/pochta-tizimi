@@ -46,3 +46,14 @@ export class UpdateResolutionDto {
   @MaxLength(5000)
   text: string;
 }
+
+// Topshiriqni "qayta yuklash" — muddatni o'zgartirib, ijrochini qayta xabardor qilish.
+export class RescheduleTargetDto {
+  @IsDateString()
+  deadline: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+}

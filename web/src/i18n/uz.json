@@ -1004,6 +1004,7 @@
       "my_tasks": "Sizga biriktirilgan topshiriq",
       "assigned_by": "Topshirgan",
       "mark_done": "Bajarildi deb belgilash",
+      "reschedule": "Qayta yuklash",
       "confirm_done": "Bajarildi",
       "done_note_ph": "Bajarilgan ishingiz haqida qisqacha izoh (ixtiyoriy)",
       "executor_note": "Ijrochi izohi",

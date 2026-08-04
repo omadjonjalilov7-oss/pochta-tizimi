@@ -1449,6 +1449,74 @@ export class DocumentsService {
     return this.findOne(userId, docId);
   }
 
+  // Topshiriqni "qayta yuklash": muddatni o'zgartirib, ijrochini qayta xabardor
+  // qilish. Faqat rezolyutsiya muallifi yoki kanselyariya/admin bajaradi.
+  async rescheduleTarget(
+    userId: string,
+    targetId: string,
+    dto: { deadline: string; note?: string },
+    role?: string,
+  ) {
+    const target = await this.prisma.resolutionTarget.findUnique({
+      where: { id: targetId },
+      include: { resolution: { include: { document: true } } },
+    });
+    if (!target) throw new NotFoundException('Topshiriq topilmadi');
+    const isStaff = role === 'admin' || role === 'chancellery';
+    const isAuthor = target.resolution.authorId === userId;
+    const isDocCreator = target.resolution.document.createdById === userId;
+    if (!isStaff && !isAuthor && !isDocCreator) {
+      throw new ForbiddenException(
+        'Topshiriqni faqat muallif yoki kanselyariya qayta yuklaydi',
+      );
+    }
+    if (target.status === 'done') {
+      throw new BadRequestException('Bajarilgan topshiriqni qayta yuklab bo\'lmaydi');
+    }
+
+    const newDeadline = new Date(dto.deadline);
+    if (Number.isNaN(newDeadline.getTime())) {
+      throw new BadRequestException('Muddat noto\'g\'ri');
+    }
+
+    const docId = target.resolution.documentId;
+    await this.prisma.$transaction(async (tx) => {
+      await tx.resolutionTarget.update({
+        where: { id: targetId },
+        data: { deadline: newDeadline },
+      });
+      await tx.documentParticipant.updateMany({
+        where: {
+          documentId: docId,
+          userId: target.userId,
+          role: ParticipantRole.executor,
+        },
+        data: { deadline: newDeadline },
+      });
+      await tx.documentAuditLog.create({
+        data: {
+          documentId: docId,
+          actorId: userId,
+          action: 'task_rescheduled',
+          payload: { targetId, deadline: dto.deadline, note: dto.note ?? null } as any,
+        },
+      });
+    });
+
+    // Ijrochini yangi muddat bilan qayta xabardor qilamiz.
+    const doc = target.resolution.document;
+    await this.notifyExecutor(
+      target.userId,
+      userId,
+      docId,
+      doc.number,
+      doc.subject,
+      dto.note ?? target.resolution.text,
+    );
+
+    return this.findOne(userId, docId);
+  }
+
   // Rezolyutsiya (topshiriq) matnini tahrirlash — muallif yoki kanselyariya/admin.
   async updateResolution(
     userId: string,
