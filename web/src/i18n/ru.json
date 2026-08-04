@@ -1167,6 +1167,8 @@
       "appr_approved": "Согласовано",
       "appr_rejected": "Отклонено",
       "department": "Отдел",
+      "documents": "Документы",
+      "tasks_total": "Поручения",
       "employee": "Сотрудник",
       "position": "Должность",
       "empty": "За выбранный период данные не найдены"

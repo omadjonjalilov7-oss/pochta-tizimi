@@ -30,7 +30,7 @@ interface Overview {
   approvals: { pending: number; approved: number; rejected: number; done: number };
 }
 
-type DeptRow = Bucket & { departmentId: string; name: string };
+type DeptRow = Bucket & { departmentId: string; name: string; documents: number };
 type StaffRow = Bucket & { userId: string; fullName: string; department: string; position: string };
 type SignRow = { userId: string; fullName: string; position: string; count: number };
 type ApprovalRow = { userId: string; fullName: string; position: string; total: number; pending: number; approved: number; rejected: number };
@@ -199,7 +199,8 @@ export function EdoStatsPage() {
             <thead className="bg-slate-50">
               <tr>
                 <th className={th}>{t('edo.stats.department')}</th>
-                <th className={th}>{t('edo.stats.total')}</th>
+                <th className={th}>{t('edo.stats.documents')}</th>
+                <th className={th}>{t('edo.stats.tasks_total')}</th>
                 <th className={th}>{t('edo.stats.pending')}</th>
                 <th className={th}>{t('edo.stats.in_progress')}</th>
                 <th className={th}>{t('edo.stats.done')}</th>
@@ -211,6 +212,7 @@ export function EdoStatsPage() {
               {deptQ.data?.map((r) => (
                 <tr key={r.departmentId} className="hover:bg-slate-50">
                   <td className={cn(td, 'font-medium text-slate-900')}>{r.name}</td>
+                  <td className={cn(td, 'text-indigo-600 font-medium')}>{r.documents}</td>
                   <td className={td}>{r.total}</td>
                   <td className={td}>{r.pending}</td>
                   <td className={cn(td, 'text-sky-600')}>{r.inProgress}</td>

@@ -1166,6 +1166,8 @@
       "appr_approved": "Kelishilgan",
       "appr_rejected": "Rad etilgan",
       "department": "Bo'lim",
+      "documents": "Hujjatlar",
+      "tasks_total": "Topshiriqlar",
       "employee": "Xodim",
       "position": "Lavozim",
       "empty": "Tanlangan davr uchun ma'lumot topilmadi"

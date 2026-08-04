@@ -156,22 +156,51 @@ export class StatsService {
     return { documents, tasks: taskBucket, signatures: sigCount, approvals };
   }
 
-  // Bo'limlar bo'yicha topshiriqlar statistikasi
+  // Bo'limlar bo'yicha statistika — hujjatlar (bo'lim yaratgan) va topshiriqlar
+  // (bo'lim xodimlariga biriktirilgan porucheniyalar) alohida ko'rsatiladi.
   async departments(from?: string, to?: string) {
-    const tasks = await this.loadTasks(from, to);
-    const map = new Map<string, ReturnType<typeof emptyBucket> & { departmentId: string; name: string }>();
     const NO_DEPT = '__none__';
-    for (const t of tasks) {
-      const id = t.user.department?.id || NO_DEPT;
-      const name = t.user.department?.name || 'Bo\'limsiz';
+    const NO_DEPT_NAME = 'Bo\'limsiz';
+    const tasks = await this.loadTasks(from, to);
+    const map = new Map<
+      string,
+      ReturnType<typeof emptyBucket> & { departmentId: string; name: string; documents: number }
+    >();
+    const ensure = (id: string, name: string) => {
       let row = map.get(id);
       if (!row) {
-        row = { departmentId: id, name, ...emptyBucket() };
+        row = { departmentId: id, name, documents: 0, ...emptyBucket() };
         map.set(id, row);
       }
-      classify(row, t);
+      return row;
+    };
+
+    // Topshiriqlar — ijrochi xodim bo'limi bo'yicha
+    for (const t of tasks) {
+      const id = t.user.department?.id || NO_DEPT;
+      const name = t.user.department?.name || NO_DEPT_NAME;
+      classify(ensure(id, name), t);
     }
-    return [...map.values()].sort((a, b) => b.total - a.total);
+
+    // Hujjatlar — yaratuvchi xodim bo'limi bo'yicha
+    const range = this.dateRange(from, to);
+    const docs = await this.prisma.document.findMany({
+      where: {
+        status: { not: 'draft' },
+        ...(range ? { createdAt: range } : {}),
+      },
+      select: { createdBy: { select: { department: { select: { id: true, name: true } } } } },
+    });
+    for (const d of docs) {
+      const dep = d.createdBy?.department;
+      const id = dep?.id || NO_DEPT;
+      const name = dep?.name || NO_DEPT_NAME;
+      ensure(id, name).documents += 1;
+    }
+
+    return [...map.values()].sort(
+      (a, b) => b.documents + b.total - (a.documents + a.total),
+    );
   }
 
   // Xodimlar bo'yicha topshiriqlar statistikasi
