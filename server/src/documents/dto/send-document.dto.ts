@@ -1,4 +1,4 @@
-import { ArrayMaxSize, IsArray, IsOptional, IsUUID } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsOptional, IsUUID } from 'class-validator';
 
 export class SendDocumentDto {
   // Yuborishdan oldin tanlangan tasdiqlovchilar zanjiri (tartibli).
@@ -8,4 +8,11 @@ export class SendDocumentDto {
   @ArrayMaxSize(20)
   @IsUUID('all', { each: true })
   approverIds?: string[];
+
+  // Alohida-alohida (parallel) yuborish: tanlangan xodimlarning har biriga hujjat
+  // bir vaqtda boradi va ular navbat kutmasdan mustaqil tasdiqlaydi. false bo'lsa —
+  // odatdagi ketma-ket (zanjir) tartibi.
+  @IsOptional()
+  @IsBoolean()
+  parallel?: boolean;
 }

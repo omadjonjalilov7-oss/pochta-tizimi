@@ -36,7 +36,7 @@ import { PresentToLeaderModal } from '../../components/edo/PresentToLeaderModal'
 import WordEditorModal from '../../components/edo/WordEditorModal';
 import AttachmentViewerModal from '../../components/edo/AttachmentViewerModal';
 import { api } from '../../lib/api';
-import type { DocumentStatus, EdoDocument, EdoResolution, User } from '../../lib/types';
+import type { DocumentStatus, EdoAuditEntry, EdoDocument, EdoResolution, User } from '../../lib/types';
 import { Avatar } from '../../components/Avatar';
 import { useAuth } from '../../context/AuthContext';
 import { cn, formatBytes, cyrName, trDyn } from '../../lib/utils';
@@ -71,8 +71,13 @@ export function EdoDocumentViewPage() {
   };
 
   const send = useMutation({
-    mutationFn: async (approverIds: string[]) =>
-      (await api.post<EdoDocument>(`/documents/${id}/send`, { approverIds })).data,
+    mutationFn: async (vars: { approverIds: string[]; parallel?: boolean }) =>
+      (
+        await api.post<EdoDocument>(`/documents/${id}/send`, {
+          approverIds: vars.approverIds,
+          parallel: vars.parallel ?? false,
+        })
+      ).data,
     onSuccess: invalidate,
   });
   const { data: allUsers = [] } = useQuery({
@@ -235,7 +240,23 @@ export function EdoDocumentViewPage() {
   }
 
   const isCreator = doc.createdById === user?.id;
-  const isCurrentApprover = doc.currentHolderId === user?.id && doc.status === 'in_review';
+  // Parallel (alohida-alohida) yuborishda bir nechta tasdiqlovchi bir vaqtda
+  // navbatda bo'ladi (bir xil eng kichik tartib). Shu sabab "hozir sizning
+  // navbatingizda" holati faqat currentHolderId bilan emas, navbatdagi (eng kichik
+  // tartibli) har qanday kutuvchi tasdiqlovchi uchun ham to'g'ri bo'lishi kerak.
+  const pendingApprovers = doc.participants.filter(
+    (p) => p.role === 'approver' && p.status === 'pending',
+  );
+  const minPendingOrder = pendingApprovers.length
+    ? Math.min(...pendingApprovers.map((p) => p.order))
+    : null;
+  const isMinOrderPendingApprover =
+    !!user &&
+    minPendingOrder !== null &&
+    pendingApprovers.some((p) => p.userId === user.id && p.order === minPendingOrder);
+  const isCurrentApprover =
+    doc.status === 'in_review' &&
+    (doc.currentHolderId === user?.id || isMinOrderPendingApprover);
   const isParticipant = !!user && doc.participants.some((p) => p.userId === user.id);
   const canUploadAttachment = (isCreator || isParticipant) && ['draft', 'in_review', 'in_progress'].includes(doc.status);
   const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
@@ -556,20 +577,18 @@ export function EdoDocumentViewPage() {
                 </select>
               </div>
 
-              {sendMode === 'normal' ? (
-                <ApproverChainPicker
-                  users={allUsers}
-                  value={sendApproverIds}
-                  onChange={setSendApproverIds}
-                  excludeUserIds={[doc.createdById]}
-                  label={t('edo.view.approvers_label')}
-                  hint={t('edo.view.approvers_hint')}
-                />
-              ) : (
-                <p className="text-sm text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-3">
-                  {t('edo.view.send_mode_separate_hint')}
-                </p>
-              )}
+              <ApproverChainPicker
+                users={allUsers}
+                value={sendApproverIds}
+                onChange={setSendApproverIds}
+                excludeUserIds={[doc.createdById]}
+                label={t('edo.view.approvers_label')}
+                hint={
+                  sendMode === 'separate'
+                    ? t('edo.view.approvers_parallel_hint')
+                    : t('edo.view.approvers_hint')
+                }
+              />
 
               <div className="flex flex-wrap gap-2">
                 <button
@@ -579,24 +598,19 @@ export function EdoDocumentViewPage() {
                   <Pencil size={16} />
                   {t('edo.view.edit')}
                 </button>
-                {sendMode === 'normal' ? (
-                  <button
-                    onClick={() => send.mutate(sendApproverIds)}
-                    disabled={send.isPending}
-                    className="inline-flex items-center gap-2 bg-asaka-600 hover:bg-asaka-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg"
-                  >
-                    <Send size={16} />
-                    {send.isPending ? t('common.sending') : t('edo.view.send_for_approval')}
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setShowControlModal(true)}
-                    className="inline-flex items-center gap-2 bg-asaka-600 hover:bg-asaka-700 text-white font-semibold px-4 py-2 rounded-lg"
-                  >
-                    <UserPlus size={16} />
-                    {t('edo.view.separate_assign_btn')}
-                  </button>
-                )}
+                <button
+                  onClick={() =>
+                    send.mutate({
+                      approverIds: sendApproverIds,
+                      parallel: sendMode === 'separate',
+                    })
+                  }
+                  disabled={send.isPending}
+                  className="inline-flex items-center gap-2 bg-asaka-600 hover:bg-asaka-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg"
+                >
+                  <Send size={16} />
+                  {send.isPending ? t('common.sending') : t('edo.view.send_for_approval')}
+                </button>
                 {send.error && (
                   <div className="basis-full text-sm text-red-600 mt-1">
                     {extractError(send.error)}
@@ -2249,6 +2263,7 @@ function ResolutionSection({
         <ResolutionDetailModal
           resolution={detailRes}
           docNumber={doc.number}
+          audit={doc.audit ?? []}
           onClose={() => setDetailRes(null)}
         />
       )}
@@ -2260,14 +2275,29 @@ function ResolutionSection({
 function ResolutionDetailModal({
   resolution,
   docNumber,
+  audit,
   onClose,
 }: {
   resolution: EdoResolution;
   docNumber: string;
+  audit: EdoAuditEntry[];
   onClose: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
+  // Har bir topshiriq (target) bo'yicha barcha izohlar — audit tarixidan
+  // yig'iladi (har bir "izoh yozildi"/"bajarildi" alohida yozuv). Bir nechta
+  // izoh bo'lsa hammasi ko'rsatiladi.
+  const notesByTarget = new Map<string, { text: string; at: string; by?: string }[]>();
+  for (const a of audit) {
+    if (a.action !== 'task_note_added' && a.action !== 'task_completed') continue;
+    const tid = a.payload?.targetId as string | undefined;
+    const note = a.payload?.note as string | undefined;
+    if (!tid || !note) continue;
+    const arr = notesByTarget.get(tid) ?? [];
+    arr.push({ text: note, at: a.createdAt, by: a.actor?.fullName });
+    notesByTarget.set(tid, arr);
+  }
   const statusCls: Record<string, string> = {
     pending: 'text-amber-700 bg-amber-50',
     in_progress: 'text-sky-700 bg-sky-50',
@@ -2343,14 +2373,35 @@ function ResolutionDetailModal({
                     {t('edo.task_status.done')}: {new Date(tg.doneAt).toLocaleString(lang)}
                   </div>
                 )}
-                {tg.doneNote && (
-                  <div className="text-xs text-slate-600 bg-slate-50 border-l-2 border-sky-300 pl-2 py-1 whitespace-pre-wrap">
-                    <span className="font-medium text-slate-500">
-                      {t('edo.view.executor_note')}:{' '}
-                    </span>
-                    {tg.doneNote}
-                  </div>
-                )}
+                {(() => {
+                  const notes = notesByTarget.get(tg.id) ?? [];
+                  // Audit tarixida izoh bo'lmasa, oxirgi doneNote'ni ko'rsatamiz.
+                  if (notes.length === 0 && tg.doneNote) {
+                    notes.push({ text: tg.doneNote, at: tg.doneAt ?? '' });
+                  }
+                  if (notes.length === 0) return null;
+                  return (
+                    <div className="space-y-1.5">
+                      <div className="text-xs font-medium text-slate-500">
+                        {t('edo.view.executor_note')} ({notes.length})
+                      </div>
+                      {notes.map((n, i) => (
+                        <div
+                          key={i}
+                          className="text-xs text-slate-600 bg-slate-50 border-l-2 border-sky-300 pl-2 py-1 whitespace-pre-wrap"
+                        >
+                          <div>{n.text}</div>
+                          {n.at && (
+                            <div className="text-[10px] text-slate-400 mt-0.5">
+                              {new Date(n.at).toLocaleString(lang)}
+                              {n.by ? ` · ${cyrName(n.by)}` : ''}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </li>
             ))}
           </ul>

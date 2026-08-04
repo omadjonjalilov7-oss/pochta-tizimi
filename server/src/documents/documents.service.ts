@@ -473,8 +473,21 @@ export class DocumentsService {
       .sort((a, b) => a.order - b.order)
       .map((p) => p.userId);
 
+    // Alohida-alohida (parallel) yuborish: tanlangan xodimlarning har biriga hujjat
+    // bir vaqtda boradi, ular navbat kutmasdan mustaqil tasdiqlaydi. Bu holatda
+    // avtomat zanjir/bo'lim rahbarlari va majburiy tasdiqlovchilar QO'SHILMAYDI —
+    // aynan tanlangan xodimlar ishlatiladi.
+    const isParallel = dto?.parallel === true;
+
     let chain: string[];
-    if (selectedApprovers.length > 0) {
+    if (isParallel) {
+      if (selectedApprovers.length === 0) {
+        throw new BadRequestException(
+          'Alohida-alohida yuborish uchun kamida bitta xodim tanlang',
+        );
+      }
+      chain = selectedApprovers;
+    } else if (selectedApprovers.length > 0) {
       chain = selectedApprovers;
     } else if (persistedApprovers.length > 0) {
       chain = persistedApprovers;
@@ -525,7 +538,7 @@ export class DocumentsService {
     // hujjatni ko'ra oladi. Mavjud bo'lmagan/faol bo'lmagan loginlar o'tkazib
     // yuboriladi (hujjat yuborilishini to'xtatmaydi).
     const mandatoryNotify: string[] = [];
-    if (doc.type === 'outgoing' || doc.type === 'internal') {
+    if (!isParallel && (doc.type === 'outgoing' || doc.type === 'internal')) {
       const mUsers = await this.prisma.user.findMany({
         where: { login: { in: [...MANDATORY_APPROVER_LOGINS] }, isActive: true },
         select: { id: true, login: true },
@@ -555,7 +568,9 @@ export class DocumentsService {
       // Avvalgi (creator) ishtirokchini saqlaymiz, yangilarini qo'shamiz
       let order = 1;
       for (const uid of chain) {
-        const currentOrder = order++;
+        // Parallel yuborishda barcha tasdiqlovchilar bir xil tartib (1) oladi —
+        // shunda ular navbat kutmasdan mustaqil tasdiqlay oladi.
+        const currentOrder = isParallel ? 1 : order++;
         await tx.documentParticipant.upsert({
           where: {
             documentId_userId_role: {
@@ -593,13 +608,20 @@ export class DocumentsService {
       });
     });
 
-    // Birinchi rahbarga Pochta orqali xabar yuboramiz
-    await this.notifyApprover(firstApproverId, userId, id, number, doc.subject);
+    if (isParallel) {
+      // Parallel — tanlangan barcha xodimlarga bir vaqtda xabar yuboramiz.
+      for (const uid of chain) {
+        await this.notifyApprover(uid, userId, id, number, doc.subject);
+      }
+    } else {
+      // Birinchi rahbarga Pochta orqali xabar yuboramiz
+      await this.notifyApprover(firstApproverId, userId, id, number, doc.subject);
 
-    // Majburiy tasdiqlovchilarga ham xabar (birinchi tasdiqlovchidan tashqari)
-    for (const uid of mandatoryNotify) {
-      if (uid === firstApproverId) continue;
-      await this.notifyApprover(uid, userId, id, number, doc.subject);
+      // Majburiy tasdiqlovchilarga ham xabar (birinchi tasdiqlovchidan tashqari)
+      for (const uid of mandatoryNotify) {
+        if (uid === firstApproverId) continue;
+        await this.notifyApprover(uid, userId, id, number, doc.subject);
+      }
     }
 
     return this.findOne(userId, id);
@@ -2950,8 +2972,42 @@ export class DocumentsService {
       throw new BadRequestException("Hujjat tasdiqlash bosqichida emas");
     }
     if (doc.currentHolderId === userId) return doc;
+    // Parallel (alohida-alohida) yuborishda barcha tasdiqlovchilar bir xil eng kichik
+    // tartibda bo'ladi — shu sabab navbatdagi (eng kichik tartibli) har qanday kutuvchi
+    // tasdiqlovchi tasdiqlay oladi. Ketma-ket (zanjir) holatida bu aynan joriy navbat
+    // egasiga to'g'ri keladi, shu bois xatti-harakat o'zgarmaydi.
+    if (await this.isPendingApproverAtMinOrder(userId, id)) return doc;
     if (await this.isMandatoryPendingApprover(userId, id)) return doc;
     throw new ForbiddenException("Hujjat hozir sizning navbatingizda emas");
+  }
+
+  // Foydalanuvchi shu hujjatda navbatdagi (eng kichik tartibli) kutilayotgan
+  // tasdiqlovchimi? Zanjirda — faqat joriy navbat egasi; parallelда — barcha
+  // tanlangan tasdiqlovchilar (bir xil tartib).
+  private async isPendingApproverAtMinOrder(
+    userId: string,
+    docId: string,
+  ): Promise<boolean> {
+    const mine = await this.prisma.documentParticipant.findFirst({
+      where: {
+        documentId: docId,
+        userId,
+        role: ParticipantRole.approver,
+        status: ParticipantStatus.pending,
+      },
+      select: { order: true },
+    });
+    if (!mine) return false;
+    const min = await this.prisma.documentParticipant.findFirst({
+      where: {
+        documentId: docId,
+        role: ParticipantRole.approver,
+        status: ParticipantStatus.pending,
+      },
+      orderBy: { order: 'asc' },
+      select: { order: true },
+    });
+    return !!min && mine.order === min.order;
   }
 
   // Foydalanuvchi majburiy tasdiqlovchimi va shu hujjatda kutilayotgan

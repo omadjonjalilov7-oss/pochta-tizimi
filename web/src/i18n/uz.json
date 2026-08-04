@@ -973,6 +973,7 @@
       "send_for_approval": "Tasdiqlashga yuborish",
       "approvers_label": "Tasdiqlovchi xodimlar",
       "approvers_hint": "Hujjatni kim tartibida tasdiqlashini tanlang va yuboring.",
+      "approvers_parallel_hint": "Tanlangan xodimlarning har biriga hujjat bir vaqtda alohida boradi — ular navbat kutmasdan mustaqil tasdiqlaydi. Barchasi tasdiqlagach hujjat yakunlanadi.",
       "send_mode_label": "Yuborish usuli",
       "send_mode_normal": "Odatdagidek yuborish",
       "send_mode_separate": "Alohida-alohida yuborish",
