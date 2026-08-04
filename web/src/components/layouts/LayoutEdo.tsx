@@ -19,6 +19,7 @@ import {
   PieChart,
   FileSpreadsheet,
   CheckCircle2,
+  ClipboardCheck,
   CalendarDays,
   MessagesSquare,
   ShieldCheck,
@@ -329,6 +330,9 @@ export function LayoutEdo() {
           <EdoNav to="/edo/internal" icon={FolderInput} label={t('edo.nav.internal')} collapsed={collapsed} />
           {isStaff && (
             <EdoNav to="/edo/control" icon={ShieldCheck} label={t('edo.nav.control')} collapsed={collapsed} />
+          )}
+          {isStaff && (
+            <EdoNav to="/edo/control/open-tasks" icon={ClipboardCheck} label={t('edo.nav.open_tasks')} collapsed={collapsed} />
           )}
           <EdoNav to="/edo/tasks" icon={Handshake} label={t('edo.nav.tasks_approval')} collapsed={collapsed} />
           <EdoNav to="/edo/signing" icon={FileSignature} label={t('edo.nav.to_sign')} collapsed={collapsed} />

@@ -1800,6 +1800,23 @@ export class DocumentsService {
     return docs.map((d) => this.serialize(d));
   }
 
+  // Ochiq topshiriqlar (kanselyariya nazorati) — kamida bitta bajarilmagan
+  // rezolyutsiya ijrochisi (target) bo'lgan barcha hujjatlar. Kanselyariya
+  // topshiriqni "bajarildi" deb belgilagach, hujjat ro'yxatdan chiqib ketadi.
+  async listControlOpenTasks() {
+    const docs = await this.prisma.document.findMany({
+      where: {
+        status: { in: ['in_progress', 'overdue'] },
+        resolutions: {
+          some: { targets: { some: { status: { not: 'done' } } } },
+        },
+      },
+      include: FULL_INCLUDE,
+      orderBy: [{ deadline: 'asc' }, { updatedAt: 'desc' }],
+    });
+    return docs.map((d) => this.serialize(d));
+  }
+
   // Bo'lim hujjatlari — foydalanuvchi bo'limiga tegishli barcha hujjatlar
   async listDepartment(userId: string) {
     const me = await this.prisma.user.findUnique({

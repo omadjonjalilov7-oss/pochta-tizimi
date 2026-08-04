@@ -135,6 +135,13 @@ export class DocumentsController {
     return this.docs.listControlReadyInternal();
   }
 
+  // Ochiq topshiriqlar nazorati — kanselyariya hali "bajarildi" belgilamagan
+  @Get('control/open-tasks')
+  controlOpenTasks(@CurrentUser() user: CurrentUserPayload) {
+    this.ensureStaff(user);
+    return this.docs.listControlOpenTasks();
+  }
+
   @Get('department')
   listDepartment(@CurrentUser() user: CurrentUserPayload) {
     return this.docs.listDepartment(user.id);

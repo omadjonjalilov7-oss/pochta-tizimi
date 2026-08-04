@@ -406,3 +406,16 @@ export function EdoDepartmentPage() {
     />
   );
 }
+
+// Ochiq topshiriqlar nazorati (kanselyariya) — bajarilmagan porucheniyali hujjatlar.
+export function EdoOpenTasksPage() {
+  return (
+    <DocList
+      queryKey="edo-open-tasks"
+      endpoint="/documents/control/open-tasks"
+      titleKey="edo.nav.open_tasks"
+      emptyKey="edo.list.empty_open_tasks"
+      showHolder
+    />
+  );
+}
