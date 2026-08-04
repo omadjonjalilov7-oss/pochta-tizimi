@@ -1041,6 +1041,20 @@
       "error_generic": "Imzolashda xatolik yuz berdi",
       "error_hint": "E-IMZO dasturi ishlamoqda yoki tarmoq parametrlarini tekshiring. Yordam uchun: https://e-imzo.uz"
     },
+    "mydocs": {
+      "tab_all": "Barchasi",
+      "tab_outgoing": "Chiquvchi",
+      "tab_reply": "Javob xati",
+      "tab_internal": "Ichki",
+      "tab_other": "Boshqalar",
+      "filters": "Qidiruv va filtr",
+      "clear": "Tozalash",
+      "search_ph": "Raqam yoki mavzu bo'yicha qidirish",
+      "status": "Holat",
+      "date_from": "Sanadan",
+      "date_to": "Sanagacha",
+      "found": "{{count}} ta hujjat topildi"
+    },
     "list": {
       "empty_mine": "Hozircha hujjat yaratmagansiz va sizga biriktirilgan hujjat yo'q.",
       "empty_drafts": "Qoralamalar yo'q. Yangi hujjat yaratib, qoralama sifatida saqlashingiz mumkin.",
