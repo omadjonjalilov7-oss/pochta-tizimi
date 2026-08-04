@@ -476,14 +476,6 @@ export function EdoComposePage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowRecipients((v) => !v)}
-                  className={secondaryBtnCls}
-                >
-                  <Users size={16} />
-                  {t('edo.compose.btn_recipients')}
-                </button>
-                <button
-                  type="button"
                   onClick={() => setShowRelated((v) => !v)}
                   className={secondaryBtnCls}
                 >

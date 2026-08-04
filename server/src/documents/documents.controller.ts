@@ -73,6 +73,11 @@ export class DocumentsController {
     return this.docs.listOutgoing(user.id);
   }
 
+  @Get('internal')
+  listInternal(@CurrentUser() user: CurrentUserPayload) {
+    return this.docs.listInternal(user.id);
+  }
+
   @Get('archive')
   listArchive(@CurrentUser() user: CurrentUserPayload) {
     return this.docs.listArchive(user.id);

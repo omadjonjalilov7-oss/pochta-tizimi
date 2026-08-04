@@ -31,6 +31,7 @@ import {
   EdoTasksPage,
   EdoIncomingPage,
   EdoOutgoingPage,
+  EdoInternalPage,
   EdoArchivePage,
   EdoToSignPage,
   EdoDepartmentPage,
@@ -88,6 +89,7 @@ export function App() {
           <Route path="documents/:id" element={<EdoDocumentViewPage />} />
           <Route path="incoming" element={<EdoIncomingPage />} />
           <Route path="outgoing" element={<EdoOutgoingPage />} />
+          <Route path="internal" element={<EdoInternalPage />} />
           <Route path="archive" element={<EdoArchivePage />} />
           <Route path="signing" element={<EdoToSignPage />} />
           <Route path="templates" element={<EdoTemplatesPage />} />

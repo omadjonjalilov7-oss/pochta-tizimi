@@ -8,6 +8,9 @@ import { Avatar } from '../Avatar';
 
 // Kiruvchi hujjatni rahbarga ma'ruza qilish oynasi — ro'yxatdan bitta rahbar
 // tanlanadi va ixtiyoriy izoh yoziladi. Backend: POST /documents/:id/present-to-leader.
+// Rezolyutsiya qo'yishi mumkin bo'lgan rahbarlar (login bo'yicha).
+const LEADER_LOGINS = ['avazbek', 'abduxalil', 'saodat', 'dilrabo', 'mirzaxid'];
+
 interface Props {
   documentNumber: string;
   documentSubject: string;
@@ -39,7 +42,10 @@ export function PresentToLeaderModal({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = users.filter((u) => u.isActive !== false);
+    // Rahbar rezolyutsiyasi uchun faqat quyidagi rahbarlar tanlanadi.
+    const list = users.filter(
+      (u) => u.isActive !== false && LEADER_LOGINS.includes(u.login?.toLowerCase()),
+    );
     if (!q) return list;
     return list.filter(
       (u) =>

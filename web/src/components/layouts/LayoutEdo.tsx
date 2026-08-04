@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Home,
   FileText,
+  FolderInput,
   Inbox,
   Send,
   FilePlus,
@@ -325,6 +326,7 @@ export function LayoutEdo() {
           <EdoNav to="/edo/chat" icon={MessagesSquare} label={t('edo.nav.chat')} collapsed={collapsed} />
           <EdoNav to="/edo/outgoing" icon={Send} label={t('edo.nav.outgoing')} collapsed={collapsed} />
           <EdoNav to="/edo/incoming" icon={Inbox} label={t('edo.nav.incoming')} collapsed={collapsed} />
+          <EdoNav to="/edo/internal" icon={FolderInput} label={t('edo.nav.internal')} collapsed={collapsed} />
           {isStaff && (
             <EdoNav to="/edo/control" icon={ShieldCheck} label={t('edo.nav.control')} collapsed={collapsed} />
           )}

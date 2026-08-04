@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FileText, Clock, ChevronRight, Trash2, Loader2 } from 'lucide-react';
+import { FileText, Clock, ChevronRight, Trash2, Loader2, Pencil } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import type { DocumentStatus, EdoDocument } from '../../lib/types';
@@ -37,6 +37,7 @@ function StatusPill({ status }: { status: DocumentStatus }) {
 export function DocList({ queryKey, endpoint, titleKey, emptyKey, showHolder }: DocListProps) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';
   const qc = useQueryClient();
   const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
@@ -68,6 +69,16 @@ export function DocList({ queryKey, endpoint, titleKey, emptyKey, showHolder }: 
     if (ids.length === 0) return;
     if (!window.confirm(t('edo.list.delete_confirm', { count: ids.length }))) return;
     bulkDelete.mutate(ids);
+  };
+
+  // Qoralamani (yaratuvchi o'zi) o'chirish — bittalab.
+  const deleteDraft = useMutation({
+    mutationFn: async (id: string) => (await api.delete(`/documents/${id}`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: [queryKey] }),
+  });
+  const onDeleteDraft = (id: string) => {
+    if (!window.confirm(t('edo.list.delete_confirm', { count: 1 }))) return;
+    deleteDraft.mutate(id);
   };
 
   return (
@@ -178,6 +189,28 @@ export function DocList({ queryKey, endpoint, titleKey, emptyKey, showHolder }: 
                 </div>
                 <ChevronRight size={16} className="text-slate-400 mt-1 flex-shrink-0" />
               </Link>
+              {/* Qoralama uchun — tahrirlash / o'chirish (faqat yaratuvchi ko'radi) */}
+              {d.status === 'draft' && (
+                <div className="flex flex-col gap-1 mt-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/edo/compose?id=${d.id}`)}
+                    title={t('common.edit')}
+                    className="p-1.5 rounded-lg text-slate-500 hover:text-asaka-700 hover:bg-asaka-50 border border-slate-200"
+                  >
+                    <Pencil size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteDraft(d.id)}
+                    disabled={deleteDraft.isPending}
+                    title={t('common.delete')}
+                    className="p-1.5 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 border border-slate-200 disabled:opacity-50"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              )}
             </li>
           ))}
         </ul>
@@ -323,6 +356,18 @@ export function EdoOutgoingPage() {
       endpoint="/documents/outgoing"
       titleKey="edo.nav.outgoing"
       emptyKey="edo.list.empty_outgoing"
+      showHolder
+    />
+  );
+}
+
+export function EdoInternalPage() {
+  return (
+    <DocList
+      queryKey="edo-internal"
+      endpoint="/documents/internal"
+      titleKey="edo.nav.internal"
+      emptyKey="edo.list.empty_internal"
       showHolder
     />
   );

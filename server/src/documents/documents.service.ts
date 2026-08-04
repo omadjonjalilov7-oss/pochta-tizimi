@@ -456,38 +456,36 @@ export class DocumentsService {
       );
     }
 
-    // "Buyruq" turidagi ichki hujjatda tasdiqlovchilar qo'lda tanlanadi —
-    // avtomatik ichki zanjir (aziza → ... → mirzaxid) ishlamaydi.
-    const isOrder = doc.type === 'internal' && doc.internalKind === 'order';
+    // Shablon endi AVTOMAT biriktirilmaydi. Foydalanuvchi qo'lda tanlagan
+    // shablon (doc.templateId) bo'lsa — o'sha ishlatiladi; tanlanmasa hujjatga
+    // hech qanday shablon qo'shilmaydi.
 
-    // Foydalanuvchi shablonni "yoygan" (flatten) bo'lsa — matnning o'zi to'liq
-    // hujjat (data-fulldoc). Bunda ichki avto-shablon qo'llanmaydi (aks holda
-    // hujjat ikki marta ramkaga o'raladi).
-    const isFullDocBody =
-      typeof doc.body === 'string' && doc.body.includes('data-fulldoc');
+    // Yuborish paytida tanlangan tasdiqlovchilar ustuvor. Bo'lmasa — qoralamaga
+    // biriktirilgan zanjir; u ham bo'lmasa: ichki hujjat uchun odatdagi qat'iy
+    // zanjir (aziza → raxmatjon → abduxalil → mirzaxid), boshqa turlar uchun
+    // bo'lim rahbarlari.
+    const selectedApprovers = (dto?.approverIds ?? []).filter(
+      (uid, i, arr) => uid !== userId && arr.indexOf(uid) === i,
+    );
+    const persistedApprovers = doc.participants
+      .filter((p) => p.role === ParticipantRole.approver)
+      .sort((a, b) => a.order - b.order)
+      .map((p) => p.userId);
 
-    // Shablon tanlanmagan bo'lsa (va "buyruq" / "yoyilgan hujjat" bo'lmasa) —
-    // hujjat "ichki" shabloniga avtomat solinadi va qat'iy zanjir
-    // (aziza → raxmatjon → abduxalil → mirzaxid) qo'yiladi.
-    let autoIchkiTemplateId: string | null = null;
-    let autoIchkiChain: string[] | null = null;
-    if (!doc.templateId && !isOrder && !isFullDocBody) {
-      const tpl = await this.prisma.documentTemplate.findFirst({
-        where: { name: { equals: 'ichki', mode: 'insensitive' } },
-        select: { id: true },
-        orderBy: { createdAt: 'asc' },
-      });
-      if (!tpl) {
-        throw new BadRequestException(
-          '"ichki" nomli shablon topilmadi. Uni Shablonlar bo\'limida yarating',
-        );
-      }
+    let chain: string[];
+    if (selectedApprovers.length > 0) {
+      chain = selectedApprovers;
+    } else if (persistedApprovers.length > 0) {
+      chain = persistedApprovers;
+    } else if (doc.type === 'internal') {
+      // Ichki hujjatda hech qanday xodim tanlanmasa — odatdagi qat'iy zanjirga
+      // (aziza → raxmatjon → abduxalil → mirzaxid) yuboriladi.
       const chainUsers = await this.prisma.user.findMany({
         where: { login: { in: [...AUTO_CHAIN_LOGINS] } },
         select: { id: true, login: true, isActive: true },
       });
       const byLogin = new Map(chainUsers.map((u) => [u.login, u] as const));
-      const resolved: string[] = [];
+      chain = [];
       for (const login of AUTO_CHAIN_LOGINS) {
         const u = byLogin.get(login);
         if (!u) {
@@ -498,31 +496,11 @@ export class DocumentsService {
         if (!u.isActive) {
           throw new BadRequestException(`Tasdiqlovchi faol emas: "${login}"`);
         }
-        resolved.push(u.id);
+        if (u.id === userId) continue; // yaratuvchining o'zi zanjirda emas
+        chain.push(u.id);
       }
-      autoIchkiTemplateId = tpl.id;
-      autoIchkiChain = resolved;
-    }
-
-    // Yuborish paytida tanlangan tasdiqlovchilar ustuvor. Bo'lmasa — qoralamaga
-    // biriktirilgan zanjir; u ham bo'lmasa eski mantiq: o'z + maqsadli bo'lim raxbari.
-    const selectedApprovers = (dto?.approverIds ?? []).filter(
-      (uid, i, arr) => uid !== userId && arr.indexOf(uid) === i,
-    );
-    const persistedApprovers = doc.participants
-      .filter((p) => p.role === ParticipantRole.approver)
-      .sort((a, b) => a.order - b.order)
-      .map((p) => p.userId);
-
-    let chain: string[];
-    if (autoIchkiChain) {
-      chain = autoIchkiChain;
-    } else if (selectedApprovers.length > 0) {
-      chain = selectedApprovers;
-    } else if (persistedApprovers.length > 0) {
-      chain = persistedApprovers;
     } else {
-      // Avtomatik zanjir — bo'lim rahbarlari orqali quriladi. Faqat shu holatda
+      // Chiquvchi/kiruvchi — bo'lim rahbarlari orqali quriladi. Faqat shu holatda
       // yuboriladigan bo'lim ko'rsatilishi shart (rahbarni topish uchun).
       if (!doc.targetDeptId) {
         throw new BadRequestException("Hujjat yuboriladigan bo'lim tanlanmagan");
@@ -602,9 +580,6 @@ export class DocumentsService {
           status: DocumentStatus.in_review,
           currentHolderId: firstApproverId,
           signatureChainPosition: 1,
-          ...(autoIchkiTemplateId
-            ? { templateId: autoIchkiTemplateId, autoFilled: true }
-            : {}),
         },
       });
       await tx.documentAuditLog.create({
@@ -1681,6 +1656,20 @@ export class DocumentsService {
     const docs = await this.prisma.document.findMany({
       where: {
         type: 'outgoing',
+        ...(await this.participantScope(userId)),
+      },
+      include: FULL_INCLUDE,
+      orderBy: { updatedAt: 'desc' },
+    });
+    return docs.map((d) => this.serialize(d));
+  }
+
+  // Ichki hujjatlar — type=internal, men ishtirokchi yoki yaratuvchiman
+  async listInternal(userId: string) {
+    const docs = await this.prisma.document.findMany({
+      where: {
+        type: 'internal',
+        status: { not: 'draft' },
         ...(await this.participantScope(userId)),
       },
       include: FULL_INCLUDE,
