@@ -31,6 +31,20 @@ async function bootstrap() {
       crossOriginResourcePolicy: { policy: 'cross-origin' },
     }),
   );
+
+  // API javoblari KESHLANMASIN. Aks holda brauzer/proksi (nginx) eski GET
+  // javobini xotirada saqlab, ma'lumot o'zgargach ham eskisini ko'rsatib qoladi
+  // (foydalanuvchi Ctrl+F5 bosishga majbur bo'ladi). ETag'ni ham o'chiramiz.
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.set('etag', false);
+  app.use((req: any, res: any, next: any) => {
+    // Alohida kontroller o'z sarlavhasini qo'ysa (masalan, kuzatuv-piksel),
+    // u keyin ishlab, buni ustidan yozadi — shuning uchun bu xavfsiz default.
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    next();
+  });
   app.enableCors({
     origin: process.env.FRONTEND_URL?.split(',') || ['http://localhost:5173'],
     credentials: true,

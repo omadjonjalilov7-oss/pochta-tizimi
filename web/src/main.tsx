@@ -14,7 +14,16 @@ applyDesign(getStoredDesign());
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false },
+    queries: {
+      // Ma'lumot darhol "eskirgan" hisoblanadi — har sahifaga kirilganda,
+      // tabga qaytilganda va internet tiklanganda yangisi olinadi. Shu tufayli
+      // o'zgarishlar Ctrl+F5 bosmasdan ham darhol ko'rinadi.
+      staleTime: 0,
+      retry: 1,
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+    },
   },
 });
 
