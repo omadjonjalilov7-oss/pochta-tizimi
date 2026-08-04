@@ -782,6 +782,11 @@
       "done": "Bajarildi",
       "overdue": "Muddati o'tgan"
     },
+    "tasks": {
+      "title": "Topshiriqlar",
+      "exec_status": "Topshiriqlar ijro holati",
+      "internal_control": "Ichki hujjatlar nazorati"
+    },
     "compose": {
       "title_new": "Yangi hujjat",
       "title_new_internal": "Ichki hujjat yaratish",

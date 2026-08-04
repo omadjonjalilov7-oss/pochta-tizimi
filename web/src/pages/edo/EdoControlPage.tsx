@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
@@ -78,9 +79,18 @@ const MENU: MenuItem[] = [
   { key: 'integrations', icon: Plug, labelKey: 'edo.control.menu_integrations', ready: false },
 ];
 
+const TAB_KEYS: TabKey[] = [
+  'dashboard', 'incoming', 'appeals', 'outgoing', 'internal',
+  'plan', 'ready-internal', 'received', 'integrations',
+];
+
 export function EdoControlPage() {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<TabKey>('dashboard');
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab');
+  const [tab, setTab] = useState<TabKey>(
+    initialTab && (TAB_KEYS as string[]).includes(initialTab) ? (initialTab as TabKey) : 'dashboard',
+  );
 
   return (
     <div className="flex h-full">

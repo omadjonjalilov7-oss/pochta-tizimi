@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FileText, Clock, ChevronRight, Trash2, Loader2, Pencil, Search, X } from 'lucide-react';
+import { FileText, Clock, ChevronRight, Trash2, Loader2, Pencil, Search, X, ShieldCheck } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import type { DocumentStatus, EdoDocument } from '../../lib/types';
@@ -583,9 +583,50 @@ export function EdoDraftsPage() {
   );
 }
 
+interface MineTaskStats {
+  tasks: { total: number; byStatus: Record<string, number> };
+}
+
 export function EdoTasksPage() {
+  const { t } = useTranslation();
+  const { data: stats } = useQuery({
+    queryKey: ['edo-tasks-stats'],
+    queryFn: async () => (await api.get<MineTaskStats>('/documents/stats/mine')).data,
+  });
+  const by = stats?.tasks.byStatus ?? {};
+  const chips: { key: string; value: number; cls: string }[] = [
+    { key: 'pending', value: by.pending ?? 0, cls: 'bg-amber-50 text-amber-700' },
+    { key: 'in_progress', value: by.in_progress ?? 0, cls: 'bg-sky-50 text-sky-700' },
+    { key: 'done', value: by.done ?? 0, cls: 'bg-emerald-50 text-emerald-700' },
+    { key: 'overdue', value: by.overdue ?? 0, cls: 'bg-rose-50 text-rose-700' },
+  ];
+
   return (
-    <>
+    <div className="max-w-5xl mx-auto px-3 md:px-6 py-4 md:py-6">
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <h1 className="text-lg md:text-xl font-semibold text-slate-900">{t('edo.tasks.title')}</h1>
+        <Link
+          to="/edo/control?tab=internal"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-asaka-600 hover:bg-asaka-700 rounded-lg transition"
+        >
+          <ShieldCheck size={16} />
+          {t('edo.tasks.internal_control')}
+        </Link>
+      </div>
+
+      {/* Topshiriqlar ijro holati */}
+      <div className="mb-5">
+        <h2 className="text-sm font-semibold text-slate-600 mb-2">{t('edo.tasks.exec_status')}</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {chips.map((c) => (
+            <div key={c.key} className={cn('rounded-xl px-4 py-3', c.cls)}>
+              <div className="text-2xl font-bold">{c.value}</div>
+              <div className="text-xs font-medium opacity-80">{t(`edo.task_status.${c.key}`)}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <DocList
         queryKey="edo-tasks"
         endpoint="/documents/tasks"
@@ -598,7 +639,7 @@ export function EdoTasksPage() {
         titleKey="edo.nav.tasks_execution"
         emptyKey="edo.list.empty_executions"
       />
-    </>
+    </div>
   );
 }
 
