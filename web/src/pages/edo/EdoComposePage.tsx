@@ -372,9 +372,15 @@ export function EdoComposePage() {
       // rezolyutsiya uchun yuboramiz (present-to-leader)
       if (type === 'incoming' && resolutionLeaderId) {
         try {
-          await api.post(`/documents/${saved.id}/present-to-leader`, {
-            leaderId: resolutionLeaderId,
-          });
+          const res = await api.post<EdoDocument>(
+            `/documents/${saved.id}/present-to-leader`,
+            { leaderId: resolutionLeaderId },
+          );
+          // Yangi holatni (in_review) keshga yozamiz — ko'rish sahifasi eski
+          // "qoralama" holatini ko'rsatib, noto'g'ri "yuborish" tugmasini
+          // chiqarib qo'ymasligi uchun
+          queryClient.setQueryData(['edo-doc', saved.id], res.data);
+          queryClient.invalidateQueries({ queryKey: ['edo-doc', saved.id] });
         } catch (err) {
           setError(extractError(err));
           return;
