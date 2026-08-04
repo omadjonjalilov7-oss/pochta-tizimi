@@ -1,4 +1,4 @@
-import { type FormEvent, type ReactNode, useMemo, useState, useRef } from 'react';
+import { type FormEvent, type ReactNode, useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -664,6 +664,7 @@ export function EdoDocumentViewPage() {
               targets={myPendingTargets}
               onSaveNote={(targetId, note) => saveTargetNote.mutate({ targetId, note })}
               loading={saveTargetNote.isPending}
+              savedTargetId={saveTargetNote.isSuccess ? saveTargetNote.variables?.targetId : null}
               error={extractError(saveTargetNote.error)}
             />
           )}
@@ -1904,40 +1905,57 @@ function MyTasksBox({
   targets,
   onSaveNote,
   loading,
+  savedTargetId,
   error,
 }: {
   targets: Array<{
     id: string;
     deadline?: string | null;
     doneNote?: string | null;
+    user: { fullName: string; avatarPath?: string | null };
     resolution: { text: string };
   }>;
   onSaveNote: (targetId: string, note?: string) => void;
   loading: boolean;
+  savedTargetId?: string | null;
   error: string | null;
 }) {
   const { t, i18n } = useTranslation();
   // Har bir topshiriq izohi (mavjud bo'lsa oldindan to'ldiriladi)
   const [notes, setNotes] = useState<Record<string, string>>({});
+  // Saqlanganini bildiruvchi belgi — muvaffaqiyatdan so'ng ko'rsatiladi, keyin so'nadi
+  const [savedId, setSavedId] = useState<string | null>(null);
   const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
   const getNote = (tg: { id: string; doneNote?: string | null }) =>
     notes[tg.id] ?? tg.doneNote ?? '';
+  useEffect(() => {
+    if (!loading && savedTargetId) {
+      setSavedId(savedTargetId);
+      const h = setTimeout(() => setSavedId(null), 3000);
+      return () => clearTimeout(h);
+    }
+  }, [savedTargetId, loading]);
 
   return (
-    <div className="bg-white border-2 border-sky-200 rounded-2xl p-4 space-y-3">
-      <div className="flex items-center gap-2 text-sm text-sky-700 font-semibold">
-        <ClipboardList size={16} />
+    <div className="bg-white border-2 border-sky-200 rounded-2xl p-5 md:p-6 space-y-4">
+      <div className="flex items-center gap-2 text-base text-sky-700 font-semibold">
+        <ClipboardList size={18} />
         {t('edo.view.my_tasks')}
       </div>
-      <ul className="space-y-3">
+      <ul className="space-y-4">
         {targets.map((tg) => (
-          <li key={tg.id} className="border border-slate-200 rounded-lg p-3 bg-slate-50">
+          <li key={tg.id} className="border border-slate-200 rounded-xl p-4 bg-slate-50">
+            {/* Ijrochi xodim — kimga biriktirilgani ko'rinib tursin */}
+            <div className="flex items-center gap-2 mb-2">
+              <Avatar fullName={tg.user.fullName} avatarPath={tg.user.avatarPath} size="sm" />
+              <span className="text-sm font-medium text-slate-800">{cyrName(tg.user.fullName)}</span>
+            </div>
             {tg.deadline && (
               <div className="text-xs text-slate-500 mb-1">
                 {t('edo.view.deadline')}: {new Date(tg.deadline).toLocaleString(lang)}
               </div>
             )}
-            <p className="text-sm text-slate-800 whitespace-pre-wrap mb-2">{tg.resolution.text}</p>
+            <p className="text-sm text-slate-800 whitespace-pre-wrap mb-3">{tg.resolution.text}</p>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -1947,19 +1965,30 @@ function MyTasksBox({
             >
               <textarea
                 value={getNote(tg)}
-                onChange={(e) => setNotes((m) => ({ ...m, [tg.id]: e.target.value }))}
-                rows={2}
+                onChange={(e) => {
+                  setNotes((m) => ({ ...m, [tg.id]: e.target.value }));
+                  setSavedId((cur) => (cur === tg.id ? null : cur));
+                }}
+                rows={4}
                 placeholder={t('edo.view.executor_note_ph')}
                 className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none"
               />
-              <button
-                type="submit"
-                disabled={loading}
-                className="inline-flex items-center gap-1 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-semibold px-3 py-1.5 rounded-lg text-sm"
-              >
-                <ClipboardList size={14} />
-                {t('edo.view.save_note')}
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="inline-flex items-center gap-1 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg text-sm"
+                >
+                  <ClipboardList size={14} />
+                  {t('edo.view.save_note')}
+                </button>
+                {savedId === tg.id && !loading && (
+                  <span className="inline-flex items-center gap-1 text-sm font-medium text-emerald-600">
+                    <CheckCircle2 size={16} />
+                    {t('edo.view.note_saved')}
+                  </span>
+                )}
+              </div>
             </form>
           </li>
         ))}
