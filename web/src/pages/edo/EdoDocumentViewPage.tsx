@@ -36,7 +36,7 @@ import { PresentToLeaderModal } from '../../components/edo/PresentToLeaderModal'
 import WordEditorModal from '../../components/edo/WordEditorModal';
 import AttachmentViewerModal from '../../components/edo/AttachmentViewerModal';
 import { api } from '../../lib/api';
-import type { DocumentStatus, EdoDocument, User } from '../../lib/types';
+import type { DocumentStatus, EdoDocument, EdoResolution, User } from '../../lib/types';
 import { Avatar } from '../../components/Avatar';
 import { useAuth } from '../../context/AuthContext';
 import { cn, formatBytes, cyrName, trDyn } from '../../lib/utils';
@@ -279,7 +279,7 @@ export function EdoDocumentViewPage() {
     .filter((t) => t.userId === user?.id && t.status !== 'done');
 
   return (
-    <div className="max-w-7xl mx-auto px-3 md:px-6 py-4 md:py-6">
+    <div className="w-full px-3 md:px-6 py-4 md:py-6">
       <button
         onClick={() => navigate(-1)}
         className="inline-flex items-center gap-1.5 mb-3 px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-asaka-700 hover:bg-slate-100 rounded-lg transition"
@@ -2034,6 +2034,8 @@ function ResolutionSection({
   // Qayta yuklash: qaysi topshiriq ochilgan va yangi muddat qiymati
   const [rescheduleId, setRescheduleId] = useState<string | null>(null);
   const [rescheduleVal, setRescheduleVal] = useState('');
+  // Batafsil oyna uchun tanlangan topshiriq (rezolyutsiya)
+  const [detailRes, setDetailRes] = useState<EdoResolution | null>(null);
 
   const resolutions = doc.resolutions ?? [];
 
@@ -2066,6 +2068,15 @@ function ResolutionSection({
               <div className="text-xs text-slate-400">
                 {new Date(r.createdAt).toLocaleString(lang)}
               </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setDetailRes(r)}
+                  title={t('edo.view.resolution_details')}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-asaka-700 bg-asaka-50 hover:bg-asaka-100 px-2 py-1 rounded"
+                >
+                  <ClipboardList size={12} />
+                  {t('edo.view.details')}
+                </button>
               {canManage && editId !== r.id && (
                 <div className="flex items-center gap-1">
                   <button
@@ -2091,6 +2102,7 @@ function ResolutionSection({
                   </button>
                 </div>
               )}
+              </div>
             </div>
             {editId === r.id ? (
               <form
@@ -2233,7 +2245,118 @@ function ResolutionSection({
           </article>
         ))}
       </div>
+      {detailRes && (
+        <ResolutionDetailModal
+          resolution={detailRes}
+          docNumber={doc.number}
+          onClose={() => setDetailRes(null)}
+        />
+      )}
     </section>
+  );
+}
+
+// Bitta topshiriq (rezolyutsiya) bo'yicha barcha ma'lumotni to'liq ko'rsatuvchi modal.
+function ResolutionDetailModal({
+  resolution,
+  docNumber,
+  onClose,
+}: {
+  resolution: EdoResolution;
+  docNumber: string;
+  onClose: () => void;
+}) {
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
+  const statusCls: Record<string, string> = {
+    pending: 'text-amber-700 bg-amber-50',
+    in_progress: 'text-sky-700 bg-sky-50',
+    done: 'text-emerald-700 bg-emerald-50',
+    overdue: 'text-rose-700 bg-rose-50',
+  };
+  return (
+    <PanelModal title={t('edo.view.resolution_details')} onClose={onClose}>
+      <div className="space-y-4">
+        <div className="text-xs text-slate-500">
+          <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded">{docNumber}</span>
+          <span className="ml-2">{new Date(resolution.createdAt).toLocaleString(lang)}</span>
+        </div>
+
+        <div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
+            {t('edo.view.resolution_text')}
+          </div>
+          <p className="text-sm text-slate-800 whitespace-pre-wrap bg-slate-50 border border-slate-200 rounded-lg p-3">
+            {resolution.text}
+          </p>
+        </div>
+
+        {resolution.author && (
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              {t('edo.view.resolution_author')}:
+            </span>
+            <Avatar
+              fullName={resolution.author.fullName}
+              avatarPath={resolution.author.avatarPath}
+              size="sm"
+            />
+            <span className="font-medium text-slate-800">
+              {cyrName(resolution.author.fullName)}
+            </span>
+          </div>
+        )}
+
+        <div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+            {t('edo.view.executors')} ({resolution.targets.length})
+          </div>
+          <ul className="space-y-2">
+            {resolution.targets.map((tg) => (
+              <li
+                key={tg.id}
+                className="border border-slate-200 rounded-lg p-3 bg-white space-y-1.5"
+              >
+                <div className="flex items-center gap-2">
+                  <Avatar fullName={tg.user.fullName} avatarPath={tg.user.avatarPath} size="sm" />
+                  <span className="flex-1 font-medium text-slate-800 text-sm">
+                    {cyrName(tg.user.fullName)}
+                  </span>
+                  <span
+                    className={cn(
+                      'text-xs font-medium px-2 py-0.5 rounded',
+                      statusCls[tg.status] ?? 'text-slate-600 bg-slate-100',
+                    )}
+                  >
+                    {t(`edo.task_status.${tg.status}`)}
+                  </span>
+                </div>
+                {tg.deadline && (
+                  <div className="text-xs text-slate-500 flex items-center gap-1">
+                    <CalendarClock size={12} />
+                    {t('edo.view.deadline')}: {new Date(tg.deadline).toLocaleString(lang)}
+                  </div>
+                )}
+                {tg.doneAt && (
+                  <div className="text-xs text-emerald-700 flex items-center gap-1">
+                    <CheckCircle2 size={12} />
+                    {t('edo.task_status.done')}: {new Date(tg.doneAt).toLocaleString(lang)}
+                  </div>
+                )}
+                {tg.doneNote && (
+                  <div className="text-xs text-slate-600 bg-slate-50 border-l-2 border-sky-300 pl-2 py-1 whitespace-pre-wrap">
+                    <span className="font-medium text-slate-500">
+                      {t('edo.view.executor_note')}:{' '}
+                    </span>
+                    {tg.doneNote}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </PanelModal>
   );
 }
 

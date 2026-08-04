@@ -80,7 +80,7 @@ export function DocList({ queryKey, endpoint, titleKey, emptyKey, showHolder }: 
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-3 md:px-6 py-4 md:py-6">
+    <div className="w-full px-3 md:px-6 py-4 md:py-6">
       <div className="flex items-center justify-between mb-4 gap-3">
         <h1 className="text-lg md:text-xl font-semibold text-slate-900">{t(titleKey)}</h1>
         {isAdmin && selected.size > 0 && (
@@ -432,7 +432,7 @@ export function EdoMyDocsPage() {
   const statuses: DocumentStatus[] = ['draft', 'in_review', 'in_progress', 'done', 'rejected', 'overdue'];
 
   return (
-    <div className="max-w-7xl mx-auto px-3 md:px-6 py-4 md:py-6">
+    <div className="w-full px-3 md:px-6 py-4 md:py-6">
       <div className="flex items-center justify-between mb-4 gap-3">
         <h1 className="text-lg md:text-xl font-semibold text-slate-900">{t('edo.nav.my_documents')}</h1>
         {isAdmin && selected.size > 0 && (
@@ -602,7 +602,7 @@ export function EdoTasksPage() {
   ];
 
   return (
-    <div className="max-w-5xl mx-auto px-3 md:px-6 py-4 md:py-6">
+    <div className="w-full px-3 md:px-6 py-4 md:py-6">
       <div className="flex items-center justify-between gap-3 mb-4">
         <h1 className="text-lg md:text-xl font-semibold text-slate-900">{t('edo.tasks.title')}</h1>
         <Link

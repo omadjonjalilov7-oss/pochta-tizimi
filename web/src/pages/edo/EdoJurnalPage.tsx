@@ -114,7 +114,7 @@ export function EdoJurnalPage() {
     }`;
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-6 space-y-5">
+    <div className="w-full px-6 py-6 space-y-5">
       <div className="flex items-center gap-3">
         <div className="h-10 w-10 rounded-xl bg-asaka-50 text-asaka-600 flex items-center justify-center">
           <BookText size={20} />

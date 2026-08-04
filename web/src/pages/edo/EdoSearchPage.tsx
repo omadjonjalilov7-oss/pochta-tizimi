@@ -39,7 +39,7 @@ export function EdoSearchPage() {
   });
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-6">
+    <div className="w-full px-6 py-6">
       <h1 className="text-xl font-semibold text-slate-900 mb-4">{t('edo.search.title')}</h1>
 
       <form

@@ -240,6 +240,17 @@ export function LayoutEdo() {
   const collapsed = false;
   // Mobil: chap menyu drawer sifatida ochiladi/yopiladi
   const [mobileNav, setMobileNav] = useState(false);
+  // Desktop: chap menyuni butunlay yashirish (kontent to'liq kenglikni egallaydi)
+  const [deskNavHidden, setDeskNavHidden] = useState<boolean>(
+    () => localStorage.getItem('edo-nav-hidden') === '1',
+  );
+  const toggleDeskNav = () => {
+    setDeskNavHidden((v) => {
+      const next = !v;
+      localStorage.setItem('edo-nav-hidden', next ? '1' : '0');
+      return next;
+    });
+  };
   const location = useLocation();
   // Sahifa (oyna) ochilganda mobil menyu avtomatik yopilsin
   useEffect(() => {
@@ -249,12 +260,22 @@ export function LayoutEdo() {
   return (
     <div className="flex h-full flex-col bg-slate-50">
       <header className="h-16 bg-white border-b border-slate-200 flex items-center gap-2 md:gap-4 px-2 md:px-4">
+        {/* Mobil: drawer toggle */}
         <button
           onClick={() => setMobileNav((v) => !v)}
           className="md:hidden p-2 rounded-lg hover:bg-slate-100 text-slate-600 shrink-0"
           aria-label="Menu"
         >
           {mobileNav ? <X size={22} /> : <Menu size={22} />}
+        </button>
+        {/* Desktop: chap menyuni yashirish/ko'rsatish */}
+        <button
+          onClick={toggleDeskNav}
+          className="hidden md:inline-flex p-2 rounded-lg hover:bg-slate-100 text-slate-600 shrink-0"
+          aria-label="Menu"
+          title={t('edo.nav.toggle_menu')}
+        >
+          <Menu size={22} />
         </button>
         <Link to="/edo" className="flex items-center gap-2.5 font-semibold text-xl text-slate-700 px-1 md:px-2 md:min-w-[220px]">
           <AsakaLogo size={34} />
@@ -306,8 +327,10 @@ export function LayoutEdo() {
             // Mobil: chapdan chiquvchi drawer
             'fixed top-16 bottom-0 left-0 w-72 z-40 shadow-2xl',
             mobileNav ? 'translate-x-0' : '-translate-x-full',
-            // Desktop: doimiy ochiq, oddiy ustun
-            'md:static md:top-auto md:bottom-auto md:z-auto md:shadow-none md:translate-x-0',
+            // Desktop: doimiy ochiq, oddiy ustun (yashirilganda butunlay yo'qoladi)
+            deskNavHidden
+              ? 'md:hidden'
+              : 'md:static md:top-auto md:bottom-auto md:z-auto md:shadow-none md:translate-x-0',
             collapsed ? 'md:w-[68px]' : 'md:w-64',
           )}
         >

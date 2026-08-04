@@ -114,7 +114,7 @@ export function EdoTemplatesPage() {
     !!user && (user.role === 'admin' || tpl.createdById === user.id);
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-6">
+    <div className="w-full px-6 py-6">
       <div className="flex flex-wrap items-center gap-3 mb-5">
         <h1 className="text-xl font-semibold text-slate-900">{t('edo.templates.title')}</h1>
         <div className="relative ml-auto">

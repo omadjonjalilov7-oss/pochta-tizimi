@@ -12,24 +12,27 @@ interface Props {
 
 type Kind = 'pdf' | 'image' | 'text' | 'office' | 'other';
 
-// Office (Word/Excel/PowerPoint) — serverda LibreOffice orqali PDF'ga
-// aylantirilib ko'rsatiladi.
-const OFFICE_EXTS = [
-  '.doc', '.docx', '.docm', '.dot', '.dotx', '.rtf', '.odt',
-  '.xls', '.xlsx', '.xlsm', '.xlsb', '.ods',
-  '.ppt', '.pptx', '.pps', '.ppsx', '.odp',
+// Ko'rib bo'lmaydigan (arxiv/ijro) fayllar — faqat yuklab olish mumkin.
+const NO_PREVIEW_EXTS = [
+  '.zip', '.rar', '.7z', '.tar', '.gz', '.tgz', '.bz2', '.xz',
+  '.exe', '.msi', '.dmg', '.iso', '.apk', '.bin', '.dll', '.jar',
 ];
 
 function detectKind(filename: string): Kind {
   const dot = filename.lastIndexOf('.');
   const ext = dot >= 0 ? filename.slice(dot).toLowerCase() : '';
   if (ext === '.pdf') return 'pdf';
+  // Brauzer to'g'ridan-to'g'ri ko'rsata oladigan rasm formatlari.
   if (['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg', '.ico'].includes(ext))
     return 'image';
   if (['.txt', '.csv', '.log', '.json', '.xml', '.md', '.html', '.htm'].includes(ext))
     return 'text';
-  if (OFFICE_EXTS.includes(ext)) return 'office';
-  return 'other';
+  // Aniq ko'rib bo'lmaydigan (arxiv/ijro) fayllar.
+  if (NO_PREVIEW_EXTS.includes(ext)) return 'other';
+  // Qolgan BARCHA turlar (Word/Excel/PowerPoint, .tif/.tiff skanerlar,
+  // kengaytmasiz yoki noma'lum fayllar) serverda LibreOffice orqali PDF'ga
+  // aylantirilib bir xilда ko'rsatiladi.
+  return 'office';
 }
 
 // Biriktirilgan faylni brauzerda (yuklab olmasdan) ko'rish uchun modal.

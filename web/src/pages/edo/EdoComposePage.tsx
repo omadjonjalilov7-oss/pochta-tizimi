@@ -476,7 +476,7 @@ export function EdoComposePage() {
     'inline-flex items-center gap-1.5 bg-asaka-50 hover:bg-asaka-100 text-asaka-700 font-medium text-xs md:text-sm px-2.5 md:px-3 py-1.5 rounded-lg disabled:opacity-50';
 
   return (
-    <div className="max-w-6xl mx-auto px-3 md:px-6 py-4 md:py-6">
+    <div className="w-full px-3 md:px-6 py-4 md:py-6">
       {error && (
         <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
           {error}
