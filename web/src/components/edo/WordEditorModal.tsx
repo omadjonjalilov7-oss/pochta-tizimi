@@ -225,6 +225,112 @@ export default function WordEditorModal({
     editor.focus();
   };
 
+  // ── Jadval kataklarини sichqoncha bilan cho'zib o'zgartirish ────────────
+  // Sichqoncha katak chegарасига yaqinlashса kursor o'zgаради; bosib sudralса
+  // ustun kengлиги yoki qator balandлиги o'zgаради (Word/Excel kabi).
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const EDGE = 5; // chegарага yaqinlik (px)
+    let drag:
+      | {
+          mode: 'col' | 'row';
+          startPos: number;
+          startSize: number;
+          cells: HTMLElement[];
+          rowEl?: HTMLElement;
+        }
+      | null = null;
+
+    const detectEdge = (
+      e: MouseEvent,
+    ): { mode: 'col' | 'row'; cell: HTMLTableCellElement } | null => {
+      const target = e.target as HTMLElement;
+      const cell = target?.closest?.('td,th') as HTMLTableCellElement | null;
+      if (!cell || !editor.contains(cell)) return null;
+      const rect = cell.getBoundingClientRect();
+      if (Math.abs(e.clientX - rect.right) <= EDGE) return { mode: 'col', cell };
+      if (Math.abs(e.clientY - rect.bottom) <= EDGE) return { mode: 'row', cell };
+      return null;
+    };
+
+    const onMove = (e: MouseEvent) => {
+      if (drag) {
+        if (drag.mode === 'col') {
+          const w = Math.max(24, drag.startSize + (e.clientX - drag.startPos));
+          drag.cells.forEach((c) => {
+            c.style.width = `${w}px`;
+          });
+        } else if (drag.rowEl) {
+          const h = Math.max(16, drag.startSize + (e.clientY - drag.startPos));
+          drag.rowEl.style.height = `${h}px`;
+        }
+        e.preventDefault();
+        return;
+      }
+      const edge = detectEdge(e);
+      editor.style.cursor = edge
+        ? edge.mode === 'col'
+          ? 'col-resize'
+          : 'row-resize'
+        : '';
+    };
+
+    const onUp = () => {
+      if (!drag) return;
+      drag = null;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      recordSoon();
+    };
+
+    const onDown = (e: MouseEvent) => {
+      if (!editable) return;
+      const edge = detectEdge(e);
+      if (!edge) return;
+      const { mode, cell } = edge;
+      const table = cell.closest('table') as HTMLTableElement | null;
+      if (!table) return;
+      if (mode === 'col') {
+        const idx = cell.cellIndex;
+        const cells: HTMLElement[] = [];
+        Array.from(table.rows).forEach((r) => {
+          const c = r.cells[idx];
+          if (c) cells.push(c as HTMLElement);
+        });
+        drag = {
+          mode,
+          startPos: e.clientX,
+          startSize: cell.getBoundingClientRect().width,
+          cells,
+        };
+      } else {
+        const row = cell.closest('tr') as HTMLElement | null;
+        if (!row) return;
+        drag = {
+          mode,
+          startPos: e.clientY,
+          startSize: cell.getBoundingClientRect().height,
+          cells: [],
+          rowEl: row,
+        };
+      }
+      e.preventDefault();
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    };
+
+    editor.addEventListener('mousemove', onMove);
+    editor.addEventListener('mousedown', onDown);
+    return () => {
+      editor.removeEventListener('mousemove', onMove);
+      editor.removeEventListener('mousedown', onDown);
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editable]);
+
   // Buyruq bajarish (execCommand — barcha brauzerlarда ishlaydi).
   const exec = (command: string, value?: string) => {
     if (!editable) return;
