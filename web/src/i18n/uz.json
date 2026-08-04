@@ -518,6 +518,8 @@
     },
     "dashboard": {
       "title": "Hujjatlar ijro holati",
+      "exec_title": "Topshiriqlar ijro holati",
+      "unfinished": "Bajarilmagan topshiriqlar",
       "incoming_title": "Kelib tushgan topshiriqlar",
       "card_signing": "Imzolash uchun",
       "card_approval": "Kelishish uchun",
@@ -709,7 +711,19 @@
       "k_done": "Bajarilgan",
       "k_done_late": "Kechikib bajarilgan",
       "k_overdue": "Muddati o'tgan",
-      "k_on_approval": "Tasdiqlashda"
+      "k_on_approval": "Tasdiqlashda",
+      "itab_info": "Ma'lumot",
+      "itab_recontrol": "Qayta nazoratga olingan",
+      "itab_tasks": "Topshiriqlar",
+      "itab_answers": "Berilgan javoblar",
+      "itab_unaccepted": "Qabul qilinmaganlar",
+      "itab_unfinished": "Bajarilmagan",
+      "ans_task": "Topshiriq mazmuni",
+      "ans_given": "Berilgan javob",
+      "ans_exec": "Ijrochi",
+      "ans_none": "Berilgan javoblar yo'q",
+      "tasks_none": "Bajarilmagan topshiriqlar yo'q",
+      "answered_at": "Javob berilgan sana"
     },
     "scan": {
       "title": "Hujjat holati",

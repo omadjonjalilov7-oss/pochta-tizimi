@@ -23,13 +23,11 @@ interface MineStats {
   tasks: { total: number; byStatus: Record<string, number> };
 }
 
-// Hujjat holatlari — to'q panel kartochkalari (label edo.status.* dan olinadi)
-const STATUS_CARDS: Array<{ key: string; danger?: boolean }> = [
-  { key: 'draft' },
-  { key: 'in_review' },
+// Topshiriq holatlari — to'q panel kartochkalari (label edo.task_status.* dan olinadi)
+const TASK_CARDS: Array<{ key: string; danger?: boolean }> = [
+  { key: 'pending' },
   { key: 'in_progress' },
   { key: 'done' },
-  { key: 'rejected', danger: true },
   { key: 'overdue', danger: true },
 ];
 
@@ -109,13 +107,14 @@ export function EdoHomePage() {
     .map((d) => ({ doc: d, task: myTargetOf(d) }))
     .filter((x) => x.task);
 
-  const createdByStatus = stats?.created.byStatus ?? {};
   const taskByStatus = stats?.tasks.byStatus ?? {};
 
   const kelishishCount = tasks?.length ?? 0;
   const imzolashCount = toSign?.length ?? 0;
   const ijroCount = (taskByStatus.pending ?? 0) + (taskByStatus.in_progress ?? 0);
   const overdueCount = taskByStatus.overdue ?? 0;
+  // Bajarilmagan topshiriqlar: kutilmoqda + bajarilmoqda + muddati o'tgan
+  const unfinishedCount = ijroCount + overdueCount;
 
   const incomingCards: Array<{
     label: string;
@@ -136,17 +135,31 @@ export function EdoHomePage() {
       <div className="flex-1 overflow-auto px-6 py-6">
         <h1 className="text-xl font-semibold text-slate-900 mb-4">{t('edo.dashboard.title')}</h1>
 
-        {/* To'q panel — holat kesimi */}
+        {/* To'q panel — topshiriqlar ijro holati */}
         <div className="bg-edonav-900 rounded-2xl p-5 shadow-sm">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {STATUS_CARDS.map((c) => {
-              const n = createdByStatus[c.key] ?? 0;
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-white">{t('edo.dashboard.exec_title')}</h2>
+            <Link
+              to="/edo/tasks"
+              className="flex items-center gap-2 rounded-lg bg-white/10 hover:bg-white/15 px-3 py-1.5 transition"
+              title={t('edo.dashboard.all')}
+            >
+              <span className="text-xs text-slate-300">{t('edo.dashboard.unfinished')}</span>
+              <span className={'text-lg font-bold ' + (unfinishedCount > 0 ? 'text-rose-400' : 'text-white')}>
+                {unfinishedCount}
+              </span>
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {TASK_CARDS.map((c) => {
+              const n = taskByStatus[c.key] ?? 0;
               return (
-                <div
+                <Link
                   key={c.key}
-                  className="bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 flex flex-col gap-1"
+                  to="/edo/tasks"
+                  className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl px-4 py-3.5 flex flex-col gap-1 transition"
                 >
-                  <span className="text-xs text-slate-300 leading-snug">{t(`edo.status.${c.key}`)}</span>
+                  <span className="text-xs text-slate-300 leading-snug">{t(`edo.task_status.${c.key}`)}</span>
                   <span
                     className={
                       'text-2xl font-bold ' +
@@ -155,7 +168,7 @@ export function EdoHomePage() {
                   >
                     {n}
                   </span>
-                </div>
+                </Link>
               );
             })}
           </div>

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
@@ -13,11 +13,14 @@ import {
   ClipboardCheck,
   Plug,
   Construction,
+  Search,
+  MessageSquareText,
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { cn } from '../../lib/utils';
 import { Avatar } from '../../components/Avatar';
 import { DocList } from './EdoDocList';
+import type { EdoDocument, EdoResolutionTarget } from '../../lib/types';
 
 // ── Backend javob turlari ──
 interface ControlTypeRow {
@@ -160,15 +163,7 @@ export function EdoControlPage() {
             showHolder
           />
         )}
-        {tab === 'internal' && (
-          <DocList
-            queryKey="ctl-internal"
-            endpoint="/documents/control/internal"
-            titleKey="edo.control.menu_internal"
-            emptyKey="edo.list.empty_mine"
-            showHolder
-          />
-        )}
+        {tab === 'internal' && <InternalControl />}
         {tab === 'ready-internal' && (
           <DocList
             queryKey="ctl-ready-internal"
@@ -194,6 +189,236 @@ function ComingSoon({ labelKey }: { labelKey: string }) {
       </div>
       <h2 className="text-lg font-semibold text-slate-800 mb-1">{t(labelKey)}</h2>
       <p className="text-sm text-slate-500">{t('edo.control.coming_soon')}</p>
+    </div>
+  );
+}
+
+// ── Ichki hujjatlar nazorati — gorizontal tabli oyna ──
+type ITab = 'info' | 'recontrol' | 'tasks' | 'answers' | 'unaccepted' | 'unfinished';
+
+// Bitta topshiriq (rezolyutsiya ijrochisi) — hujjat konteksti bilan
+interface FlatTarget {
+  doc: EdoDocument;
+  resText: string;
+  target: EdoResolutionTarget;
+}
+
+function InternalControl() {
+  const { t } = useTranslation();
+  const [itab, setItab] = useState<ITab>('info');
+
+  // Ochiq topshiriqlar — rezolyutsiya ijrochilari bilan to'liq hujjatlar
+  const { data: openDocs } = useQuery({
+    queryKey: ['ctl-open-tasks'],
+    queryFn: async () => (await api.get<EdoDocument[]>('/documents/control/open-tasks')).data,
+  });
+
+  // Barcha topshiriqlarni yassilash (hujjat + rezolyutsiya matni + ijrochi)
+  const flat = useMemo<FlatTarget[]>(() => {
+    const out: FlatTarget[] = [];
+    for (const d of openDocs ?? []) {
+      for (const r of d.resolutions ?? []) {
+        for (const tg of r.targets ?? []) {
+          out.push({ doc: d, resText: r.text, target: tg });
+        }
+      }
+    }
+    return out;
+  }, [openDocs]);
+
+  const unfinished = flat.filter((f) => f.target.status !== 'done');
+  const answers = flat.filter((f) => (f.target.doneNote ?? '').trim().length > 0);
+
+  const TABS: { key: ITab; labelKey: string; count?: number }[] = [
+    { key: 'info', labelKey: 'edo.control.itab_info' },
+    { key: 'recontrol', labelKey: 'edo.control.itab_recontrol' },
+    { key: 'tasks', labelKey: 'edo.control.itab_tasks', count: flat.length },
+    { key: 'answers', labelKey: 'edo.control.itab_answers', count: answers.length },
+    { key: 'unaccepted', labelKey: 'edo.control.itab_unaccepted' },
+    { key: 'unfinished', labelKey: 'edo.control.itab_unfinished', count: unfinished.length },
+  ];
+
+  return (
+    <div>
+      {/* Gorizontal tablar */}
+      <div className="border-b border-slate-200 bg-white px-2 sm:px-4 flex gap-1 overflow-x-auto">
+        {TABS.map((tb) => (
+          <button
+            key={tb.key}
+            onClick={() => setItab(tb.key)}
+            className={cn(
+              'relative px-3.5 py-3 text-sm font-medium whitespace-nowrap transition-colors flex items-center gap-2',
+              itab === tb.key
+                ? 'text-asaka-700 border-b-2 border-asaka-600'
+                : 'text-slate-500 hover:text-slate-800 border-b-2 border-transparent',
+            )}
+          >
+            {t(tb.labelKey)}
+            {tb.count != null && tb.count > 0 && (
+              <span
+                className={cn(
+                  'text-[11px] font-semibold px-1.5 py-0.5 rounded-full',
+                  itab === tb.key ? 'bg-asaka-100 text-asaka-700' : 'bg-slate-100 text-slate-500',
+                )}
+              >
+                {tb.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {itab === 'info' && <ControlDashboard />}
+      {itab === 'tasks' && (
+        <DocList
+          queryKey="ctl-open-tasks-list"
+          endpoint="/documents/control/open-tasks"
+          titleKey="edo.control.itab_tasks"
+          emptyKey="edo.control.tasks_none"
+          showHolder
+        />
+      )}
+      {itab === 'answers' && <AnswersView answers={answers} />}
+      {itab === 'unfinished' && <UnfinishedView items={unfinished} />}
+      {(itab === 'recontrol' || itab === 'unaccepted') && (
+        <ComingSoon labelKey={TABS.find((x) => x.key === itab)!.labelKey} />
+      )}
+    </div>
+  );
+}
+
+function fmtDate(iso?: string | null) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+// ── Berilgan javoblar (3-rasm) — bajarilmagan topshiriqlarga yozilgan javoblar ──
+function AnswersView({ answers }: { answers: FlatTarget[] }) {
+  const { t } = useTranslation();
+  const [q, setQ] = useState('');
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    if (!s) return answers;
+    return answers.filter(
+      (a) =>
+        (a.resText ?? '').toLowerCase().includes(s) ||
+        (a.target.doneNote ?? '').toLowerCase().includes(s) ||
+        (a.doc.subject ?? '').toLowerCase().includes(s) ||
+        (a.target.user.fullName ?? '').toLowerCase().includes(s),
+    );
+  }, [answers, q]);
+
+  return (
+    <div className="px-4 md:px-6 py-5 space-y-4">
+      {/* Qidiruv */}
+      <div className="relative max-w-md">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={t('edo.list.search_ph')}
+          className="w-full h-10 pl-9 pr-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100"
+        />
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="text-center text-sm text-slate-400 py-12">
+          <MessageSquareText size={30} className="mx-auto mb-2 opacity-50" />
+          {t('edo.control.ans_none')}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((a) => (
+            <Link
+              key={a.target.id}
+              to={`/edo/documents/${a.doc.id}`}
+              className="block bg-white border border-slate-200 rounded-xl p-4 hover:border-asaka-300 hover:shadow-sm transition"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <FileText size={15} className="text-asaka-600 shrink-0" />
+                <span className="text-xs font-mono text-slate-500">{a.doc.number ?? '—'}</span>
+                <span className="text-sm font-medium text-slate-800 truncate">{a.doc.subject}</span>
+              </div>
+
+              {/* Topshiriq mazmuni */}
+              <div className="rounded-lg bg-slate-50 border border-slate-100 px-3 py-2 mb-2">
+                <div className="text-[11px] font-semibold text-slate-400 uppercase mb-0.5">
+                  {t('edo.control.ans_task')}
+                </div>
+                <p className="text-sm text-slate-700 whitespace-pre-wrap">{a.resText}</p>
+              </div>
+
+              {/* Berilgan javob */}
+              <div className="rounded-lg bg-emerald-50/60 border border-emerald-100 px-3 py-2">
+                <div className="text-[11px] font-semibold text-emerald-600 uppercase mb-0.5">
+                  {t('edo.control.ans_given')}
+                </div>
+                <p className="text-sm text-slate-800 whitespace-pre-wrap">{a.target.doneNote}</p>
+              </div>
+
+              {/* Ijrochi + sana */}
+              <div className="flex items-center gap-2 mt-2.5 text-xs text-slate-500">
+                <Avatar
+                  fullName={a.target.user.fullName}
+                  avatarPath={a.target.user.avatarPath ?? undefined}
+                  size="sm"
+                />
+                <span className="font-medium text-slate-700">{a.target.user.fullName}</span>
+                {a.target.doneAt && (
+                  <span className="ml-auto">
+                    {t('edo.control.answered_at')}: {fmtDate(a.target.doneAt)}
+                  </span>
+                )}
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Bajarilmagan topshiriqlar ro'yxati ──
+function UnfinishedView({ items }: { items: FlatTarget[] }) {
+  const { t } = useTranslation();
+  if (items.length === 0) {
+    return <div className="px-6 py-12 text-center text-sm text-slate-400">{t('edo.control.tasks_none')}</div>;
+  }
+  return (
+    <div className="px-4 md:px-6 py-5 space-y-2">
+      {items.map((a) => (
+        <Link
+          key={a.target.id}
+          to={`/edo/documents/${a.doc.id}`}
+          className="block bg-white border border-slate-200 rounded-xl px-4 py-3 hover:border-asaka-300 hover:shadow-sm transition"
+        >
+          <div className="flex items-center gap-2">
+            <FileText size={15} className="text-asaka-600 shrink-0" />
+            <span className="text-xs font-mono text-slate-500">{a.doc.number ?? '—'}</span>
+            <span className="text-sm font-medium text-slate-800 truncate">{a.doc.subject}</span>
+            <span
+              className={cn(
+                'ml-auto text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0',
+                a.target.status === 'overdue'
+                  ? 'bg-rose-50 text-rose-600'
+                  : 'bg-sky-50 text-sky-600',
+              )}
+            >
+              {t(`edo.task_status.${a.target.status}`)}
+            </span>
+          </div>
+          <p className="text-sm text-slate-600 mt-1.5 line-clamp-2">{a.resText}</p>
+          <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
+            <Avatar
+              fullName={a.target.user.fullName}
+              avatarPath={a.target.user.avatarPath ?? undefined}
+              size="sm"
+            />
+            <span className="font-medium text-slate-700">{a.target.user.fullName}</span>
+            {a.target.deadline && <span className="ml-auto">{fmtDate(a.target.deadline)}</span>}
+          </div>
+        </Link>
+      ))}
     </div>
   );
 }
