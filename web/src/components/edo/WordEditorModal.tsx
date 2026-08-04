@@ -297,7 +297,10 @@ export default function WordEditorModal({
     reader.readAsDataURL(file);
   };
 
-  // Jadval qo'shish (qator × ustun).
+  // Jadval katagi uslubi (yangi kataklar uchun).
+  const TD_STYLE = 'border:1px solid #888;padding:4px 6px;min-width:2em';
+
+  // Yangi jadval qo'shish (qator × ustun).
   const insertTable = () => {
     rememberSelection();
     const rows = parseInt(window.prompt(t('edo.editor.table_rows'), '3') || '', 10);
@@ -307,13 +310,78 @@ export default function WordEditorModal({
     for (let r = 0; r < rows; r++) {
       html += '<tr>';
       for (let c = 0; c < cols; c++) {
-        html +=
-          '<td style="border:1px solid #888;padding:4px 6px;min-width:2em">&nbsp;</td>';
+        html += `<td style="${TD_STYLE}">&nbsp;</td>`;
       }
       html += '</tr>';
     }
     html += '</table><p><br></p>';
     exec('insertHTML', html);
+  };
+
+  // Kursor turgan jadval katagini topadi (yo'q bo'lsa null).
+  const currentCell = (): HTMLTableCellElement | null => {
+    const sel = window.getSelection();
+    let node: Node | null = sel?.anchorNode || null;
+    const root = editorRef.current;
+    while (node && node !== root) {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const tag = (node as HTMLElement).tagName;
+        if (tag === 'TD' || tag === 'TH') return node as HTMLTableCellElement;
+      }
+      node = node.parentNode;
+    }
+    return null;
+  };
+
+  // Jadval amallari: yangi jadval / qator qo'shish / ustun qo'shish /
+  // qatorни o'chirish / ustunни o'chirish / jadvalni o'chirish.
+  const tableAction = (action: string) => {
+    if (!editable || !action) return;
+    if (action === 'insert') {
+      insertTable();
+      return;
+    }
+    restoreSelection();
+    const cell = currentCell();
+    if (!cell) {
+      window.alert(t('edo.editor.table_need_cursor'));
+      return;
+    }
+    const row = cell.parentElement as HTMLTableRowElement;
+    const table = cell.closest('table') as HTMLTableElement | null;
+    const idx = cell.cellIndex;
+    if (!table) return;
+
+    if (action === 'row_add') {
+      const nr = row.cloneNode(true) as HTMLTableRowElement;
+      Array.from(nr.cells).forEach((c) => {
+        c.innerHTML = '&nbsp;';
+      });
+      row.after(nr);
+    } else if (action === 'col_add') {
+      Array.from(table.rows).forEach((r) => {
+        const ref = r.cells[idx];
+        const nc = document.createElement(
+          (ref?.tagName || 'TD').toLowerCase(),
+        ) as HTMLTableCellElement;
+        nc.setAttribute('style', ref?.getAttribute('style') || TD_STYLE);
+        nc.innerHTML = '&nbsp;';
+        if (ref) ref.after(nc);
+        else r.appendChild(nc);
+      });
+    } else if (action === 'row_del') {
+      row.remove();
+      if (table.rows.length === 0) table.remove();
+    } else if (action === 'col_del') {
+      Array.from(table.rows).forEach((r) => {
+        if (r.cells[idx]) r.deleteCell(idx);
+      });
+      if (!table.rows[0] || table.rows[0].cells.length === 0) table.remove();
+    } else if (action === 'del') {
+      table.remove();
+    }
+    editorRef.current?.focus();
+    rememberSelection();
   };
 
   const handleSave = async () => {
@@ -586,9 +654,29 @@ export default function WordEditorModal({
           <ToolBtn onMouseDown={keepFocus} onClick={pickImage} title={t('edo.editor.image')}>
             <ImageIcon size={16} />
           </ToolBtn>
-          <ToolBtn onMouseDown={keepFocus} onClick={insertTable} title={t('edo.editor.table')}>
-            <TableIcon size={16} />
-          </ToolBtn>
+          {/* Jadval menyusi (qo'shish / qator-ustun / o'chirish) */}
+          <span className="inline-flex items-center gap-1" title={t('edo.editor.table_menu')}>
+            <TableIcon size={16} className="text-slate-600" />
+            <select
+              defaultValue=""
+              onMouseDown={rememberSelection}
+              onChange={(e) => {
+                tableAction(e.target.value);
+                e.target.value = '';
+              }}
+              className="h-8 text-sm border border-slate-300 rounded-md px-1.5 bg-white"
+            >
+              <option value="" disabled>
+                {t('edo.editor.table_menu')}
+              </option>
+              <option value="insert">{t('edo.editor.table_insert')}</option>
+              <option value="row_add">{t('edo.editor.table_row_add')}</option>
+              <option value="col_add">{t('edo.editor.table_col_add')}</option>
+              <option value="row_del">{t('edo.editor.table_row_del')}</option>
+              <option value="col_del">{t('edo.editor.table_col_del')}</option>
+              <option value="del">{t('edo.editor.table_del')}</option>
+            </select>
+          </span>
 
           <Divider />
 
