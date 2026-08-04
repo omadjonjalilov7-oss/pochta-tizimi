@@ -86,9 +86,8 @@ export function ControlAssignmentModal({
       setLocalError(t('edo.control_assignment.err_no_text'));
       return;
     }
-    // Topshiriq turi matn boshiga qo'shiladi (Ijro uchun: ...).
-    const typeLabel = t(`edo.control_assignment.type_${taskType}`);
-    const fullText = `${typeLabel}: ${text.trim()}`;
+    // Faqat sof topshiriq matni yuboriladi — tur prefiksi (Ijro uchun: ...) qo'shilmaydi.
+    const fullText = text.trim();
     const targets = selected.map((userId) => ({
       userId,
       deadline: deadline || undefined,

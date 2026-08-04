@@ -49,6 +49,7 @@ import {
   buildIchkiTokens,
   renderIchki,
   fillCustomPlaceholders,
+  stripTaskTypePrefix,
 } from './template-fill';
 import { ConfigService } from '@nestjs/config';
 import { QrApprovalService } from './qr-approval.service';
@@ -1562,10 +1563,12 @@ export class DocumentsService {
       const filled = fillCustomPlaceholders(doc.body, {
         number: doc.number ?? '',
         date: this.effectiveDocDate(doc),
-        docId: doc.id,
+        kod1: doc.docUid ?? doc.id,
         xodim: firstTarget?.user?.fullName ?? '',
-        xodimTopshiriq: firstRes?.text ?? '',
+        xodimTopshiriq: stripTaskTypePrefix(firstRes?.text ?? ''),
         approveDate: avazbek?.actedAt ?? null,
+        // Hujjat raqami faqat bosh direktor tasdiqlagach yoziladi.
+        xujjatRaqami: avazbek ? doc.number ?? '' : '',
       });
       if (filled !== doc.body) doc.renderedBody = filled;
     }
@@ -1587,10 +1590,19 @@ export class DocumentsService {
     // {{matn}} → hujjat matni, {{xujjat_n}} → raqam, {{sana_soat}} → sana.
     // {{qr_kod}} → hujjat QR kodi, faqat hujjat "bajarildi" (done) bo'lganda.
     if (!doc.autoFilled) {
-      // Kiruvchi hujjat blankasi uchun QR har doim (topshiriq berilgach)
-      // ko'rsatiladi; boshqa turlar uchun faqat hujjat "bajarildi" bo'lganda.
+      // {{xujjat_raqami}} va {{qr_kod}} — faqat avazbek (bosh direktor)
+      // tasdiqlagach yoziladi; ungacha bo'sh turadi.
+      const avazbek = (doc.participants ?? []).find(
+        (p: any) =>
+          p.user?.login?.toLowerCase() === 'avazbek' &&
+          p.status === ParticipantStatus.approved,
+      );
+      const avazbekApproved = !!avazbek;
+      const approveDate: Date | null = avazbek?.actedAt ?? null;
+
+      // QR faqat bosh direktor tasdiqlagach (yoki hujjat "bajarildi" bo'lganda).
       const wantQr =
-        doc.status === DocumentStatus.done || doc.type === 'incoming';
+        doc.status === DocumentStatus.done || avazbekApproved;
       let qrHtml = '';
       if (wantQr) {
         try {
@@ -1615,14 +1627,9 @@ export class DocumentsService {
       const firstRes = (doc.resolutions ?? [])[0];
       const firstTarget = firstRes?.targets?.[0];
       const xodim: string = firstTarget?.user?.fullName ?? '';
-      const xodimTopshiriq: string = firstRes?.text ?? '';
-      // {{sana}} — avazbek (bosh direktor) tasdiqlagan sana.
-      const avazbek = (doc.participants ?? []).find(
-        (p: any) =>
-          p.user?.login?.toLowerCase() === 'avazbek' &&
-          p.status === ParticipantStatus.approved,
-      );
-      const approveDate: Date | null = avazbek?.actedAt ?? null;
+      // "Ijro uchun: ..." kabi tur prefiksini olib tashlab, faqat topshiriq
+      // matnini qoldiramiz (eski yozilgan porucheniyalar uchun ham).
+      const xodimTopshiriq: string = stripTaskTypePrefix(firstRes?.text ?? '');
 
       return fillCustomPlaceholders(tpl.bodyTemplate, {
         matn: doc.body ?? '',
@@ -1630,10 +1637,12 @@ export class DocumentsService {
         number: doc.number ?? '',
         date: this.effectiveDocDate(doc),
         qr: qrHtml,
-        docId: doc.id,
+        kod1: doc.docUid ?? doc.id,
         xodim,
         xodimTopshiriq,
         approveDate,
+        // Hujjat raqami faqat bosh direktor tasdiqlagach yoziladi.
+        xujjatRaqami: avazbekApproved ? doc.number ?? '' : '',
       });
     }
 

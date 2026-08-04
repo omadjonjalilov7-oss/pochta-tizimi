@@ -114,27 +114,52 @@ export function fillCustomPlaceholders(
     matn?: string;
     mavzu?: string;
     qr?: string;
-    docId?: string;
+    kod1?: string; // hujjatning yagona ID'si (asaka-YYYYMMDDNN)
     xodim?: string;
     xodimTopshiriq?: string;
     approveDate?: Date | null;
+    // {{xujjat_raqami}} — faqat avazbek (bosh direktor) tasdiqlagach yoziladi,
+    // ungacha bo'sh turadi. Bo'sh string uzatilsa — bo'sh chiqadi.
+    xujjatRaqami?: string;
   },
 ): string {
+  // Topshiriq matni qisqa bo'lsa (100 belgidan kam) — keyingi o'zgaruvchilar
+  // bilan orasida uchta bo'sh qator (br) tashlab, blankada joy qoldiriladi.
+  const topshiriqRaw = input.xodimTopshiriq ?? '';
+  const topshiriqHtml =
+    escapeHtml(topshiriqRaw) +
+    (topshiriqRaw.trim().length > 0 && topshiriqRaw.length < 100
+      ? '<br><br><br>'
+      : '');
   return html
     .replace(/\{\{\s*xujjat_matni\s*\}\}/g, input.matn ?? '')
     .replace(/\{\{\s*matn\s*\}\}/g, input.matn ?? '')
     .replace(/\{\{\s*mavzu\s*\}\}/g, escapeHtml(input.mavzu ?? ''))
     .replace(/\{\{\s*qr_kod\s*\}\}/g, input.qr ?? '')
-    .replace(/\{\{\s*kod1\s*\}\}/g, escapeHtml(input.docId ?? ''))
-    .replace(/\{\{\s*xodim_topshiriq\s*\}\}/g, escapeHtml(input.xodimTopshiriq ?? ''))
+    .replace(/\{\{\s*kod1\s*\}\}/g, escapeHtml(input.kod1 ?? ''))
+    .replace(/\{\{\s*xodim_topshiriq\s*\}\}/g, topshiriqHtml)
     .replace(/\{\{\s*xodim\s*\}\}/g, escapeHtml(input.xodim ?? ''))
-    .replace(/\{\{\s*xujjat_raqami\s*\}\}/g, escapeHtml(input.number))
+    .replace(/\{\{\s*xujjat_raqami\s*\}\}/g, escapeHtml(input.xujjatRaqami ?? ''))
     .replace(/\{\{\s*xujjat_n\s*\}\}/g, escapeHtml(input.number))
     .replace(/\{\{\s*sana_soat\s*\}\}/g, escapeHtml(fmtCyrDate(input.date)))
     .replace(
       /\{\{\s*sana\s*\}\}/g,
       escapeHtml(fmtLatinDate(input.approveDate ?? input.date)),
     );
+}
+
+// Porucheniya (topshiriq) matnidan tur prefiksini olib tashlaydi. Kanselyariya
+// topshiriq yozganda oldiga "Ijro uchun: ", "Ma'lumot uchun: " kabi tur nomi
+// qo'shilishi mumkin. Blankada faqat sof topshiriq matni kerak — shu yerda
+// birinchi ikki nuqtagacha (":") bo'lgan qisqa (60 belgidan kam) prefiks
+// kesib tashlanadi. Ichida ":" bo'lgan uzun matnlar buzilmaydi.
+export function stripTaskTypePrefix(text: string): string {
+  const s = (text ?? '').trim();
+  const idx = s.indexOf(':');
+  if (idx > 0 && idx < 60 && !/\d/.test(s.slice(0, idx))) {
+    return s.slice(idx + 1).trim();
+  }
+  return s;
 }
 
 export function buildIchkiTokens(input: AutoFillInput): {
