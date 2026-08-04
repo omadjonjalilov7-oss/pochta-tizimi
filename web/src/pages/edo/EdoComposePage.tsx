@@ -557,6 +557,32 @@ export function EdoComposePage() {
                 )}
               </>
             )}
+            {/* Kiruvchi hujjatda ham shablon tanlash mumkin (qo'lda) */}
+            {type === 'incoming' && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowTemplatePicker(true)}
+                  className={secondaryBtnCls}
+                >
+                  <Files size={16} />
+                  {t('edo.compose.pick_template')}
+                </button>
+                {pickedTemplateId && (
+                  <span className="inline-flex items-center gap-1.5 text-xs bg-asaka-50 text-asaka-700 border border-asaka-200 rounded-lg px-2.5 py-1">
+                    {t('edo.compose.template_selected')}
+                    <button
+                      type="button"
+                      onClick={() => setPickedTemplateId(null)}
+                      className="hover:text-asaka-900"
+                      title={t('common.remove')}
+                    >
+                      <X size={13} />
+                    </button>
+                  </span>
+                )}
+              </>
+            )}
             <button
               type="button"
               onClick={() => handleSave()}

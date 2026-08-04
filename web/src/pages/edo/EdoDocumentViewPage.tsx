@@ -656,34 +656,10 @@ export function EdoDocumentViewPage() {
             />
           )}
 
-          {/* Rahbarga ma'ruza — kiruvchi hujjat uchun (kanselyariya/yaratuvchi) */}
-          {doc.type === 'incoming' &&
-            (isCreator || isStaff) &&
-            doc.status !== 'done' &&
-            doc.status !== 'rejected' && (
-              <div className="bg-white border border-slate-200 rounded-2xl p-4">
-                <div className="flex items-start gap-3 mb-3">
-                  <div className="h-9 w-9 rounded-xl bg-asaka-50 text-asaka-600 flex items-center justify-center shrink-0">
-                    <UserCheck size={18} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-slate-900">
-                      {t('edo.present_leader.title')}
-                    </h3>
-                    <p className="text-sm text-slate-500">
-                      {t('edo.present_leader.hint')}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowPresentModal(true)}
-                  className="inline-flex items-center gap-2 bg-asaka-600 hover:bg-asaka-700 text-white font-semibold px-4 py-2 rounded-lg"
-                >
-                  <UserCheck size={16} />
-                  {t('edo.present_leader.button')}
-                </button>
-              </div>
-            )}
+          {/* "Rahbarga ma'ruza / Rahbarga yuborish" tugmasi vaqtincha olib
+              tashlandi (buyurtmachi so' raganda qayta yoqiladi). Rahbarga
+              yuborish endi kiruvchi hujjat kiritish formasidagi "Rahbar
+              rezolyutsiyasi" ro'yxati orqali amalga oshiriladi. */}
 
           {/* Rezolyutsiyalar / nazorat bandi bo'limi */}
           <ResolutionSection
