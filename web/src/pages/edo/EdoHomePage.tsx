@@ -12,6 +12,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { api } from '../../lib/api';
+import { useAuth } from '../../context/AuthContext';
 import type { EdoDocument } from '../../lib/types';
 
 interface MineStats {
@@ -48,6 +49,7 @@ const ASIDE_KEY = 'edo-home-aside-w';
 
 export function EdoHomePage() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const rootRef = useRef<HTMLDivElement>(null);
   const widthRef = useRef(0);
   const [asideWidth, setAsideWidth] = useState<number>(() => {
@@ -85,10 +87,27 @@ export function EdoHomePage() {
     queryKey: ['edo-home-tasks'],
     queryFn: async () => (await api.get<EdoDocument[]>('/documents/tasks')).data,
   });
+  // Menga biriktirilgan ijro topshiriqlari (porucheniyalar)
+  const { data: executions } = useQuery({
+    queryKey: ['edo-home-executions'],
+    queryFn: async () => (await api.get<EdoDocument[]>('/documents/executions')).data,
+  });
   const { data: toSign } = useQuery({
     queryKey: ['edo-home-tosign'],
     queryFn: async () => (await api.get<EdoDocument[]>('/documents/to-sign')).data,
   });
+
+  // Hujjatdan menga tegishli (bajarilmagan) topshiriqni topish
+  const myTargetOf = (d: EdoDocument) => {
+    for (const r of d.resolutions ?? []) {
+      const tg = r.targets.find((x) => x.userId === user?.id && x.status !== 'done');
+      if (tg) return { text: r.text, deadline: tg.deadline ?? d.deadline };
+    }
+    return null;
+  };
+  const myExecutions = (executions ?? [])
+    .map((d) => ({ doc: d, task: myTargetOf(d) }))
+    .filter((x) => x.task);
 
   const createdByStatus = stats?.created.byStatus ?? {};
   const taskByStatus = stats?.tasks.byStatus ?? {};
@@ -201,13 +220,13 @@ export function EdoHomePage() {
         </div>
 
         <div className="flex-1 overflow-auto p-3 space-y-2">
-          {(tasks ?? []).length === 0 ? (
+          {myExecutions.length === 0 ? (
             <div className="text-center text-sm text-slate-400 py-10">
               <CalendarClock size={28} className="mx-auto mb-2 opacity-50" />
               {t('edo.dashboard.no_tasks')}
             </div>
           ) : (
-            (tasks ?? []).slice(0, 8).map((d) => (
+            myExecutions.map(({ doc: d, task }) => (
               <Link
                 key={d.id}
                 to={`/edo/documents/${d.id}`}
@@ -218,10 +237,13 @@ export function EdoHomePage() {
                   <span className="text-xs font-mono text-slate-500">{d.number}</span>
                 </div>
                 <p className="text-sm text-slate-800 mt-1 line-clamp-2">{d.subject}</p>
-                {d.deadline && (
+                {task?.text && (
+                  <p className="text-xs text-asaka-700 mt-1 line-clamp-2">{task.text}</p>
+                )}
+                {task?.deadline && (
                   <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
                     <CalendarClock size={12} />
-                    {fmtDate(d.deadline)}
+                    {fmtDate(task.deadline)}
                   </p>
                 )}
               </Link>
