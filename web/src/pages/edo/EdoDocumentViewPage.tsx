@@ -29,6 +29,8 @@ import {
   ZoomIn,
   ZoomOut,
   UserCheck,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import { EimzoSignModal } from '../../components/edo/EimzoSignModal';
 import { ControlAssignmentModal } from '../../components/edo/ControlAssignmentModal';
@@ -47,9 +49,21 @@ import { openDocumentPrint } from '../../lib/printDoc';
 import { exportApproverChainWord } from '../../lib/exportChainWord';
 
 // Chop etish uchun sarlavha ma'lumotini tayyorlaydi (ekrandagi ko'rinishga mos).
-export function EdoDocumentViewPage() {
+export function EdoDocumentViewPage({
+  docId,
+  onBack,
+  fullscreen,
+  onToggleFullscreen,
+}: {
+  docId?: string;
+  onBack?: () => void;
+  fullscreen?: boolean;
+  onToggleFullscreen?: () => void;
+} = {}) {
   const { t, i18n } = useTranslation();
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id: string }>();
+  // Master-detail rejimida docId prop orqali keladi; alohida sahifada URL'dan.
+  const id = docId ?? params.id;
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -315,13 +329,24 @@ export function EdoDocumentViewPage() {
 
   return (
     <div className="w-full px-3 md:px-6 py-4 md:py-6">
-      <button
-        onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-1.5 mb-3 px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-asaka-700 hover:bg-slate-100 rounded-lg transition"
-      >
-        <ArrowLeft size={16} />
-        {t('common.back')}
-      </button>
+      <div className="flex items-center justify-between mb-3 gap-2">
+        <button
+          onClick={onBack ?? (() => navigate(-1))}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-asaka-700 hover:bg-slate-100 rounded-lg transition"
+        >
+          <ArrowLeft size={16} />
+          {t('common.back')}
+        </button>
+        {onToggleFullscreen && (
+          <button
+            onClick={onToggleFullscreen}
+            title={fullscreen ? t('common.exit_fullscreen') : t('common.fullscreen')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-asaka-700 hover:bg-slate-100 rounded-lg transition"
+          >
+            {fullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          </button>
+        )}
+      </div>
       {/* Shapka — hujjat ma'lumotlari */}
       <header className="bg-white border border-slate-200 rounded-2xl p-4 md:p-6 mb-4">
         <div className="flex items-start gap-3 md:gap-4">

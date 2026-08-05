@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import type { DocumentStatus, EdoDocument } from '../../lib/types';
 import { Avatar } from '../../components/Avatar';
 import { cn, cyrName } from '../../lib/utils';
+import { EdoDocumentViewPage } from './EdoDocumentViewPage';
 
 export interface DocListProps {
   queryKey: string;
@@ -15,6 +16,9 @@ export interface DocListProps {
   titleKey: string;
   emptyKey: string;
   showHolder?: boolean;
+  // inline=true — eski to'liq kenglikdagi ro'yxat (EdoTasksPage ichida ishlatiladi,
+  // u yerda ikkita ro'yxat ustma-ust va statistika bilan turadi).
+  inline?: boolean;
 }
 
 function StatusPill({ status }: { status: DocumentStatus }) {
@@ -34,7 +38,7 @@ function StatusPill({ status }: { status: DocumentStatus }) {
   );
 }
 
-export function DocList({ queryKey, endpoint, titleKey, emptyKey, showHolder }: DocListProps) {
+export function DocList({ queryKey, endpoint, titleKey, emptyKey, showHolder, inline }: DocListProps) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
@@ -43,6 +47,11 @@ export function DocList({ queryKey, endpoint, titleKey, emptyKey, showHolder }: 
     queryKey: [queryKey],
     queryFn: async () => (await api.get<EdoDocument[]>(endpoint)).data,
   });
+
+  // Master-detail: chapda ro'yxat, o'ngda tanlangan hujjat. To'liq ekran (fullscreen)
+  // rejimida faqat hujjatning o'zi ko'rinadi.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const toggle = (id: string) =>
@@ -79,8 +88,8 @@ export function DocList({ queryKey, endpoint, titleKey, emptyKey, showHolder }: 
     deleteDraft.mutate(id);
   };
 
-  return (
-    <div className="w-full px-3 md:px-6 py-4 md:py-6">
+  const listInner = (
+    <>
       <div className="flex items-center justify-between mb-4 gap-3">
         <h1 className="text-lg md:text-xl font-semibold text-slate-900">{t(titleKey)}</h1>
         {isAdmin && selected.size > 0 && (
@@ -124,10 +133,64 @@ export function DocList({ queryKey, endpoint, titleKey, emptyKey, showHolder }: 
               showHolder={showHolder}
               onDeleteDraft={onDeleteDraft}
               deletingDraft={deleteDraft.isPending}
+              onSelect={inline ? undefined : setSelectedId}
+              active={selectedId === d.id}
             />
           ))}
         </ul>
       )}
+    </>
+  );
+
+  // Eski to'liq kenglikdagi ro'yxat (EdoTasksPage ichida).
+  if (inline) {
+    return <div className="w-full px-3 md:px-6 py-4 md:py-6">{listInner}</div>;
+  }
+
+  // Master-detail: chapda tor ro'yxat ustuni, o'ngda tanlangan hujjat.
+  return (
+    <div className="h-full flex overflow-hidden">
+      {/* Chap ustun — hujjatlar ro'yxati (menyu kengligida) */}
+      <div
+        className={cn(
+          'flex-col w-full md:w-[380px] md:shrink-0 md:border-r border-slate-200 overflow-y-auto px-3 md:px-5 py-4 md:py-6',
+          selectedId ? 'hidden md:flex' : 'flex',
+        )}
+      >
+        {listInner}
+      </div>
+
+      {/* O'ng ustun — tanlangan hujjat. Fullscreen'da butun ekranni egallaydi. */}
+      <div
+        className={cn(
+          'overflow-y-auto bg-slate-50',
+          fullscreen
+            ? 'fixed inset-0 z-[60] bg-white'
+            : selectedId
+              ? 'fixed inset-0 z-40 bg-slate-50 md:static md:z-auto md:flex-1 md:min-w-0'
+              : 'hidden md:block md:flex-1 md:min-w-0',
+        )}
+      >
+        {selectedId ? (
+          <EdoDocumentViewPage
+            key={selectedId}
+            docId={selectedId}
+            onBack={() => {
+              setFullscreen(false);
+              setSelectedId(null);
+            }}
+            fullscreen={fullscreen}
+            onToggleFullscreen={() => setFullscreen((v) => !v)}
+          />
+        ) : (
+          <div className="hidden md:flex h-full items-center justify-center text-slate-400">
+            <div className="text-center">
+              <FileText size={48} className="mx-auto mb-2 text-slate-300" />
+              <p className="text-sm">{t('edo.list.select_hint')}</p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -141,6 +204,8 @@ export function DocListItem({
   showHolder,
   onDeleteDraft,
   deletingDraft,
+  onSelect,
+  active,
 }: {
   d: EdoDocument;
   isAdmin: boolean;
@@ -149,29 +214,21 @@ export function DocListItem({
   showHolder?: boolean;
   onDeleteDraft: (id: string) => void;
   deletingDraft: boolean;
+  // onSelect berilsa — hujjat navigatsiya o'rniga o'ng panelda tanlanadi (master-detail).
+  onSelect?: (id: string) => void;
+  active?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
-  return (
-    <li className="flex items-start gap-2">
-      {isAdmin && (
-        <input
-          type="checkbox"
-          checked={selected}
-          onChange={() => onToggle(d.id)}
-          className="mt-4 h-4 w-4 flex-shrink-0 rounded border-slate-300 text-red-600 focus:ring-red-500 cursor-pointer"
-          title={t('edo.list.select_for_delete')}
-        />
-      )}
-      <Link
-        to={`/edo/documents/${d.id}`}
-        className={cn(
-          'flex-1 min-w-0 flex items-start gap-2.5 bg-white border border-slate-200 hover:border-asaka-300 hover:shadow-sm rounded-xl px-3 py-2.5 md:px-4 md:py-3 transition',
-          ageAccentClass(d.createdAt, d.status),
-          isAdmin && selected && 'ring-2 ring-red-400 border-red-300',
-        )}
-      >
+  const cardClass = cn(
+    'flex-1 min-w-0 flex items-start gap-2.5 bg-white border border-slate-200 hover:border-asaka-300 hover:shadow-sm rounded-xl px-3 py-2.5 md:px-4 md:py-3 transition text-left',
+    ageAccentClass(d.createdAt, d.status),
+    isAdmin && selected && 'ring-2 ring-red-400 border-red-300',
+    active && 'ring-2 ring-asaka-400 border-asaka-300',
+  );
+  const cardInner = (
+    <>
         <div className="bg-asaka-50 text-asaka-600 rounded-lg p-1.5 md:p-2 mt-0.5 shrink-0">
           <FileText size={16} />
         </div>
@@ -225,7 +282,28 @@ export function DocListItem({
           </div>
         </div>
         <ChevronRight size={16} className="text-slate-400 mt-1 flex-shrink-0" />
-      </Link>
+    </>
+  );
+  return (
+    <li className="flex items-start gap-2">
+      {isAdmin && (
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={() => onToggle(d.id)}
+          className="mt-4 h-4 w-4 flex-shrink-0 rounded border-slate-300 text-red-600 focus:ring-red-500 cursor-pointer"
+          title={t('edo.list.select_for_delete')}
+        />
+      )}
+      {onSelect ? (
+        <button type="button" onClick={() => onSelect(d.id)} className={cardClass}>
+          {cardInner}
+        </button>
+      ) : (
+        <Link to={`/edo/documents/${d.id}`} className={cardClass}>
+          {cardInner}
+        </Link>
+      )}
       {/* Qoralama uchun — tahrirlash / o'chirish (faqat yaratuvchi ko'radi) */}
       {d.status === 'draft' && (
         <div className="flex flex-col gap-1 mt-1 shrink-0">
@@ -632,12 +710,14 @@ export function EdoTasksPage() {
         endpoint="/documents/tasks"
         titleKey="edo.nav.tasks_approval"
         emptyKey="edo.list.empty_tasks"
+        inline
       />
       <DocList
         queryKey="edo-executions"
         endpoint="/documents/executions"
         titleKey="edo.nav.tasks_execution"
         emptyKey="edo.list.empty_executions"
+        inline
       />
     </div>
   );
