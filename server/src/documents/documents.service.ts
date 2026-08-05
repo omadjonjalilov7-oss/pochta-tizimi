@@ -232,11 +232,19 @@ export class DocumentsService {
     // Ijro muddati faqat xodim qo'lda kiritganda o'rnatiladi (avtomatik 3/5/7 kun yo'q).
     const deadline: Date | null = dto.deadline ? new Date(dto.deadline) : null;
 
+    // Chiquvchi hujjatda foydalanuvchi raqamni qo'lda kiritgan bo'lsa — uni
+    // to'g'ridan-to'g'ri ishlatamiz (finalizeNumber DRAFT- bilan boshlanmagan
+    // raqamni saqlab qoladi). Aks holda vaqtinchalik draft raqami beriladi.
+    const initialNumber =
+      dto.type === 'outgoing' && dto.manualNumber?.trim()
+        ? dto.manualNumber.trim()
+        : draftNumber;
+
     const doc = await this.prisma.$transaction(async (tx) => {
       const docUid = await this.allocateDocUid(tx);
       const d = await tx.document.create({
         data: {
-          number: draftNumber,
+          number: initialNumber,
           docUid,
           numberCategory: category,
           publicToken: randomBytes(16).toString('hex'), // 32 belgili ommaviy QR token
@@ -363,6 +371,20 @@ export class DocumentsService {
     if (dto.qrLess !== undefined) data.qrLess = dto.qrLess;
     // Faqat mos tur uchun saqlaymiz
     const effType = dto.type ?? doc.type;
+    // Chiquvchi hujjat raqamini qo'lda kiritish/avtomatga qaytarish.
+    if (effType === 'outgoing' && dto.manualNumber !== undefined) {
+      const mn = dto.manualNumber.trim();
+      if (mn) {
+        // Qo'lda raqam berildi — uni saqlaymiz (finalize DRAFT- bo'lmagan raqamni saqlab qoladi).
+        data.number = mn;
+      } else if (!doc.number.startsWith('DRAFT-')) {
+        // Bayroqcha qayta qo'yildi (avtomat) — vaqtinchalik draft raqamini tiklaymiz.
+        data.number = `DRAFT-${Date.now().toString(36).toUpperCase()}-${Math.random()
+          .toString(36)
+          .slice(2, 6)
+          .toUpperCase()}`;
+      }
+    }
     if (dto.deliverAsAppeal !== undefined) {
       data.deliverAsAppeal = effType === 'outgoing' ? dto.deliverAsAppeal : false;
     }

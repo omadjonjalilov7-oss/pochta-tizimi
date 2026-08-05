@@ -347,7 +347,7 @@ model MessageReadLog {
 model Organization {
   id        String   @id @default(uuid()) @db.Uuid
   name      String   @db.VarChar(255)
-  inn       String   @unique @db.VarChar(32)   // STIR/INN raqami — noyob
+  inn       String?  @unique @db.VarChar(32)   // STIR/INN raqami — ixtiyoriy (NULL takrorlanishi mumkin)
   address   String?  @db.VarChar(500)
   phone     String?  @db.VarChar(64)
   note      String?  @db.Text                  // qo'shimcha ma'lumot

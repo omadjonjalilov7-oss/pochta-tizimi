@@ -172,6 +172,13 @@ export class CreateDocumentDto {
   @MaxLength(64)
   outgoingNumber?: string;
 
+  // Chiquvchi hujjat raqamini qo'lda kiritish (bayroqcha olib tashlanganda).
+  // Bo'sh bo'lsa — raqam avtomatik beriladi.
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  manualNumber?: string;
+
   @IsOptional()
   @IsDateString()
   incomingDate?: string;

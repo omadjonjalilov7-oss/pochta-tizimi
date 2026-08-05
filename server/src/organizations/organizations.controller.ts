@@ -20,10 +20,11 @@ class OrganizationDto {
   @MaxLength(255)
   name: string;
 
+  // INN/STIR endi majburiy emas — faqat nom yetarli.
+  @IsOptional()
   @IsString()
-  @MinLength(1)
   @MaxLength(32)
-  inn: string;
+  inn?: string | null;
 
   @IsOptional()
   @IsString()
@@ -66,7 +67,7 @@ export class OrganizationsController {
     return this.prisma.organization.create({
       data: {
         name: dto.name.trim(),
-        inn: dto.inn.trim(),
+        inn: dto.inn?.trim() || null,
         address: dto.address?.trim() || null,
         phone: dto.phone?.trim() || null,
         note: dto.note?.trim() || null,
@@ -80,7 +81,7 @@ export class OrganizationsController {
       where: { id },
       data: {
         name: dto.name.trim(),
-        inn: dto.inn.trim(),
+        inn: dto.inn?.trim() || null,
         address: dto.address?.trim() || null,
         phone: dto.phone?.trim() || null,
         note: dto.note?.trim() || null,

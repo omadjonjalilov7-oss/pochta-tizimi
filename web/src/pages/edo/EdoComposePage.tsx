@@ -17,12 +17,14 @@ import {
   Link2,
   Files,
   Building2,
+  Eye,
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { cn, trDyn, cyrName } from '../../lib/utils';
 import type { Department, DocumentType, EdoDocument, Organization, Journal } from '../../lib/types';
 import { useAuth } from '../../context/AuthContext';
 import { Avatar } from '../../components/Avatar';
+import AttachmentViewerModal from '../../components/edo/AttachmentViewerModal';
 import { TemplatePickerModal } from '../../components/edo/TemplatePickerModal';
 import { RichBodyEditor } from '../../components/edo/RichBodyEditor';
 import { TemplateFillEditor } from '../../components/edo/TemplateFillEditor';
@@ -89,6 +91,11 @@ export function EdoComposePage() {
   const [currentDocId, setCurrentDocId] = useState<string | null>(draftId);
   const [commentText, setCommentText] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Biriktirilgan faylni oynada ko'rish (kompoz sahifasida)
+  const [viewAtt, setViewAtt] = useState<{ id: string; filename: string } | null>(null);
+  // Chiquvchi hujjat raqami: bayroqcha yoniq — avtomat; olib tashlansa — qo'lda kiritish
+  const [autoNumber, setAutoNumber] = useState(true);
+  const [manualNumber, setManualNumber] = useState('');
 
   // Reference dizaynidagi qo'shimcha maydonlar (hozircha UI holati)
   const [issueGroup, setIssueGroup] = useState('');
@@ -218,6 +225,15 @@ export function EdoComposePage() {
     setReplyRequired(!!doc.replyRequired);
     setFormApproversAfterSign(!!doc.formApproversAfterSign);
     setPickedTemplateId(doc.templateId ?? null);
+    // Chiquvchi qoralamada raqam qo'lda berilgan bo'lsa (DRAFT- bilan
+    // boshlanmaydi) — bayroqchani olib qo'yamiz va raqamni ko'rsatamiz.
+    if (doc.type === 'outgoing' && doc.number && !doc.number.startsWith('DRAFT-')) {
+      setAutoNumber(false);
+      setManualNumber(doc.number);
+    } else {
+      setAutoNumber(true);
+      setManualNumber('');
+    }
   }, [doc]);
 
   // Yangi hujjatda (qoralama emas) — URL'dagi ?type bo'yicha turini o'rnatamiz
@@ -274,8 +290,10 @@ export function EdoComposePage() {
         type,
         internalKind: type === 'internal' ? internalKind : undefined,
         subject: effectiveSubject(),
-        // Reference'dagi "Qisqacha mazmuni" asosiy maydon; matn bo'sh bo'lsa uni matnga ham yozamiz
-        body: body.trim() ? body : effectiveSubject(),
+        // "Qisqacha mazmuni" asosiy maydon; matn bo'sh bo'lsa uni matnga ham yozamiz.
+        // Chiquvchi hujjatda matn ODATDA biriktirilgan faylda bo'ladi — shu sabab
+        // body bo'sh qolsa, unga standart "Chiquvchi hujjat" matnini YOZMAYMIZ.
+        body: body.trim() ? body : type === 'outgoing' ? '' : effectiveSubject(),
         numberDeptId: numberDeptId || undefined,
         targetDeptId: targetDeptId || undefined,
         templateId: pickedTemplateId || undefined,
@@ -311,6 +329,10 @@ export function EdoComposePage() {
         qrLess,
         deliverAsAppeal: type === 'outgoing' ? asAppeal : undefined,
         replyRequired: type === 'outgoing' ? replyRequired : undefined,
+        // Chiquvchi raqam: bayroqcha olib tashlangan bo'lsa — qo'lda kiritilgan
+        // raqam; yoniq bo'lsa bo'sh ('') yuboramiz (backend avtomatga qaytaradi).
+        manualNumber:
+          type === 'outgoing' ? (autoNumber ? '' : manualNumber.trim()) : undefined,
         formApproversAfterSign: type === 'internal' ? formApproversAfterSign : undefined,
       };
       if (currentDocId) {
@@ -674,7 +696,7 @@ export function EdoComposePage() {
                     <option value="">{t('edo.compose.ph_sender_org')}</option>
                     {organizations.map((o) => (
                       <option key={o.id} value={o.id}>
-                        {o.name} — {o.inn}
+                        {o.name}
                       </option>
                     ))}
                   </select>
@@ -952,14 +974,27 @@ export function EdoComposePage() {
                       className="flex items-center gap-2 px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg"
                     >
                       <FileText size={15} className="text-slate-400 shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <span className="text-xs font-medium text-slate-800 truncate block">
+                      <button
+                        type="button"
+                        onClick={() => setViewAtt({ id: a.id, filename: a.filename })}
+                        className="flex-1 min-w-0 text-left group"
+                        title={t('edo.view.open_attachment', { defaultValue: 'Ochib ko\'rish' })}
+                      >
+                        <span className="text-xs font-medium text-slate-800 group-hover:text-asaka-700 truncate block">
                           {a.filename}
                         </span>
                         <span className="text-[11px] text-slate-400">
                           {formatBytes(a.sizeBytes)}
                         </span>
-                      </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setViewAtt({ id: a.id, filename: a.filename })}
+                        className="p-1 text-slate-400 hover:text-asaka-700 rounded"
+                        title={t('edo.view.open_attachment', { defaultValue: 'Ochib ko\'rish' })}
+                      >
+                        <Eye size={13} />
+                      </button>
                       {isDraft && (
                         <button
                           type="button"
@@ -1078,14 +1113,37 @@ export function EdoComposePage() {
                 </p>
               </div>
               <div>
-                <label className={labelCls}>{t('edo.compose.label_doc_number')}</label>
-                <input
-                  type="text"
-                  readOnly
-                  value={numberPreview ?? ''}
-                  placeholder={t('edo.compose.ph_doc_number')}
-                  className={`${fieldCls} bg-slate-50 font-mono text-asaka-700`}
-                />
+                <div className="flex items-center justify-between">
+                  <label className={labelCls}>{t('edo.compose.label_doc_number')}</label>
+                  <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={autoNumber}
+                      disabled={!isDraft}
+                      onChange={(e) => setAutoNumber(e.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-slate-300 text-asaka-600 focus:ring-asaka-500"
+                    />
+                    {t('edo.compose.auto_number')}
+                  </label>
+                </div>
+                {autoNumber ? (
+                  <input
+                    type="text"
+                    readOnly
+                    value={numberPreview ?? ''}
+                    placeholder={t('edo.compose.ph_doc_number')}
+                    className={`${fieldCls} bg-slate-50 font-mono text-asaka-700`}
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    value={manualNumber}
+                    onChange={(e) => setManualNumber(e.target.value)}
+                    disabled={!isDraft}
+                    placeholder={t('edo.compose.ph_manual_number')}
+                    className={`${fieldCls} font-mono`}
+                  />
+                )}
               </div>
               <div>
                 <label className={labelCls}>{t('edo.compose.label_issue_group')}</label>
@@ -1202,7 +1260,7 @@ export function EdoComposePage() {
                   <option value="">{t('edo.compose.ph_sender_org')}</option>
                   {organizations.map((o) => (
                     <option key={o.id} value={o.id}>
-                      {o.name} — {o.inn}
+                      {o.name}
                     </option>
                   ))}
                 </select>
@@ -1331,12 +1389,25 @@ export function EdoComposePage() {
                   className="flex items-center gap-2 px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg"
                 >
                   <FileText size={15} className="text-slate-400 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-xs font-medium text-slate-800 truncate block">
+                  <button
+                    type="button"
+                    onClick={() => setViewAtt({ id: a.id, filename: a.filename })}
+                    className="flex-1 min-w-0 text-left group"
+                    title={t('edo.view.open_attachment', { defaultValue: 'Ochib ko\'rish' })}
+                  >
+                    <span className="text-xs font-medium text-slate-800 group-hover:text-asaka-700 truncate block">
                       {a.filename}
                     </span>
                     <span className="text-[11px] text-slate-400">{formatBytes(a.sizeBytes)}</span>
-                  </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewAtt({ id: a.id, filename: a.filename })}
+                    className="p-1 text-slate-400 hover:text-asaka-700 rounded"
+                    title={t('edo.view.open_attachment', { defaultValue: 'Ochib ko\'rish' })}
+                  >
+                    <Eye size={13} />
+                  </button>
                   <button
                     type="button"
                     onClick={async () => {
@@ -1531,6 +1602,15 @@ export function EdoComposePage() {
         />
       )}
 
+      {viewAtt && currentDocId && (
+        <AttachmentViewerModal
+          documentId={currentDocId}
+          attId={viewAtt.id}
+          filename={viewAtt.filename}
+          onClose={() => setViewAtt(null)}
+        />
+      )}
+
       {showOrgModal && (
         <OrgAddModal
           onClose={() => setShowOrgModal(false)}
@@ -1565,7 +1645,7 @@ function OrgAddModal({
       (
         await api.post<Organization>('/organizations', {
           name: name.trim(),
-          inn: inn.trim(),
+          inn: inn.trim() || undefined,
           address: address.trim() || undefined,
           phone: phone.trim() || undefined,
           note: note.trim() || undefined,
@@ -1582,7 +1662,7 @@ function OrgAddModal({
   const submit = (e: FormEvent) => {
     e.preventDefault();
     setErr(null);
-    if (name.trim().length < 2 || !inn.trim()) {
+    if (name.trim().length < 2) {
       setErr(t('edo.compose.org_err_required'));
       return;
     }
@@ -1632,9 +1712,7 @@ function OrgAddModal({
             />
           </div>
           <div>
-            <label className={labelCls}>
-              {t('edo.compose.org_inn')} <span className="text-red-500">*</span>
-            </label>
+            <label className={labelCls}>{t('edo.compose.org_inn')}</label>
             <input
               type="text"
               value={inn}
