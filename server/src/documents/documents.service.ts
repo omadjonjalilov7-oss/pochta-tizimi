@@ -594,6 +594,28 @@ export class DocumentsService {
       }
     }
 
+    // ── "ichki_yuristli" shabloni: "gayratbek" loginiga avtomat xabar ──
+    // Bu shablon tanlangan hujjat yuborilganda "gayratbek" ma'lumot uchun
+    // (observer) qo'shiladi va unga xabar boradi. Tasdiqlash zanjiriga
+    // aralashmaydi. Login topilmasa/faol bo'lmasa — jimgina o'tkazib yuboriladi.
+    const notifyObservers: string[] = [];
+    if (doc.templateId) {
+      const tpl = await this.prisma.documentTemplate.findUnique({
+        where: { id: doc.templateId },
+        select: { name: true },
+      });
+      const tplName = (tpl?.name ?? '').trim().toLowerCase();
+      if (tplName === 'ichki_yuristli') {
+        const gb = await this.prisma.user.findUnique({
+          where: { login: 'gayratbek' },
+          select: { id: true, isActive: true },
+        });
+        if (gb?.isActive && gb.id !== userId && !chain.includes(gb.id)) {
+          notifyObservers.push(gb.id);
+        }
+      }
+    }
+
     // Raqam berish qoidasi:
     //  - kiruvchi (incoming) → eski shart: yuborishdayoq raqam beriladi;
     //  - ichki/chiquvchi → raqam faqat tasdiqlanib bo'lganda (done) beriladi,
@@ -631,6 +653,26 @@ export class DocumentsService {
           update: { order: currentOrder },
         });
       }
+      // "ichki_yuristli" — gayratbek ma'lumot uchun (observer) qo'shiladi.
+      for (const uid of notifyObservers) {
+        await tx.documentParticipant.upsert({
+          where: {
+            documentId_userId_role: {
+              documentId: id,
+              userId: uid,
+              role: ParticipantRole.observer,
+            },
+          },
+          create: {
+            documentId: id,
+            userId: uid,
+            role: ParticipantRole.observer,
+            order: 0,
+            status: ParticipantStatus.pending,
+          },
+          update: {},
+        });
+      }
       await tx.document.update({
         where: { id },
         data: {
@@ -664,6 +706,11 @@ export class DocumentsService {
         if (uid === firstApproverId) continue;
         await this.notifyApprover(uid, userId, id, number, doc.subject);
       }
+    }
+
+    // Ma'lumot uchun kuzatuvchilar (masalan, ichki_yuristli → gayratbek).
+    for (const uid of notifyObservers) {
+      await this.notifyApprover(uid, userId, id, number, doc.subject);
     }
 
     return this.findOne(userId, id);
@@ -855,7 +902,7 @@ export class DocumentsService {
       // xodimlariga ijrochi biriktirish uchun xabar yuboriladi.
       const isServiceLetter =
         doc.type === 'internal' && (doc.internalKind ?? 'service_letter') === 'service_letter';
-      if (isServiceLetter && doc.autoFilled) {
+      if (isServiceLetter && (await this.isIchkiDoc(doc))) {
         await this.notifyChancelleryForResolution(userId, id, doc.number, doc.subject);
       }
     }
@@ -1888,6 +1935,19 @@ export class DocumentsService {
     }
   }
 
+  // Hujjat "ichki" avto-to'ldirish oqimida bo'lsa true: avtomat solingan
+  // (autoFilled) YOKI foydalanuvchi "ichki"/"ichki_yuristli" shablonini tanlagan.
+  private async isIchkiDoc(doc: any): Promise<boolean> {
+    if (doc?.autoFilled) return true;
+    if (!doc?.templateId) return false;
+    const tpl = await this.prisma.documentTemplate.findUnique({
+      where: { id: doc.templateId },
+      select: { name: true },
+    });
+    const n = (tpl?.name ?? '').trim().toLowerCase();
+    return n === 'ichki' || n === 'ichki_yuristli';
+  }
+
   // "ichki" shabloniga solingan hujjatning to'ldirilgan HTML matnini quradi.
   // FULL_INCLUDE bilan yuklangan doc kutiladi (participants, createdBy, dept...).
   // Shablon yo'q bo'lsa null qaytaradi. Bu metod HTML ko'rinishi, PDF/Word
@@ -1896,14 +1956,21 @@ export class DocumentsService {
     if (!doc?.templateId) return null;
     const tpl = await this.prisma.documentTemplate.findUnique({
       where: { id: doc.templateId },
-      select: { bodyTemplate: true },
+      select: { bodyTemplate: true, name: true },
     });
     if (!tpl?.bodyTemplate) return null;
+
+    // "ichki" avto-to'ldirish (_asaka_* / _sana_* tokenlari) — hujjat avtomat
+    // shablonga solingan (autoFilled) YOKI foydalanuvchi "ichki"/"ichki_yuristli"
+    // nomli shablonni qo'lda tanlagan bo'lsa ishlaydi. Aks holda oddiy blanka.
+    const tplName = (tpl.name ?? '').trim().toLowerCase();
+    const isYuristli = tplName === 'ichki_yuristli';
+    const isIchki = doc.autoFilled || tplName === 'ichki' || isYuristli;
 
     // Foydalanuvchi tanlagan blanka (ichki avto-shablon emas): blanka ramka bo'lib,
     // {{matn}} → hujjat matni, {{xujjat_n}} → raqam, {{sana_soat}} → sana.
     // {{qr_kod}} → hujjat QR kodi, faqat hujjat "bajarildi" (done) bo'lganda.
-    if (!doc.autoFilled) {
+    if (!isIchki) {
       // {{xujjat_raqami}} va {{qr_kod}} — faqat avazbek (bosh direktor)
       // tasdiqlagach yoziladi; ungacha bo'sh turadi.
       const avazbek = (doc.participants ?? []).find(
@@ -1992,6 +2059,7 @@ export class DocumentsService {
       closedAt: doc.closedAt ?? null,
       approvers,
       qrDataUrl,
+      yuristli: isYuristli,
     });
     return renderIchki(tpl.bodyTemplate, values, raw);
   }

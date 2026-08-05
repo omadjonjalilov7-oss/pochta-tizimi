@@ -37,6 +37,9 @@ export interface AutoFillInput {
   // Hujjatning ommaviy QR kodi (PNG data URL). Tasdiqlagan xodim katakchasida
   // "TASDIQLANDI" yozuvi o'rniga shu QR ko'rsatiladi. Bo'sh bo'lsa — matn qoladi.
   qrDataUrl?: string;
+  // "ichki_yuristli" varianti: _asaka_10 → tasdiqlangach QR kod (mavzu emas),
+  // _sana_8 → bosh direktor tasdiqlagan sana. Aks holda oddiy "ichki" xatti-harakat.
+  yuristli?: boolean;
 }
 
 // Sana Toshkent vaqti bo'yicha (UTC+5, yozgi vaqt yo'q) ko'rsatiladi —
@@ -191,7 +194,9 @@ export function buildIchkiTokens(input: AutoFillInput): {
     _asaka_7: input.number,
     _asaka_8: input.senderDept,
     _asaka_9: input.recipientDept,
-    _asaka_10: input.subject,
+    // "ichki_yuristli" da _asaka_10 → tasdiqlangach hujjat QR kodi; oddiy "ichki"
+    // da esa hujjat mavzusi.
+    _asaka_10: input.yuristli ? markOf('avazbek') : input.subject,
     _asaka_11: input.body,
     _asaka_12: input.recipientName,
     // Bosh direktor (avazbek) tasdig'i — QR kod (tasdiqlagan bo'lsa).
@@ -205,6 +210,8 @@ export function buildIchkiTokens(input: AutoFillInput): {
     _sana_6: fmtDate(input.closedAt),
     // Bosh direktor tasdiqlagan sana va vaqt.
     _sana_7: dateOf('avazbek'),
+    // "ichki_yuristli" da _sana_8 → bosh direktor tasdiqlagan sana/vaqt.
+    _sana_8: input.yuristli ? dateOf('avazbek') : '',
   };
   // Hujjat matni (_asaka_11) va tasdiqlash katakchalaridagi QR <img> teglari
   // (jumladan bosh direktor _gen_dir) xom HTML sifatida joylanadi.
@@ -217,6 +224,8 @@ export function buildIchkiTokens(input: AutoFillInput): {
     '_asaka_6',
     '_gen_dir',
   ]);
+  // "ichki_yuristli" da _asaka_10 QR <img> — xom HTML sifatida joylanadi.
+  if (input.yuristli) raw.add('_asaka_10');
   return { values, raw };
 }
 
