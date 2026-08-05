@@ -40,8 +40,12 @@ export class MessagesController {
     @Query('folder', new ParseEnumPipe(MessageFolder, { optional: true }))
     folder: MessageFolder = MessageFolder.inbox,
     @Query('search') search?: string,
+    // 'true' → faqat tashqi pochta, 'false' → faqat ichki, aks holda — barchasi.
+    @Query('external') external?: string,
   ) {
-    return this.messages.list(user.id, folder, search);
+    const externalFilter =
+      external === 'true' ? true : external === 'false' ? false : undefined;
+    return this.messages.list(user.id, folder, search, externalFilter);
   }
 
   @Get('unread-count')

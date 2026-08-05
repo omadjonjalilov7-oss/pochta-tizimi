@@ -24,7 +24,11 @@ const FOLDER_TITLE_KEYS: Record<string, string> = {
 
 const SEARCH_DEBOUNCE_MS = 250;
 
-export function useMailboxData(folder: MessageFolder, starredOnly?: boolean) {
+export function useMailboxData(
+  folder: MessageFolder,
+  starredOnly?: boolean,
+  external?: boolean,
+) {
   const { t } = useTranslation();
   // Qidiruv URL `?q=` parametridan o'qiladi — shu bilan header (LayoutGmail/Outlook)
   // global qidirish maydoni va mailbox ichidagi inline maydoni sinxron ishlaydi.
@@ -60,10 +64,11 @@ export function useMailboxData(folder: MessageFolder, starredOnly?: boolean) {
   }, [search, debouncedSearch]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['messages', folder, debouncedSearch],
+    queryKey: ['messages', folder, debouncedSearch, external ?? 'all'],
     queryFn: async () => {
       const params: Record<string, string> = { folder };
       if (debouncedSearch) params.search = debouncedSearch;
+      if (external !== undefined) params.external = external ? 'true' : 'false';
       const res = await api.get<MessageRecipientItem[]>('/messages', { params });
       return res.data;
     },
@@ -168,7 +173,9 @@ export function useMailboxData(folder: MessageFolder, starredOnly?: boolean) {
     queryClient.invalidateQueries({ queryKey: ['messages'] });
   };
 
-  const titleKey = starredOnly ? FOLDER_TITLE_KEYS.starred : FOLDER_TITLE_KEYS[folder];
+  const title = external
+    ? t(folder === 'sent' ? 'external_mail.title_sent' : 'external_mail.title_inbox')
+    : t(starredOnly ? FOLDER_TITLE_KEYS.starred : FOLDER_TITLE_KEYS[folder]);
 
   return {
     search,
@@ -178,6 +185,6 @@ export function useMailboxData(folder: MessageFolder, starredOnly?: boolean) {
     filtered,
     groupedItems,
     toggleStar,
-    title: t(titleKey),
+    title,
   };
 }

@@ -92,7 +92,10 @@
     "users": "Foydalanuvchilar",
     "departments": "Bo'limlar",
     "positions": "Lavozimlar",
-    "admin": "Boshqaruv"
+    "admin": "Boshqaruv",
+    "external_mail": "Tashqi pochta",
+    "external_inbox": "Kiruvchi",
+    "external_sent": "Chiquvchi"
   },
   "mailbox": {
     "empty_inbox": "Kiruvchi xabarlar yo'q",
@@ -281,6 +284,8 @@
     "pwd_err_save": "Parolni yangilab bo'lmadi"
   },
   "external_mail": {
+    "title_inbox": "Tashqi pochta — Kiruvchi",
+    "title_sent": "Tashqi pochta — Chiquvchi",
     "section_title": "Tashqi pochta",
     "section_subtitle": "@{{domain}} pochta manzilingizni ulang — xabarlar avtomatik sinxronlanadi",
     "connected_badge": "Ulangan",

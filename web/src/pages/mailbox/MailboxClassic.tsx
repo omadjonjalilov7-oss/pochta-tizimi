@@ -9,13 +9,15 @@ import { useMailboxData } from './useMailboxData';
 interface Props {
   folder: MessageFolder;
   starredOnly?: boolean;
+  external?: boolean;
 }
 
-export function MailboxClassic({ folder, starredOnly }: Props) {
+export function MailboxClassic({ folder, starredOnly, external }: Props) {
   const { t } = useTranslation();
   const { search, setSearch, isSearching, isLoading, filtered, groupedItems, toggleStar, title } = useMailboxData(
     folder,
     starredOnly,
+    external,
   );
 
   return (

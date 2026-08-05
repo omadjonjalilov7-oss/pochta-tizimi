@@ -18,6 +18,9 @@ import {
   Tag,
   Menu,
   X,
+  AtSign,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Avatar } from '../Avatar';
@@ -76,6 +79,8 @@ export function LayoutClassic() {
   const location = useLocation();
   const composing = location.pathname.startsWith('/compose');
   const [mobileNav, setMobileNav] = useState(false);
+  // Tashqi pochta guruhi — tashqi marshrutda bo'lsak ochiq turadi.
+  const [extOpen, setExtOpen] = useState(location.pathname.startsWith('/external'));
   // Marshrut o'zgarganda mobil menyu yopilsin.
   useEffect(() => setMobileNav(false), [location.pathname]);
 
@@ -159,6 +164,34 @@ export function LayoutClassic() {
           <NavItem to="/starred" icon={Star} label={t('nav.starred')} collapsed={composing} />
           <NavItem to="/archive" icon={Archive} label={t('nav.archive')} collapsed={composing} />
           <NavItem to="/trash" icon={Trash2} label={t('nav.trash')} collapsed={composing} />
+
+          {/* Tashqi pochta bo'limi — faqat tashqi pochtasi ulangan foydalanuvchilarga */}
+          {user.externalMailEnabled && (
+            composing ? (
+              <>
+                <div className="mt-3 border-t border-slate-100 w-full" />
+                <NavItem to="/external/inbox" icon={Inbox} label={t('nav.external_inbox')} collapsed />
+                <NavItem to="/external/sent" icon={Send} label={t('nav.external_sent')} collapsed />
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => setExtOpen((v) => !v)}
+                  className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-brand-50 hover:text-brand-700 transition-colors text-left"
+                >
+                  <AtSign size={18} />
+                  <span className="flex-1">{t('nav.external_mail')}</span>
+                  {extOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                </button>
+                {extOpen && (
+                  <div className="ml-3 flex flex-col gap-1 border-l border-slate-100 pl-2">
+                    <NavItem to="/external/inbox" icon={Inbox} label={t('nav.external_inbox')} />
+                    <NavItem to="/external/sent" icon={Send} label={t('nav.external_sent')} />
+                  </div>
+                )}
+              </>
+            )
+          )}
 
           {user.role === 'admin' && (
             <>

@@ -168,26 +168,31 @@ export class MessagesService {
     return `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#1e293b;white-space:pre-wrap">${escaped}</div>`;
   }
 
-  async list(userId: string, folder: MessageFolder, search?: string) {
+  async list(
+    userId: string,
+    folder: MessageFolder,
+    search?: string,
+    external?: boolean,
+  ) {
+    // Xabar bo'yicha filtr: tashqi pochta (isExternal) va/yoki qidiruv.
+    const messageFilter: Record<string, unknown> = {};
+    if (external !== undefined) messageFilter.isExternal = external;
+    if (search) {
+      messageFilter.OR = [
+        { subject: { contains: search, mode: 'insensitive' } },
+        { body: { contains: search, mode: 'insensitive' } },
+        { fromUser: { fullName: { contains: search, mode: 'insensitive' } } },
+        { fromUser: { login: { contains: search, mode: 'insensitive' } } },
+        { externalFromName: { contains: search, mode: 'insensitive' } },
+        { externalFromEmail: { contains: search, mode: 'insensitive' } },
+      ];
+    }
     const items = await this.prisma.messageRecipient.findMany({
       where: {
         userId,
         folder,
         deletedAt: null,
-        ...(search
-          ? {
-              message: {
-                OR: [
-                  { subject: { contains: search, mode: 'insensitive' } },
-                  { body: { contains: search, mode: 'insensitive' } },
-                  { fromUser: { fullName: { contains: search, mode: 'insensitive' } } },
-                  { fromUser: { login: { contains: search, mode: 'insensitive' } } },
-                  { externalFromName: { contains: search, mode: 'insensitive' } },
-                  { externalFromEmail: { contains: search, mode: 'insensitive' } },
-                ],
-              },
-            }
-          : {}),
+        ...(Object.keys(messageFilter).length ? { message: messageFilter } : {}),
       },
       include: {
         message: {
@@ -470,8 +475,15 @@ export class MessagesService {
   }
 
   async unreadCount(userId: string) {
+    // Asosiy "Kiruvchi" badge — faqat ichki xabarlar (tashqi pochta alohida bo'limda).
     const count = await this.prisma.messageRecipient.count({
-      where: { userId, folder: MessageFolder.inbox, isRead: false, deletedAt: null },
+      where: {
+        userId,
+        folder: MessageFolder.inbox,
+        isRead: false,
+        deletedAt: null,
+        message: { isExternal: false },
+      },
     });
     return { count };
   }

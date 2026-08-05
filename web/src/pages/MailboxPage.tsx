@@ -7,6 +7,7 @@ import { MailboxYandex } from './mailbox/MailboxYandex';
 interface Props {
   folder: MessageFolder;
   starredOnly?: boolean;
+  external?: boolean;
 }
 
 export function MailboxPage(props: Props) {

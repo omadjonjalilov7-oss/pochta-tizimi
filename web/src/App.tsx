@@ -63,8 +63,11 @@ export function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
           <Route index element={<Navigate to="/inbox" replace />} />
-          <Route path="/inbox" element={<MailboxPage folder="inbox" />} />
-          <Route path="/sent" element={<MailboxPage folder="sent" />} />
+          <Route path="/inbox" element={<MailboxPage folder="inbox" external={false} />} />
+          <Route path="/sent" element={<MailboxPage folder="sent" external={false} />} />
+          {/* Tashqi pochta (asaka-motors.uz) — alohida bo'lim */}
+          <Route path="/external/inbox" element={<MailboxPage folder="inbox" external />} />
+          <Route path="/external/sent" element={<MailboxPage folder="sent" external />} />
           <Route path="/starred" element={<MailboxPage folder="inbox" starredOnly />} />
           <Route path="/trash" element={<MailboxPage folder="trash" />} />
           <Route path="/archive" element={<MailboxPage folder="archive" />} />
