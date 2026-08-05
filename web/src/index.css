@@ -254,8 +254,10 @@ input, textarea, select {
   padding: 4px 8px;
   border: 1px solid #94a3b8;
   vertical-align: top;
-  word-break: break-word;
-  overflow-wrap: anywhere;
+  /* So'zlarni harfma-harf emas, faqat zarur bo'lganda so'z chegarasida ko'chiramiz —
+     Word'dan kelgan matn "Служ ебно е" kabi buzilib ketmasligi uchun. */
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 /* Jadval ichidagi ba'zi elementlar (rasm/pre) ham varaqdan chiqmasin */
 .edo-doc-body table img { max-width: 100%; height: auto; }
@@ -267,6 +269,21 @@ input, textarea, select {
 }
 [data-theme="dark"] .edo-doc-body table td,
 [data-theme="dark"] .edo-doc-body table th { border-color: #475569; }
+
+/* Shablon muharriri: jadvallar 100% ga siqilmasin — o'z (colgroup) kengligida
+   ko'rinsin va konteynerdan chiqsa gorizontal scroll bo'lsin. Bu ko'p ustunli
+   Word jadvallari muharrirda buzilmasligini ta'minlaydi. Ustun chegarasini
+   sudrab kenglikni o'zgartirish mumkin (tableResize.ts). */
+.edo-tpl-editor table {
+  width: auto !important;
+  max-width: none !important;
+  table-layout: fixed;
+}
+.edo-tpl-editor table td,
+.edo-tpl-editor table th {
+  word-break: normal;
+  overflow-wrap: break-word;
+}
 
 /* ---------- A4 varaq (tayyor hujjat / to'ldirilgan blanka) ---------- */
 /* Blanka shablonlari A4 kengligiga (210mm) mo'ljallangan. Tor konteynerda

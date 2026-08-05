@@ -24,6 +24,7 @@ import { api } from '../../lib/api';
 import type { EdoTemplate } from '../../lib/types';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../lib/utils';
+import { normalizeTables, attachTableResize } from '../../lib/tableResize';
 
 interface FormState {
   id?: string;
@@ -446,14 +447,31 @@ function RichTemplateEditor({
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
   const savedRange = useRef<Range | null>(null);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
-  // Tashqi qiymat (Word import yoki tahrirlashni ochish) o'zgarganda muharrirga yozamiz
+  // Tashqi qiymat (Word import yoki tahrirlashni ochish) o'zgarganda muharrirga yozamiz.
+  // Yozgandan keyin jadvallarni tayyorlaymiz (colgroup + fixed layout) — Word'dan
+  // kelgan ustunlar siqilib buzilmasligi va o'lchash mumkin bo'lishi uchun.
   useEffect(() => {
     const el = ref.current;
-    if (el && el.innerHTML !== value) {
+    if (!el) return;
+    if (el.innerHTML !== value) {
       el.innerHTML = value || '';
     }
+    const before = el.innerHTML;
+    normalizeTables(el);
+    if (el.innerHTML !== before) onChangeRef.current(el.innerHTML);
   }, [value]);
+
+  // Jadval chegaralarini sudrab ustun/satr o'lchamini o'zgartirish.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    return attachTableResize(el, () => {
+      if (ref.current) onChangeRef.current(ref.current.innerHTML);
+    });
+  }, []);
 
   const emit = () => {
     if (ref.current) onChange(ref.current.innerHTML);
@@ -512,6 +530,7 @@ function RichTemplateEditor({
     }
     html += '</tbody></table><p><br></p>';
     document.execCommand('insertHTML', false, html);
+    if (ref.current) normalizeTables(ref.current);
     emit();
   };
 
@@ -577,7 +596,7 @@ function RichTemplateEditor({
         onKeyUp={saveSelection}
         onMouseUp={saveSelection}
         onBlur={saveSelection}
-        className="edo-doc-body prose prose-sm max-w-none min-h-[220px] max-h-[420px] overflow-y-auto px-3 py-2 text-sm text-slate-800 outline-none"
+        className="edo-doc-body edo-tpl-editor prose prose-sm max-w-none min-h-[220px] max-h-[420px] overflow-auto px-3 py-2 text-sm text-slate-800 outline-none"
       />
     </div>
   );

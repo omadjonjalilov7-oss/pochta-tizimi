@@ -5,7 +5,7 @@ const RICH_HTML_OPTS: sanitizeHtml.IOptions = {
     'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'sub', 'sup',
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
     'ul', 'ol', 'li', 'blockquote', 'hr',
-    'table', 'thead', 'tbody', 'tr', 'td', 'th',
+    'table', 'thead', 'tbody', 'tr', 'td', 'th', 'colgroup', 'col',
     'span', 'div', 'a', 'img',
   ],
   allowedAttributes: {
