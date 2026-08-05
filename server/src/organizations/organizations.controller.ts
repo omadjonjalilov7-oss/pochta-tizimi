@@ -13,6 +13,7 @@ import {
 import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AdminGuard } from '../auth/guards/admin.guard';
 
 class OrganizationDto {
   @IsString()
@@ -89,7 +90,9 @@ export class OrganizationsController {
     });
   }
 
+  // Tashkilotni o'chirish faqat administrator huquqiga ega foydalanuvchilar uchun.
   @Delete(':id')
+  @UseGuards(AdminGuard)
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.prisma.organization.delete({ where: { id } });
   }

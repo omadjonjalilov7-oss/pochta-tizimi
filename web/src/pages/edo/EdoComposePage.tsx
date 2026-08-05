@@ -1615,6 +1615,7 @@ export function EdoComposePage() {
         <OrgAddModal
           organizations={organizations}
           selectedOrgId={senderOrgId}
+          canDelete={user?.role === 'admin'}
           onClose={() => setShowOrgModal(false)}
           onCreated={(org) => {
             queryClient.invalidateQueries({ queryKey: ['organizations'] });
@@ -1634,12 +1635,14 @@ export function EdoComposePage() {
 function OrgAddModal({
   organizations,
   selectedOrgId,
+  canDelete,
   onClose,
   onCreated,
   onDeleted,
 }: {
   organizations: Organization[];
   selectedOrgId: string;
+  canDelete: boolean;
   onClose: () => void;
   onCreated: (org: Organization) => void;
   onDeleted: (id: string) => void;
@@ -1723,7 +1726,7 @@ function OrgAddModal({
               {err}
             </div>
           )}
-          {organizations.length > 0 && (
+          {canDelete && organizations.length > 0 && (
             <div>
               <label className={labelCls}>{t('edo.compose.org_list_title')}</label>
               <div className="max-h-44 overflow-y-auto rounded-lg border border-slate-200 divide-y divide-slate-100">
