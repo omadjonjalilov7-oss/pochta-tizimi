@@ -286,6 +286,9 @@ export function EdoDocumentViewPage() {
   // Nazorat bandi (topshiriq) qo'sha oladiganlar: rezolyutsiya yozuvchilar +
   // kanselyariya/admin — hujjat tasdiqlangan/ijrodagi/bajarilgan bo'lsa.
   const isStaff = user?.role === 'admin' || user?.role === 'chancellery';
+  // "Imzo uchun yuborish" — chiquvchi hujjatni bosh direktor (avazbek login) imzosiga
+  // yuboradi. Login topilmasa tugma o'chiq bo'ladi.
+  const signatoryUser = allUsers.find((u) => u.login === 'avazbek');
   const canAssignControl =
     canResolve ||
     (isStaff &&
@@ -562,20 +565,23 @@ export function EdoDocumentViewPage() {
           {/* Amallar */}
           {isCreator && doc.status === 'draft' && (
             <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-4">
-              {/* Yuborish usuli combobox */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  {t('edo.view.send_mode_label')}
-                </label>
-                <select
-                  value={sendMode}
-                  onChange={(e) => setSendMode(e.target.value as 'normal' | 'separate')}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-asaka-500"
-                >
-                  <option value="normal">{t('edo.view.send_mode_normal')}</option>
-                  <option value="separate">{t('edo.view.send_mode_separate')}</option>
-                </select>
-              </div>
+              {/* Yuborish usuli combobox — chiquvchi hujjatlarda ko'rsatilmaydi.
+                  Chiquvchi hujjatlar doim "alohida-alohida" (parallel) yuboriladi. */}
+              {doc.type !== 'outgoing' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    {t('edo.view.send_mode_label')}
+                  </label>
+                  <select
+                    value={sendMode}
+                    onChange={(e) => setSendMode(e.target.value as 'normal' | 'separate')}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-asaka-500"
+                  >
+                    <option value="normal">{t('edo.view.send_mode_normal')}</option>
+                    <option value="separate">{t('edo.view.send_mode_separate')}</option>
+                  </select>
+                </div>
+              )}
 
               <ApproverChainPicker
                 users={allUsers}
@@ -584,7 +590,7 @@ export function EdoDocumentViewPage() {
                 excludeUserIds={[doc.createdById]}
                 label={t('edo.view.approvers_label')}
                 hint={
-                  sendMode === 'separate'
+                  doc.type === 'outgoing' || sendMode === 'separate'
                     ? t('edo.view.approvers_parallel_hint')
                     : t('edo.view.approvers_hint')
                 }
@@ -602,7 +608,8 @@ export function EdoDocumentViewPage() {
                   onClick={() =>
                     send.mutate({
                       approverIds: sendApproverIds,
-                      parallel: sendMode === 'separate',
+                      // Chiquvchi hujjatlar doim parallel (alohida-alohida) yuboriladi
+                      parallel: doc.type === 'outgoing' ? true : sendMode === 'separate',
                     })
                   }
                   disabled={send.isPending}
@@ -611,6 +618,24 @@ export function EdoDocumentViewPage() {
                   <Send size={16} />
                   {send.isPending ? t('common.sending') : t('edo.view.send_for_approval')}
                 </button>
+                {/* Imzo uchun yuborish — faqat chiquvchi hujjatlarda: bosh direktorga
+                    (avazbek login) imzo/tasdiqlashga yuboradi. */}
+                {doc.type === 'outgoing' && (
+                  <button
+                    onClick={() =>
+                      send.mutate({
+                        approverIds: signatoryUser ? [signatoryUser.id] : [],
+                        parallel: true,
+                      })
+                    }
+                    disabled={send.isPending || !signatoryUser}
+                    title={!signatoryUser ? t('edo.view.signatory_not_found') : undefined}
+                    className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg"
+                  >
+                    <KeyRound size={16} />
+                    {t('edo.view.send_for_signature')}
+                  </button>
+                )}
                 {send.error && (
                   <div className="basis-full text-sm text-red-600 mt-1">
                     {extractError(send.error)}
