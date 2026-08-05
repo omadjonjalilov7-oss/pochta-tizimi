@@ -6,48 +6,45 @@ import * as path from 'path';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
-// ── Yorliqlar (O'zbek) ───────────────────────────────────────────────────
+// ── Yorliqlar ─────────────────────────────────────────────────────────────
+// Rasmdagi (Excel) hisobotga mos ravishda hujjat turlari Kirill alifbosida.
 const TYPE_LABELS: Record<string, string> = {
-  internal: 'Ichki',
-  incoming: 'Kiruvchi',
-  outgoing: 'Chiquvchi',
+  internal: 'Ички ҳужжат',
+  incoming: 'Кирувчи ҳужжат',
+  outgoing: 'Чиқувчи ҳужжат',
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  draft: 'Qoralama',
-  in_review: 'Kelishishda',
-  in_progress: 'Ijroda',
-  done: 'Bajarilgan',
-  rejected: 'Rad etilgan',
-  overdue: 'Muddati o‘tgan',
-};
+// Kelishuv turi (Келишиш тури) — izohsiz tasdiqlangan bo'lsa "o'zgarishlarsiz",
+// biror tasdiqlovchi izoh qoldirsa "o'zgartirishlar bilan".
+const AGREEMENT_NO_CHANGE = 'Ўзгаришларсиз келишиш';
+const AGREEMENT_WITH_CHANGE = 'Ўзгартиришлар билан келишиш';
 
 interface ReportRow {
   id: string;
   index: number;
   number: string;
-  subject: string;
+  createdAt: Date;
+  createdBy: string;
   type: string;
   typeRaw: string;
-  status: string;
-  createdBy: string;
-  department: string;
-  createdAt: Date;
-  deadline: Date | null;
+  subject: string;
+  agreedDate: Date | null;
+  approvers: string;
+  agreementType: string;
 }
 
 export interface ReportPreviewRow {
   id: string;
   index: number;
   number: string;
-  subject: string;
+  createdAt: string;
+  createdBy: string;
   type: string;
   typeRaw: string;
-  status: string;
-  createdBy: string;
-  department: string;
-  createdAt: string;
-  deadline: string | null;
+  subject: string;
+  agreedDate: string | null;
+  approvers: string;
+  agreementType: string;
 }
 
 export interface ReportPreviewResult {
@@ -59,14 +56,14 @@ export interface ReportPreviewResult {
 
 const COLUMNS: { header: string; width: number; key: keyof ReportRow }[] = [
   { header: '№', width: 6, key: 'index' },
-  { header: 'Raqami', width: 16, key: 'number' },
-  { header: 'Mavzu', width: 42, key: 'subject' },
-  { header: 'Turi', width: 12, key: 'type' },
-  { header: 'Holati', width: 16, key: 'status' },
-  { header: 'Yaratuvchi', width: 24, key: 'createdBy' },
-  { header: 'Bo‘lim', width: 22, key: 'department' },
-  { header: 'Yaratilgan', width: 14, key: 'createdAt' },
-  { header: 'Muddat', width: 14, key: 'deadline' },
+  { header: 'Ҳужжат рақами', width: 16, key: 'number' },
+  { header: 'Киритилган санаси', width: 15, key: 'createdAt' },
+  { header: 'Ким томонидан киритилган', width: 26, key: 'createdBy' },
+  { header: 'Ҳужжат тури', width: 16, key: 'type' },
+  { header: 'Ҳужжатнинг қисқача мазмуни', width: 44, key: 'subject' },
+  { header: 'Келишилган санаси', width: 15, key: 'agreedDate' },
+  { header: 'Келишган ходим исм, фамилияси', width: 28, key: 'approvers' },
+  { header: 'Келишиш тури', width: 22, key: 'agreementType' },
 ];
 
 function fmtDate(d: Date | string | null | undefined): string {
@@ -128,31 +125,67 @@ export class ReportService {
         type: true,
         status: true,
         createdAt: true,
-        deadline: true,
+        closedAt: true,
         createdBy: {
           select: { fullName: true, department: { select: { name: true } } },
+        },
+        participants: {
+          where: { role: 'approver' },
+          orderBy: { order: 'asc' },
+          select: {
+            status: true,
+            actedAt: true,
+            approvalNotes: true,
+            user: { select: { fullName: true } },
+          },
         },
       },
     });
 
-    return docs.map((d, i) => ({
-      id: d.id,
-      index: i + 1,
-      number: d.number,
-      subject: d.subject,
-      type: TYPE_LABELS[d.type] ?? d.type,
-      typeRaw: d.type,
-      status: STATUS_LABELS[d.status] ?? d.status,
-      createdBy: d.createdBy?.fullName ?? '-',
-      department: d.createdBy?.department?.name ?? '-',
-      createdAt: d.createdAt,
-      deadline: d.deadline ?? null,
-    }));
+    return docs.map((d, i) => {
+      // Faqat tasdiqlagan (approved/done) kelishuvchilar hisobga olinadi.
+      const approved = d.participants.filter(
+        (p) => p.status === 'approved' || p.status === 'done',
+      );
+      const approvers = approved
+        .map((p) => p.user?.fullName)
+        .filter((n): n is string => !!n)
+        .join(', ');
+      // Kelishilgan sana — eng oxirgi tasdiq sanasi, bo'lmasa hujjat yopilgan sana.
+      const actedDates = approved
+        .map((p) => p.actedAt)
+        .filter((x): x is Date => !!x);
+      const agreedDate = actedDates.length
+        ? new Date(Math.max(...actedDates.map((x) => x.getTime())))
+        : (d.closedAt ?? null);
+      // Kelishuv turi — biror tasdiqlovchi izoh qoldirgan bo'lsa "o'zgartirishlar bilan".
+      const hasNotes = approved.some((p) => !!p.approvalNotes?.trim());
+      const agreementType =
+        approved.length === 0
+          ? '-'
+          : hasNotes
+            ? AGREEMENT_WITH_CHANGE
+            : AGREEMENT_NO_CHANGE;
+
+      return {
+        id: d.id,
+        index: i + 1,
+        number: d.number,
+        createdAt: d.createdAt,
+        createdBy: d.createdBy?.fullName ?? '-',
+        type: TYPE_LABELS[d.type] ?? d.type,
+        typeRaw: d.type,
+        subject: d.subject,
+        agreedDate,
+        approvers: approvers || '-',
+        agreementType,
+      };
+    });
   }
 
   private cell(row: ReportRow, key: keyof ReportRow): string {
     const v = row[key];
-    if (key === 'createdAt' || key === 'deadline') return fmtDate(v as Date | null);
+    if (key === 'createdAt' || key === 'agreedDate') return fmtDate(v as Date | null);
     return v == null ? '-' : String(v);
   }
 
@@ -166,7 +199,7 @@ export class ReportService {
     // Sarlavha satri
     ws.mergeCells(1, 1, 1, COLUMNS.length);
     const titleCell = ws.getCell(1, 1);
-    titleCell.value = `Hujjatlar hisoboti  (${fmtDate(from)} — ${fmtDate(to)})`;
+    titleCell.value = `Ҳужжатлар ҳисоботи  (${fmtDate(from)} — ${fmtDate(to)})`;
     titleCell.font = { bold: true, size: 14 };
     titleCell.alignment = { horizontal: 'center' };
     ws.getRow(1).height = 22;
@@ -178,7 +211,7 @@ export class ReportService {
       c.value = col.header;
       c.font = { bold: true, color: { argb: 'FFFFFFFF' } };
       c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF5821F' } };
-      c.alignment = { horizontal: 'center', vertical: 'middle' };
+      c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
       c.border = {
         top: { style: 'thin' },
         left: { style: 'thin' },
@@ -187,7 +220,7 @@ export class ReportService {
       };
       ws.getColumn(idx + 1).width = col.width;
     });
-    headerRow.height = 18;
+    headerRow.height = 30;
 
     // Ma'lumot satrlari
     rows.forEach((row) => {
@@ -237,9 +270,9 @@ export class ReportService {
         colX.push(startX + pageWidth);
 
         // Sarlavha
-        pdf.fontSize(14).text('Hujjatlar hisoboti', startX, 30, { width: pageWidth, align: 'center' });
+        pdf.fontSize(14).text('Ҳужжатлар ҳисоботи', startX, 30, { width: pageWidth, align: 'center' });
         pdf.fontSize(9).fillColor('#64748b').text(
-          `${fmtDate(from)} — ${fmtDate(to)}   •   Jami: ${rows.length} ta`,
+          `${fmtDate(from)} — ${fmtDate(to)}   •   Жами: ${rows.length} та`,
           startX,
           50,
           { width: pageWidth, align: 'center' },
@@ -247,17 +280,22 @@ export class ReportService {
         pdf.fillColor('#000');
 
         let y = 74;
-        const rowH = 20;
+        const headH = 34;
+        const rowH = 26;
         const pageBottom = pdf.page.height - 30;
 
         const drawHeader = () => {
-          pdf.rect(startX, y, pageWidth, rowH).fill('#f5821f');
-          pdf.fillColor('#fff').fontSize(8);
+          pdf.rect(startX, y, pageWidth, headH).fill('#f5821f');
+          pdf.fillColor('#fff').fontSize(7.5);
           COLUMNS.forEach((col, i) => {
-            pdf.text(col.header, colX[i] + 3, y + 6, { width: colX[i + 1] - colX[i] - 6, ellipsis: true });
+            pdf.text(col.header, colX[i] + 3, y + 5, {
+              width: colX[i + 1] - colX[i] - 6,
+              height: headH - 8,
+              ellipsis: true,
+            });
           });
           pdf.fillColor('#000');
-          y += rowH;
+          y += headH;
         };
 
         drawHeader();
@@ -273,12 +311,13 @@ export class ReportService {
             pdf.rect(startX, y, pageWidth, rowH).fill('#f8fafc');
             pdf.fillColor('#000');
           }
-          pdf.fontSize(7.5).fillColor('#0f172a');
+          pdf.fontSize(7).fillColor('#0f172a');
           COLUMNS.forEach((col, i) => {
-            pdf.text(this.cell(row, col.key), colX[i] + 3, y + 6, {
+            pdf.text(this.cell(row, col.key), colX[i] + 3, y + 5, {
               width: colX[i + 1] - colX[i] - 6,
+              height: rowH - 8,
               ellipsis: true,
-              lineBreak: false,
+              lineBreak: true,
             });
           });
           // Pastki chiziq
@@ -314,7 +353,7 @@ export class ReportService {
       rows: rows.map((r) => ({
         ...r,
         createdAt: fmtDate(r.createdAt),
-        deadline: r.deadline ? fmtDate(r.deadline) : null,
+        agreedDate: r.agreedDate ? fmtDate(r.agreedDate) : null,
       })),
     };
   }

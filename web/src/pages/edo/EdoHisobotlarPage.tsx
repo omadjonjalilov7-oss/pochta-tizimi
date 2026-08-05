@@ -10,14 +10,14 @@ interface ReportRow {
   id: string;
   index: number;
   number: string;
-  subject: string;
+  createdAt: string;
+  createdBy: string;
   type: string;
   typeRaw: string;
-  status: string;
-  createdBy: string;
-  department: string;
-  createdAt: string;
-  deadline: string | null;
+  subject: string;
+  agreedDate: string | null;
+  approvers: string;
+  agreementType: string;
 }
 
 type ReportTab = 'all' | 'internal' | 'outgoing' | 'incoming';
@@ -247,13 +247,13 @@ export function EdoHisobotlarPage() {
                 <tr className="bg-slate-50 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
                   <th className="px-3 py-2 w-10">№</th>
                   <th className="px-3 py-2">{t('edo.hisobotlar.col_number')}</th>
-                  <th className="px-3 py-2">{t('edo.hisobotlar.col_subject')}</th>
-                  <th className="px-3 py-2">{t('edo.hisobotlar.col_type')}</th>
-                  <th className="px-3 py-2">{t('edo.hisobotlar.col_status')}</th>
-                  <th className="px-3 py-2">{t('edo.hisobotlar.col_author')}</th>
-                  <th className="px-3 py-2">{t('edo.hisobotlar.col_department')}</th>
                   <th className="px-3 py-2">{t('edo.hisobotlar.col_created')}</th>
-                  <th className="px-3 py-2">{t('edo.hisobotlar.col_deadline')}</th>
+                  <th className="px-3 py-2">{t('edo.hisobotlar.col_author')}</th>
+                  <th className="px-3 py-2">{t('edo.hisobotlar.col_type')}</th>
+                  <th className="px-3 py-2">{t('edo.hisobotlar.col_subject')}</th>
+                  <th className="px-3 py-2">{t('edo.hisobotlar.col_agreed_date')}</th>
+                  <th className="px-3 py-2">{t('edo.hisobotlar.col_approvers')}</th>
+                  <th className="px-3 py-2">{t('edo.hisobotlar.col_agreement_type')}</th>
                   <th className="px-3 py-2 text-right">{t('edo.hisobotlar.col_pdf')}</th>
                 </tr>
               </thead>
@@ -262,15 +262,17 @@ export function EdoHisobotlarPage() {
                   <tr key={r.index} className="border-t border-slate-100 hover:bg-slate-50/60">
                     <td className="px-3 py-2 text-slate-400">{r.index}</td>
                     <td className="px-3 py-2 font-mono text-xs text-slate-700">{r.number}</td>
+                    <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{r.createdAt}</td>
+                    <td className="px-3 py-2 text-slate-600">{r.createdBy}</td>
+                    <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{r.type}</td>
                     <td className="px-3 py-2 text-slate-800 max-w-xs truncate" title={r.subject}>
                       {r.subject}
                     </td>
-                    <td className="px-3 py-2 text-slate-600">{r.type}</td>
-                    <td className="px-3 py-2 text-slate-600">{r.status}</td>
-                    <td className="px-3 py-2 text-slate-600">{r.createdBy}</td>
-                    <td className="px-3 py-2 text-slate-600">{r.department}</td>
-                    <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{r.createdAt}</td>
-                    <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{r.deadline ?? '—'}</td>
+                    <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{r.agreedDate ?? '—'}</td>
+                    <td className="px-3 py-2 text-slate-600 max-w-xs truncate" title={r.approvers}>
+                      {r.approvers}
+                    </td>
+                    <td className="px-3 py-2 text-slate-600">{r.agreementType}</td>
                     <td className="px-3 py-2 text-right whitespace-nowrap">
                       <button
                         onClick={() => downloadDoc(r)}
