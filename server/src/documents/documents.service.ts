@@ -474,6 +474,25 @@ export class DocumentsService {
     if (doc.status !== 'draft') {
       throw new BadRequestException('Faqat qoralamani yuborish mumkin');
     }
+    // numberDeptId qoralama YARATILGANDA muzlatiladi (yaratuvchining o'sha paytdagi
+    // bo'limi). Agar bo'sh bo'lsa — yaratuvchiga bo'lim keyinchalik biriktirilgan
+    // bo'lishi mumkin (masalan, admin profildan tayinlagan). Shu holatda hozirgi
+    // profil bo'limidan yangilaymiz, aks holda foydalanuvchi bo'lim tanlagan bo'lsa
+    // ham "bo'lim tanlanmagan" xatoligi qaytaverardi.
+    if (!doc.numberDeptId) {
+      const creator = await this.prisma.user.findUnique({
+        where: { id: userId },
+        include: { department: true },
+      });
+      if (creator?.department) {
+        doc.numberDeptId = creator.department.id;
+        doc.numberDept = creator.department;
+        await this.prisma.document.update({
+          where: { id },
+          data: { numberDeptId: creator.department.id },
+        });
+      }
+    }
     if (!doc.numberDeptId || !doc.numberDept?.code) {
       throw new BadRequestException(
         "Yaratuvchi bo'limi tanlanmagan yoki bo'lim kodi yo'q. Bo'lim sozlamalarini tekshiring",
@@ -1237,20 +1256,14 @@ export class DocumentsService {
       );
     }
 
-    // Yaratuvchi, tasdiqlovchi (imzolagan) yoki kanselyariya/admin (nazorat bandi)
-    const isCreator = doc.createdById === userId;
-    const isApprover = doc.participants.some(
-      (p) =>
-        p.userId === userId &&
-        p.role === ParticipantRole.approver &&
-        p.status === ParticipantStatus.approved,
-    );
+    // Topshiriq (rezolyutsiya / poruchenie) BIRIKTIRISHNI faqat kanselyariya yoki
+    // admin roli amalga oshiradi. Boshqa xodimlar (yaratuvchi, tasdiqlovchi, ijrochi)
+    // faqat o'ziga biriktirilgan topshiriqqa izoh yoza oladi (addTargetNote).
     const isStaff = role === 'admin' || role === 'chancellery';
-    // Rahbarga ma'ruza qilingan hujjatning joriy egasi (rahbar) rezolyutsiya
-    // yozadi — u hali "approved" bo'lmasa ham topshiriq bera oladi.
-    const isHolder = doc.currentHolderId === userId;
-    if (!isCreator && !isApprover && !isStaff && !isHolder) {
-      throw new ForbiddenException("Sizda rezolyutsiya yozish huquqi yo'q");
+    if (!isStaff) {
+      throw new ForbiddenException(
+        "Topshiriq biriktirishni faqat kanselyariya yoki admin xodimi amalga oshiradi",
+      );
     }
 
     // Ijrochilar haqiqiy foydalanuvchilar bo'lishi kerak

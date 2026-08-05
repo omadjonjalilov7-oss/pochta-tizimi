@@ -296,31 +296,23 @@ export function EdoDocumentViewPage({
   const canSignWithEimzo =
     isCurrentApprover && doc.type === 'outgoing' && (user?.canSignExternal ?? false);
 
-  // Rezolyutsiya yozish huquqi: yaratuvchi yoki tasdiqlovchi (allaqachon imzolagan), status in_review/in_progress/done
-  const canResolve =
-    !!user &&
-    (isCreator ||
-      doc.participants.some(
-        (p) => p.userId === user.id && p.role === 'approver' && p.status === 'approved',
-      )) &&
-    (doc.status === 'in_review' || doc.status === 'in_progress' || doc.status === 'done');
-
-  // Nazorat bandi (topshiriq) qo'sha oladiganlar: rezolyutsiya yozuvchilar +
-  // kanselyariya/admin — hujjat tasdiqlangan/ijrodagi/bajarilgan bo'lsa.
+  // Topshiriq (rezolyutsiya / poruchenie) BIRIKTIRISHNI faqat kanselyariya yoki
+  // admin roli amalga oshiradi. Boshqa xodimlar faqat o'ziga biriktirilgan
+  // topshiriqqa izoh yozadi (pastdagi "izoh" tugmasi ular uchun ochiq qoladi).
   const isStaff = user?.role === 'admin' || user?.role === 'chancellery';
   // Kiruvchi hujjatda rezolyutsiya rahbari (hozirgi egasi, masalan avazbek) ham
-  // topshiriq oynasini tahrirlashi mumkin (backend ham shu ruxsatni beradi).
+  // topshiriqlarni boshqarishi (tahrirlash/o'chirish) mumkin.
   const isLeaderHolder = !!user && doc.currentHolderId === user.id;
   // "Imzo uchun yuborish" — chiquvchi hujjatni bosh direktor (avazbek login) imzosiga
   // yuboradi. Login topilmasa tugma o'chiq bo'ladi.
   const signatoryUser = allUsers.find((u) => u.login === 'avazbek');
   const canAssignControl =
-    canResolve ||
-    (isStaff &&
-      (doc.status === 'in_review' || doc.status === 'in_progress' || doc.status === 'done')) ||
-    // Qoralamada topshiriq (poruchenie) tugmasi doim yoniq — «alohida-alohida
-    // yuborish» usuli uchun: yaratuvchi hujjatni topshiriq orqali jo'natadi.
-    (isCreator && doc.status === 'draft');
+    isStaff &&
+    (doc.status === 'in_review' ||
+      doc.status === 'in_progress' ||
+      doc.status === 'done' ||
+      // Staff o'zi yaratgan qoralamadan «alohida-alohida» topshiriq berishi mumkin.
+      (isCreator && doc.status === 'draft'));
 
   // Mening pending ijro vazifalarim
   const myPendingTargets = (doc.resolutions ?? [])
