@@ -35,6 +35,7 @@ import { ControlAssignmentModal } from '../../components/edo/ControlAssignmentMo
 import { PresentToLeaderModal } from '../../components/edo/PresentToLeaderModal';
 import WordEditorModal from '../../components/edo/WordEditorModal';
 import AttachmentViewerModal from '../../components/edo/AttachmentViewerModal';
+import InlineAttachmentPreview from '../../components/edo/InlineAttachmentPreview';
 import { api } from '../../lib/api';
 import type { DocumentStatus, EdoAuditEntry, EdoDocument, EdoResolution, User } from '../../lib/types';
 import { Avatar } from '../../components/Avatar';
@@ -488,6 +489,36 @@ export function EdoDocumentViewPage() {
                 </div>
               );
             })()}
+
+            {/* Kiruvchi hujjat: tashqaridan kelgan asosiy fayl (pdf/word/excel)
+                to'g'ridan-to'g'ri shu oyna ichida ko'rsatiladi — kiruvchi shablon
+                bilan bir joyda. Word/Excel serverda PDF'ga aylantiriladi. */}
+            {doc.type === 'incoming' && (doc.attachments?.length ?? 0) > 0 && (
+              <div className="mt-5 pt-4 border-t border-slate-100">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                  <FileText size={14} />
+                  {t('edo.view.primary_document')}
+                </div>
+                <InlineAttachmentPreview
+                  documentId={doc.id}
+                  attId={doc.attachments![0].id}
+                  filename={doc.attachments![0].filename}
+                  onExpand={() =>
+                    setViewAtt({
+                      id: doc.attachments![0].id,
+                      filename: doc.attachments![0].filename,
+                    })
+                  }
+                  onDownload={() =>
+                    downloadAttachment(
+                      doc.id,
+                      doc.attachments![0].id,
+                      doc.attachments![0].filename,
+                    )
+                  }
+                />
+              </div>
+            )}
 
             {((doc.attachments?.length ?? 0) > 0 || canUploadAttachment) && (
               <div className="mt-5 pt-4 border-t border-slate-100">
