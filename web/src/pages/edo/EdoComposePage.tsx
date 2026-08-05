@@ -1613,11 +1613,17 @@ export function EdoComposePage() {
 
       {showOrgModal && (
         <OrgAddModal
+          organizations={organizations}
+          selectedOrgId={senderOrgId}
           onClose={() => setShowOrgModal(false)}
           onCreated={(org) => {
             queryClient.invalidateQueries({ queryKey: ['organizations'] });
             setSenderOrgId(org.id);
             setShowOrgModal(false);
+          }}
+          onDeleted={(id) => {
+            queryClient.invalidateQueries({ queryKey: ['organizations'] });
+            if (senderOrgId === id) setSenderOrgId('');
           }}
         />
       )}
@@ -1626,11 +1632,17 @@ export function EdoComposePage() {
 }
 
 function OrgAddModal({
+  organizations,
+  selectedOrgId,
   onClose,
   onCreated,
+  onDeleted,
 }: {
+  organizations: Organization[];
+  selectedOrgId: string;
   onClose: () => void;
   onCreated: (org: Organization) => void;
+  onDeleted: (id: string) => void;
 }) {
   const { t } = useTranslation();
   const [name, setName] = useState('');
@@ -1639,6 +1651,7 @@ function OrgAddModal({
   const [phone, setPhone] = useState('');
   const [note, setNote] = useState('');
   const [err, setErr] = useState<string | null>(null);
+  const [confirmDelId, setConfirmDelId] = useState<string | null>(null);
 
   const create = useMutation({
     mutationFn: async () =>
@@ -1652,6 +1665,18 @@ function OrgAddModal({
         })
       ).data,
     onSuccess: (org) => onCreated(org),
+    onError: (e: any) => setErr(extractError(e)),
+  });
+
+  const del = useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/organizations/${id}`);
+      return id;
+    },
+    onSuccess: (id) => {
+      setConfirmDelId(null);
+      onDeleted(id);
+    },
     onError: (e: any) => setErr(extractError(e)),
   });
 
@@ -1696,6 +1721,58 @@ function OrgAddModal({
           {err && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2">
               {err}
+            </div>
+          )}
+          {organizations.length > 0 && (
+            <div>
+              <label className={labelCls}>{t('edo.compose.org_list_title')}</label>
+              <div className="max-h-44 overflow-y-auto rounded-lg border border-slate-200 divide-y divide-slate-100">
+                {organizations.map((o) => (
+                  <div
+                    key={o.id}
+                    className={cn(
+                      'flex items-center justify-between gap-2 px-3 py-2 text-sm',
+                      o.id === selectedOrgId ? 'bg-asaka-50/60' : 'bg-white',
+                    )}
+                  >
+                    <span className="truncate text-slate-700" title={o.name}>
+                      {o.name}
+                    </span>
+                    {confirmDelId === o.id ? (
+                      <span className="flex shrink-0 items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => del.mutate(o.id)}
+                          disabled={del.isPending}
+                          className="rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                        >
+                          {t('edo.compose.org_del_confirm')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDelId(null)}
+                          className="rounded-md px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100"
+                        >
+                          {t('edo.compose.cancel')}
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setErr(null);
+                          setConfirmDelId(o.id);
+                        }}
+                        className="shrink-0 rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                        title={t('edo.compose.org_del')}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="mt-1 text-xs text-slate-500">{t('edo.compose.org_del_hint')}</p>
             </div>
           )}
           <div>
