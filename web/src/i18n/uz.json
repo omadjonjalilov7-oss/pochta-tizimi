@@ -1132,6 +1132,22 @@
       "prev": "Oldingi",
       "next": "Keyingi"
     },
+    "kanselyariya": {
+      "menu": "Sektor fishka",
+      "title": "Sektor fishka",
+      "subtitle": "Kiruvchi hujjatlar — rezolyutsiya holati bo'yicha",
+      "state_exists": "Rezolyutsiya mavjud",
+      "state_none": "Rezolyutsiya yo'q",
+      "state_rejected": "Rad etilgan",
+      "state_signed": "Imzolangan",
+      "state_no_leader": "Rahbar tanlanmagan",
+      "search_ph": "Raqam, mavzu yoki muallif bo'yicha qidirish...",
+      "for_resolution": "Rezolyutsiya uchun",
+      "empty": "Bu holatda hujjat yo'q.",
+      "select_hint": "Ko'rish uchun ro'yxatdan hujjat tanlang.",
+      "card": "Hujjat fishkasi (kiruvchi shablon)",
+      "open": "Ochish"
+    },
     "settings": {
       "title": "EDO sozlamalari",
       "no_settings": "Hozircha sozlanadigan parametrlar yo'q. Ijro muddati har bir hujjatda qo'lda kiritiladi.",

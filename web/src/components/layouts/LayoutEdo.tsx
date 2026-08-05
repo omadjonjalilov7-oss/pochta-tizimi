@@ -361,6 +361,21 @@ export function LayoutEdo() {
           {isStaff && (
             <EdoNav to="/edo/korrektor" icon={Stamp} label={t('edo.nav.korrektor')} collapsed={collapsed} />
           )}
+          {isStaff && (
+            <EdoNavGroup
+              icon={LayoutGrid}
+              label={t('edo.kanselyariya.menu')}
+              basePath="/edo/kanselyariya"
+              collapsed={collapsed}
+              items={[
+                { to: '/edo/kanselyariya/exists', icon: CheckCircle2, label: t('edo.kanselyariya.state_exists') },
+                { to: '/edo/kanselyariya/none', icon: FileText, label: t('edo.kanselyariya.state_none') },
+                { to: '/edo/kanselyariya/rejected', icon: X, label: t('edo.kanselyariya.state_rejected') },
+                { to: '/edo/kanselyariya/signed', icon: FileSignature, label: t('edo.kanselyariya.state_signed') },
+                { to: '/edo/kanselyariya/no_leader', icon: Users, label: t('edo.kanselyariya.state_no_leader') },
+              ]}
+            />
+          )}
           <EdoNav to="/edo/tasks" icon={Handshake} label={t('edo.nav.tasks_approval')} collapsed={collapsed} />
           <EdoNav to="/edo/signing" icon={FileSignature} label={t('edo.nav.to_sign')} collapsed={collapsed} />
           <EdoNav to="/edo/department" icon={Building2} label={t('edo.nav.department')} collapsed={collapsed} />

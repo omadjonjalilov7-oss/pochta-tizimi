@@ -40,6 +40,7 @@ import {
 } from './pages/edo/EdoDocList';
 import { EdoControlPage } from './pages/edo/EdoControlPage';
 import { EdoScanPage } from './pages/edo/EdoScanPage';
+import { EdoKanselyariyaPage } from './pages/edo/EdoKanselyariyaPage';
 
 export function App() {
   const { loading } = useAuth();
@@ -84,6 +85,8 @@ export function App() {
           <Route path="search" element={<EdoSearchPage />} />
           <Route path="control" element={<EdoControlPage />} />
           <Route path="control/open-tasks" element={<EdoOpenTasksPage />} />
+          <Route path="kanselyariya" element={<Navigate to="/edo/kanselyariya/exists" replace />} />
+          <Route path="kanselyariya/:filter" element={<EdoKanselyariyaPage />} />
           <Route path="department" element={<EdoDepartmentPage />} />
           <Route path="approval" element={<EdoApprovalPage />} />
           <Route path="compose" element={<EdoComposePage />} />
