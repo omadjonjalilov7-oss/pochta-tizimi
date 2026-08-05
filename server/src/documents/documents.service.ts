@@ -785,6 +785,11 @@ export class DocumentsService {
       });
       // Yaratuvchini xabardor qilamiz
       await this.notifyCreator(doc.createdById, userId, id, finalNumber, doc.subject, 'completed');
+      // Kiruvchi hujjat: rahbar (avazbek) tasdiqlagach — oldindan biriktirilgan,
+      // lekin xabari kechiktirilgan ijrochilarga endi topshiriq xabari yuboriladi.
+      if (doc.type === 'incoming') {
+        await this.notifyDeferredExecutors(userId, id, finalNumber, doc.subject);
+      }
       // Ichki "xizmat xati" (avtomatik zanjir) tugagach — barcha kanselyariya
       // xodimlariga ijrochi biriktirish uchun xabar yuboriladi.
       const isServiceLetter =
@@ -1273,12 +1278,50 @@ export class DocumentsService {
       return res;
     });
 
-    // Ijrochilarni xabardor qilamiz
-    for (const t of dto.targets) {
-      await this.notifyExecutor(t.userId, userId, id, doc.number, doc.subject, dto.text);
+    // Kiruvchi hujjat: rezolyutsiya rahbari (avazbek login) hali tasdiqlamagan
+    // bo'lsa (hujjat "in_review" — rahbar navbatida), ijrochilarga topshiriq
+    // xabari DARHOL yuborilmaydi. Xabar faqat rahbar tasdiqlagach ketadi
+    // (approve() ichida notifyDeferredExecutors chaqiriladi). Buyurtmachi talabi:
+    // "faqat avazbek login egasi tasdiqlaganidan keyin topshiriq xabari ketsin".
+    const deferExecutorNotify =
+      doc.type === 'incoming' && doc.status === DocumentStatus.in_review;
+
+    if (!deferExecutorNotify) {
+      // Ijrochilarni xabardor qilamiz
+      for (const t of dto.targets) {
+        await this.notifyExecutor(t.userId, userId, id, doc.number, doc.subject, dto.text);
+      }
     }
 
     return this.findOne(userId, id);
+  }
+
+  // Rahbar (avazbek) kiruvchi hujjatni tasdiqlagach — oldindan (in_review holatida)
+  // biriktirilgan, lekin hali xabar yuborilmagan ijrochilarga topshiriq xabarini
+  // yuboradi. Faqat pending holatdagi topshiriqlar bo'yicha ishlaydi.
+  private async notifyDeferredExecutors(
+    actorId: string,
+    docId: string,
+    number: string,
+    subject: string,
+  ) {
+    const targets = await this.prisma.resolutionTarget.findMany({
+      where: {
+        status: EdoTaskStatus.pending,
+        resolution: { documentId: docId },
+      },
+      include: { resolution: { select: { text: true } } },
+    });
+    for (const t of targets) {
+      await this.notifyExecutor(
+        t.userId,
+        actorId,
+        docId,
+        number,
+        subject,
+        t.resolution.text,
+      );
+    }
   }
 
   // Kiruvchi hujjatni rahbarga ma'ruza qilish: kanselyariya/yaratuvchi rahbarni
@@ -1564,7 +1607,7 @@ export class DocumentsService {
     // Kiruvchi hujjatda rahbar (joriy egasi) ham topshiriqni tahrirlay oladi.
     const parentDoc = await this.prisma.document.findUnique({
       where: { id: res.documentId },
-      select: { currentHolderId: true, number: true, subject: true },
+      select: { currentHolderId: true, number: true, subject: true, type: true, status: true },
     });
     const isLeaderHolder =
       !!parentDoc?.currentHolderId && parentDoc.currentHolderId === userId;
@@ -1662,8 +1705,12 @@ export class DocumentsService {
       });
     });
 
-    // Faqat yangi qo'shilgan ijrochilarni xabardor qilamiz (mavjudlariga takror yubormaymiz).
-    if (newTargets && newTargets.length > 0 && parentDoc) {
+    // Faqat yangi qo'shilgan ijrochilarni xabardor qilamiz (mavjudlariga takror
+    // yubormaymiz). Kiruvchi hujjat hali rahbar tasdig'ida (in_review) bo'lsa —
+    // xabar kechiktiriladi va faqat rahbar tasdiqlagach yuboriladi.
+    const deferExecutorNotify =
+      parentDoc?.type === 'incoming' && parentDoc.status === DocumentStatus.in_review;
+    if (newTargets && newTargets.length > 0 && parentDoc && !deferExecutorNotify) {
       for (const t of newTargets) {
         if (!prevTargetUserIds.has(t.userId)) {
           await this.notifyExecutor(
