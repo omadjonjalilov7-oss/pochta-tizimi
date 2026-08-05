@@ -763,6 +763,26 @@ export class DocumentsService {
           doc.subject,
         );
       }
+    } else if (
+      doc.type === 'incoming' &&
+      (await this.prisma.resolutionTarget.count({
+        where: { status: EdoTaskStatus.pending, resolution: { documentId: id } },
+      })) > 0
+    ) {
+      // Kiruvchi hujjat: rahbar (avazbek) topshiriqni tasdiqladi. Endi hujjat
+      // YAKUNLANMAYDI — ijro bosqichiga (in_progress) o'tadi va oldindan
+      // biriktirilgan ijrochilarga topshiriq xabari yuboriladi. Barcha
+      // topshiriqlar bajarilgach (completeTarget) hujjat "done" bo'ladi.
+      await this.prisma.$transaction(async (tx) => {
+        await tx.document.update({
+          where: { id },
+          data: { status: DocumentStatus.in_progress, currentHolderId: null },
+        });
+        await tx.documentAuditLog.create({
+          data: { documentId: id, actorId: userId, action: 'resolution_approved' },
+        });
+      });
+      await this.notifyDeferredExecutors(userId, id, doc.number, doc.subject);
     } else {
       // Zanjir tugadi — bajarildi va chop bo'lish uchun tayyorlanadi
       let finalNumber = doc.number;
@@ -1226,6 +1246,18 @@ export class DocumentsService {
 
     const maxOrder = Math.max(0, ...doc.participants.map((p) => p.order));
 
+    // Kiruvchi hujjat: rezolyutsiya rahbari (avazbek login) hali tasdiqlamagan
+    // bo'lsa (hujjat "in_review" — rahbar navbatida), topshiriq OLDINDAN
+    // biriktiriladi, lekin:
+    //   1) ijrochilarga xabar DARHOL yuborilmaydi (quyida),
+    //   2) hujjat HALI ijroga (in_progress) o'tmaydi — rahbarning tasdiqlash
+    //      navbati (in_review, currentHolderId=rahbar) saqlanadi, aks holda
+    //      rahbarning "Tasdiqlash" tugmasi yo'qolib qoladi.
+    // Xabar va ijroga o'tish faqat rahbar tasdiqlagach amalga oshadi
+    // (approve() → notifyDeferredExecutors + status=in_progress).
+    const deferExecutorNotify =
+      doc.type === 'incoming' && doc.status === DocumentStatus.in_review;
+
     const created = await this.prisma.$transaction(async (tx) => {
       const res = await tx.resolution.create({
         data: { documentId: id, authorId: userId, text: dto.text },
@@ -1263,10 +1295,15 @@ export class DocumentsService {
           },
         });
       }
-      await tx.document.update({
-        where: { id },
-        data: { status: DocumentStatus.in_progress, currentHolderId: null },
-      });
+      // Deferred (kiruvchi, rahbar hali tasdiqlamagan) holatda status/egasini
+      // O'ZGARTIRMAYMIZ — rahbarning tasdiqlash navbati saqlanadi. Aks holda
+      // hujjat darhol ijroga o'tadi.
+      if (!deferExecutorNotify) {
+        await tx.document.update({
+          where: { id },
+          data: { status: DocumentStatus.in_progress, currentHolderId: null },
+        });
+      }
       await tx.documentAuditLog.create({
         data: {
           documentId: id,
@@ -1277,14 +1314,6 @@ export class DocumentsService {
       });
       return res;
     });
-
-    // Kiruvchi hujjat: rezolyutsiya rahbari (avazbek login) hali tasdiqlamagan
-    // bo'lsa (hujjat "in_review" — rahbar navbatida), ijrochilarga topshiriq
-    // xabari DARHOL yuborilmaydi. Xabar faqat rahbar tasdiqlagach ketadi
-    // (approve() ichida notifyDeferredExecutors chaqiriladi). Buyurtmachi talabi:
-    // "faqat avazbek login egasi tasdiqlaganidan keyin topshiriq xabari ketsin".
-    const deferExecutorNotify =
-      doc.type === 'incoming' && doc.status === DocumentStatus.in_review;
 
     if (!deferExecutorNotify) {
       // Ijrochilarni xabardor qilamiz
