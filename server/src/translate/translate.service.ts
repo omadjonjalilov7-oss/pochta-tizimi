@@ -24,8 +24,13 @@ const LANG_NAMES: Record<string, string> = {
   ko: 'Korean',
 };
 
-const MAX_ITEM_LEN = 20_000;
+// Bitta elementning umumiy uzunligi chegarasi. Undan uzun matn avtomatik
+// bo'laklarga bo'linadi (chunk), shuning uchun chegara yuqori.
+const MAX_ITEM_LEN = 200_000;
 const MAX_ITEMS = 5;
+// Har bir Gemini so'rovi uchun matn bo'lagi (belgi). Uzun xabarlar shu
+// hajmda bo'laklanadi va ketma-ket tarjima qilinadi.
+const CHUNK_LEN = 12_000;
 
 @Injectable()
 export class TranslateService {
@@ -60,7 +65,54 @@ export class TranslateService {
     return out;
   }
 
+  // Uzun matnni bo'laklarga bo'lib, har birini alohida tarjima qiladi va
+  // natijalarni birlashtiradi. Bo'lish afzal ravishda qator (\n) chegaralarida
+  // amalga oshiriladi — HTML teglari imkon qadar buzilmasligi uchun.
+  private chunkText(text: string): string[] {
+    if (text.length <= CHUNK_LEN) return [text];
+    const chunks: string[] = [];
+    const lines = text.split(/(?<=\n)/); // \n belgisini saqlab bo'lamiz
+    let cur = '';
+    for (const line of lines) {
+      if (cur && cur.length + line.length > CHUNK_LEN) {
+        chunks.push(cur);
+        cur = '';
+      }
+      if (line.length > CHUNK_LEN) {
+        // Juda uzun bitta qator — majburan kesamiz
+        let rest = line;
+        while (rest.length > CHUNK_LEN) {
+          chunks.push(rest.slice(0, CHUNK_LEN));
+          rest = rest.slice(CHUNK_LEN);
+        }
+        cur = rest;
+      } else {
+        cur += line;
+      }
+    }
+    if (cur) chunks.push(cur);
+    return chunks;
+  }
+
   private async translateOne(
+    text: string,
+    to: string,
+    from: string,
+    model: string,
+    apiKey: string,
+  ): Promise<string> {
+    const chunks = this.chunkText(text);
+    if (chunks.length === 1) {
+      return this.translateChunk(chunks[0], to, from, model, apiKey);
+    }
+    const parts: string[] = [];
+    for (const chunk of chunks) {
+      parts.push(await this.translateChunk(chunk, to, from, model, apiKey));
+    }
+    return parts.join('');
+  }
+
+  private async translateChunk(
     text: string,
     to: string,
     from: string,
