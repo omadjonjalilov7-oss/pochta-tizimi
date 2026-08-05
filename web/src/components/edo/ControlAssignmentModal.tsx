@@ -24,6 +24,20 @@ interface Props {
   onSubmit: (text: string, targets: { userId: string; deadline?: string }[]) => void;
   submitting: boolean;
   error: string | null;
+  // Tahrirlash rejimi uchun boshlang'ich qiymatlar (topshiriqni o'zgartirishda).
+  initialText?: string;
+  initialTargets?: { userId: string; deadline?: string | null }[];
+  title?: string;
+  submitLabel?: string;
+}
+
+// "datetime-local" input uchun ISO sanani mahalliy formatga o'giradi.
+function toLocalInput(iso?: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 export function ControlAssignmentModal({
@@ -33,14 +47,22 @@ export function ControlAssignmentModal({
   onSubmit,
   submitting,
   error,
+  initialText,
+  initialTargets,
+  title,
+  submitLabel,
 }: Props) {
   const { t } = useTranslation();
 
   const [taskType, setTaskType] = useState<string>('execution');
-  const [deadline, setDeadline] = useState<string>('');
-  const [text, setText] = useState<string>('');
+  const [deadline, setDeadline] = useState<string>(() =>
+    toLocalInput(initialTargets?.find((tg) => tg.deadline)?.deadline),
+  );
+  const [text, setText] = useState<string>(initialText ?? '');
   const [query, setQuery] = useState<string>('');
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selected, setSelected] = useState<string[]>(
+    () => initialTargets?.map((tg) => tg.userId) ?? [],
+  );
   const [localError, setLocalError] = useState<string | null>(null);
 
   const { data: users = [], isLoading } = useQuery({
@@ -113,7 +135,7 @@ export function ControlAssignmentModal({
             </div>
             <div>
               <h2 className="text-base font-semibold text-slate-900">
-                {t('edo.control_assignment.title')}
+                {title ?? t('edo.control_assignment.title')}
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
                 {documentNumber} · {documentSubject}
@@ -307,7 +329,7 @@ export function ControlAssignmentModal({
             className="inline-flex items-center gap-2 bg-asaka-600 hover:bg-asaka-700 disabled:opacity-50 text-white font-semibold px-5 py-2 rounded-lg text-sm"
           >
             {submitting ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
-            {t('edo.control_assignment.save')}
+            {submitLabel ?? t('edo.control_assignment.save')}
           </button>
         </div>
       </form>

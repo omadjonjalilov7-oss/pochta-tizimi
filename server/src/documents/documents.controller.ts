@@ -288,7 +288,7 @@ export class DocumentsController {
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateResolutionDto,
   ) {
-    return this.docs.updateResolution(user.id, id, dto.text, user.role);
+    return this.docs.updateResolution(user.id, id, dto, user.role);
   }
 
   @Delete('resolution/:id')

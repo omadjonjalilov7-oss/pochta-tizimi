@@ -9,6 +9,7 @@ import {
 import {
   DocumentStatus,
   DocumentType,
+  EdoTaskStatus,
   ParticipantRole,
   ParticipantStatus,
   Prisma,
@@ -40,7 +41,7 @@ import {
   PresentToLeaderDto,
   RejectDto,
 } from './dto/document-action.dto';
-import { CompleteTargetDto, CreateResolutionDto } from './dto/resolution.dto';
+import { CompleteTargetDto, CreateResolutionDto, UpdateResolutionDto } from './dto/resolution.dto';
 import { SignDocumentDto } from './dto/sign.dto';
 import { buildDocumentPdf } from './documents.pdf';
 import {
@@ -1546,33 +1547,138 @@ export class DocumentsService {
     return this.findOne(userId, docId);
   }
 
-  // Rezolyutsiya (topshiriq) matnini tahrirlash — muallif yoki kanselyariya/admin.
+  // Rezolyutsiya (topshiriq) tahrirlash — matn va (ixtiyoriy) ijrochilar ro'yxati.
+  // Muallif yoki kanselyariya/admin, hamda kiruvchi hujjatda rahbar (joriy egasi).
   async updateResolution(
     userId: string,
     resolutionId: string,
-    text: string,
+    dto: UpdateResolutionDto,
     role?: string,
   ) {
     const res = await this.prisma.resolution.findUnique({
       where: { id: resolutionId },
+      include: { targets: true },
     });
     if (!res) throw new NotFoundException('Rezolyutsiya topilmadi');
     const isStaff = role === 'admin' || role === 'chancellery';
-    if (res.authorId !== userId && !isStaff) {
+    // Kiruvchi hujjatda rahbar (joriy egasi) ham topshiriqni tahrirlay oladi.
+    const parentDoc = await this.prisma.document.findUnique({
+      where: { id: res.documentId },
+      select: { currentHolderId: true, number: true, subject: true },
+    });
+    const isLeaderHolder =
+      !!parentDoc?.currentHolderId && parentDoc.currentHolderId === userId;
+    if (res.authorId !== userId && !isStaff && !isLeaderHolder) {
       throw new ForbiddenException("Sizda tahrirlash huquqi yo'q");
     }
+
+    const docId = res.documentId;
+    const newTargets = dto.targets;
+
+    // Yangi ijrochilar berilgan bo'lsa — ularni tekshiramiz.
+    if (newTargets && newTargets.length > 0) {
+      const ids = Array.from(new Set(newTargets.map((t) => t.userId)));
+      const valid = await this.prisma.user.findMany({
+        where: { id: { in: ids }, isActive: true },
+        select: { id: true },
+      });
+      if (valid.length !== ids.length) {
+        throw new BadRequestException('Ba\'zi ijrochilar topilmadi yoki bloklangan');
+      }
+    }
+
+    const prevTargetUserIds = new Set(res.targets.map((t) => t.userId));
+    const doneUserIds = new Set(
+      res.targets.filter((t) => t.status === EdoTaskStatus.done).map((t) => t.userId),
+    );
+
     await this.prisma.$transaction(async (tx) => {
-      await tx.resolution.update({ where: { id: resolutionId }, data: { text } });
+      await tx.resolution.update({ where: { id: resolutionId }, data: { text: dto.text } });
+
+      if (newTargets && newTargets.length > 0) {
+        const doc = await tx.document.findUnique({
+          where: { id: docId },
+          include: { participants: true },
+        });
+        const newIds = new Set(newTargets.map((t) => t.userId));
+        // Bajarilmagan (pending/overdue) eski topshiriqlarni o'chiramiz — bajarilganlar saqlanadi.
+        await tx.resolutionTarget.deleteMany({
+          where: { resolutionId, status: { not: EdoTaskStatus.done } },
+        });
+        // Ro'yxatdan chiqib ketgan ijrochilarning pending qatnashuvini olib tashlaymiz.
+        for (const old of res.targets) {
+          if (old.status !== EdoTaskStatus.done && !newIds.has(old.userId)) {
+            await tx.documentParticipant.deleteMany({
+              where: {
+                documentId: docId,
+                userId: old.userId,
+                role: ParticipantRole.executor,
+                status: ParticipantStatus.pending,
+              },
+            });
+          }
+        }
+        let nextOrder = Math.max(0, ...(doc?.participants.map((p) => p.order) ?? [0])) + 1;
+        for (const t of newTargets) {
+          // Allaqachon bajargan ijrochini qayta yaratmaymiz.
+          if (doneUserIds.has(t.userId)) continue;
+          await tx.resolutionTarget.create({
+            data: {
+              resolutionId,
+              userId: t.userId,
+              deadline: t.deadline ? new Date(t.deadline) : null,
+            },
+          });
+          await tx.documentParticipant.upsert({
+            where: {
+              documentId_userId_role: {
+                documentId: docId,
+                userId: t.userId,
+                role: ParticipantRole.executor,
+              },
+            },
+            create: {
+              documentId: docId,
+              userId: t.userId,
+              role: ParticipantRole.executor,
+              order: nextOrder++,
+              status: ParticipantStatus.pending,
+              deadline: t.deadline ? new Date(t.deadline) : null,
+            },
+            update: {
+              deadline: t.deadline ? new Date(t.deadline) : null,
+            },
+          });
+        }
+      }
+
       await tx.documentAuditLog.create({
         data: {
-          documentId: res.documentId,
+          documentId: docId,
           actorId: userId,
           action: 'resolution_updated',
           payload: { resolutionId } as any,
         },
       });
     });
-    return this.findOne(userId, res.documentId);
+
+    // Faqat yangi qo'shilgan ijrochilarni xabardor qilamiz (mavjudlariga takror yubormaymiz).
+    if (newTargets && newTargets.length > 0 && parentDoc) {
+      for (const t of newTargets) {
+        if (!prevTargetUserIds.has(t.userId)) {
+          await this.notifyExecutor(
+            t.userId,
+            userId,
+            docId,
+            parentDoc.number,
+            parentDoc.subject,
+            dto.text,
+          );
+        }
+      }
+    }
+
+    return this.findOne(userId, docId);
   }
 
   // Rezolyutsiyani o'chirish — muallif yoki kanselyariya/admin. Bog'liq topshiriqlar

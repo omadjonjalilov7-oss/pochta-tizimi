@@ -45,6 +45,14 @@ export class UpdateResolutionDto {
   @MinLength(2)
   @MaxLength(5000)
   text: string;
+
+  // Ijrochilar ro'yxati ham to'liq yangilanishi mumkin (topshiriq oynasidan
+  // tahrirlashda). Berilmasa — faqat matn yangilanadi.
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ResolutionTargetInputDto)
+  targets?: ResolutionTargetInputDto[];
 }
 
 // Topshiriqni "qayta yuklash" — muddatni o'zgartirib, ijrochini qayta xabardor qilish.

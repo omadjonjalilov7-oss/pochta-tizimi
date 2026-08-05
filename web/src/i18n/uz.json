@@ -1032,6 +1032,7 @@
       "resolutions": "Poruchenielar",
       "no_resolutions": "Hozircha poruchenie yozilmagan",
       "add_resolution": "Poruchenie qo'shish",
+      "edit_resolution": "Topshiriqni tahrirlash",
       "save_resolution": "Saqlash va yuborish",
       "resolution_text": "Poruchenie matni",
       "resolution_ph": "Ijrochilarga topshiriq mazmunini yozing...",

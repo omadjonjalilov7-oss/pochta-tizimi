@@ -152,10 +152,15 @@ export function EdoDocumentViewPage() {
   });
   // Rezolyutsiyani tahrirlash / o'chirish
   const updateResolution = useMutation({
-    mutationFn: async (vars: { resolutionId: string; text: string }) =>
+    mutationFn: async (vars: {
+      resolutionId: string;
+      text: string;
+      targets?: { userId: string; deadline?: string }[];
+    }) =>
       (
         await api.patch<EdoDocument>(`/documents/resolution/${vars.resolutionId}`, {
           text: vars.text,
+          targets: vars.targets,
         })
       ).data,
     onSuccess: invalidate,
@@ -195,6 +200,8 @@ export function EdoDocumentViewPage() {
   const [showChainModal, setShowChainModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showControlModal, setShowControlModal] = useState(false);
+  // Topshiriqni to'liq tahrirlash uchun tanlangan rezolyutsiya (ruchka bosilganda).
+  const [editingResolution, setEditingResolution] = useState<EdoResolution | null>(null);
   const [showPresentModal, setShowPresentModal] = useState(false);
   // Hujjat matnini kattalashtirish/kichraytirish (ayniqsa mobil qurilmada A4 varaqni ko'rish uchun).
   // Mobil ekranda A4 varaq (794px) ekranga to'liq sig'ishi uchun boshlang'ich zoom hisoblanadi.
@@ -286,6 +293,9 @@ export function EdoDocumentViewPage() {
   // Nazorat bandi (topshiriq) qo'sha oladiganlar: rezolyutsiya yozuvchilar +
   // kanselyariya/admin — hujjat tasdiqlangan/ijrodagi/bajarilgan bo'lsa.
   const isStaff = user?.role === 'admin' || user?.role === 'chancellery';
+  // Kiruvchi hujjatda rezolyutsiya rahbari (hozirgi egasi, masalan avazbek) ham
+  // topshiriq oynasini tahrirlashi mumkin (backend ham shu ruxsatni beradi).
+  const isLeaderHolder = !!user && doc.currentHolderId === user.id;
   // "Imzo uchun yuborish" — chiquvchi hujjatni bosh direktor (avazbek login) imzosiga
   // yuboradi. Login topilmasa tugma o'chiq bo'ladi.
   const signatoryUser = allUsers.find((u) => u.login === 'avazbek');
@@ -717,15 +727,13 @@ export function EdoDocumentViewPage() {
           <ResolutionSection
             doc={doc}
             canAssign={canAssignControl}
-            canManage={isStaff || isCreator}
+            canManage={isStaff || isCreator || isLeaderHolder}
             onAddClick={() => setShowControlModal(true)}
             onCompleteTarget={(targetId) => completeTarget.mutate({ targetId })}
             onReschedule={(targetId, deadline) =>
               rescheduleTarget.mutate({ targetId, deadline })
             }
-            onEditResolution={(resolutionId, text) =>
-              updateResolution.mutate({ resolutionId, text })
-            }
+            onEditResolution={(resolution) => setEditingResolution(resolution)}
             onDeleteResolution={(resolutionId) => deleteResolution.mutate({ resolutionId })}
             completing={completeTarget.isPending}
             rescheduling={rescheduleTarget.isPending}
@@ -788,6 +796,30 @@ export function EdoDocumentViewPage() {
             addResolution.mutate(
               { text, targets },
               { onSuccess: () => setShowControlModal(false) },
+            )
+          }
+        />
+      )}
+
+      {/* Topshiriqni to'liq tahrirlash modali — ruchka bosilganda ochiladi */}
+      {editingResolution && (
+        <ControlAssignmentModal
+          documentNumber={doc.number}
+          documentSubject={doc.subject}
+          title={t('edo.view.edit_resolution')}
+          submitLabel={t('common.save')}
+          initialText={editingResolution.text}
+          initialTargets={editingResolution.targets.map((tg) => ({
+            userId: tg.userId,
+            deadline: tg.deadline,
+          }))}
+          submitting={updateResolution.isPending}
+          error={extractError(updateResolution.error)}
+          onClose={() => setEditingResolution(null)}
+          onSubmit={(text, targets) =>
+            updateResolution.mutate(
+              { resolutionId: editingResolution.id, text, targets },
+              { onSuccess: () => setEditingResolution(null) },
             )
           }
         />
@@ -2087,15 +2119,13 @@ function ResolutionSection({
   onAddClick: () => void;
   onCompleteTarget: (targetId: string) => void;
   onReschedule: (targetId: string, deadline: string) => void;
-  onEditResolution: (resolutionId: string, text: string) => void;
+  onEditResolution: (resolution: EdoResolution) => void;
   onDeleteResolution: (resolutionId: string) => void;
   completing: boolean;
   rescheduling: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
-  const [editId, setEditId] = useState<string | null>(null);
-  const [editText, setEditText] = useState('');
   // Qayta yuklash: qaysi topshiriq ochilgan va yangi muddat qiymati
   const [rescheduleId, setRescheduleId] = useState<string | null>(null);
   const [rescheduleVal, setRescheduleVal] = useState('');
@@ -2142,13 +2172,10 @@ function ResolutionSection({
                   <ClipboardList size={12} />
                   {t('edo.view.details')}
                 </button>
-              {canManage && editId !== r.id && (
+              {canManage && (
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={() => {
-                      setEditId(r.id);
-                      setEditText(r.text);
-                    }}
+                    onClick={() => onEditResolution(r)}
                     title={t('common.edit')}
                     className="p-1.5 rounded-lg text-slate-400 hover:text-asaka-600 hover:bg-white"
                   >
@@ -2169,42 +2196,7 @@ function ResolutionSection({
               )}
               </div>
             </div>
-            {editId === r.id ? (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (editText.trim().length >= 2) {
-                    onEditResolution(r.id, editText.trim());
-                    setEditId(null);
-                  }
-                }}
-                className="mb-3 space-y-2"
-              >
-                <textarea
-                  value={editText}
-                  onChange={(e) => setEditText(e.target.value)}
-                  rows={3}
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none"
-                />
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    className="bg-asaka-600 hover:bg-asaka-700 text-white font-semibold px-3 py-1.5 rounded-lg text-sm"
-                  >
-                    {t('common.save')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditId(null)}
-                    className="text-slate-600 hover:bg-slate-100 font-medium px-3 py-1.5 rounded-lg text-sm"
-                  >
-                    {t('common.cancel')}
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <p className="text-sm text-slate-800 whitespace-pre-wrap mb-3">{r.text}</p>
-            )}
+            <p className="text-sm text-slate-800 whitespace-pre-wrap mb-3">{r.text}</p>
             <ul className="space-y-1.5">
               {r.targets.map((tg) => (
                 <li

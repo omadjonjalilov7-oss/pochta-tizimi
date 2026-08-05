@@ -1031,6 +1031,7 @@
       "resolutions": "Поручения",
       "no_resolutions": "Поручений пока нет",
       "add_resolution": "Добавить поручение",
+      "edit_resolution": "Редактировать поручение",
       "save_resolution": "Сохранить и отправить",
       "resolution_text": "Текст поручения",
       "resolution_ph": "Опишите поручение для исполнителей...",
