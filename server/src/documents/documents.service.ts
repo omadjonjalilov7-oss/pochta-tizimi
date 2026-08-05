@@ -710,7 +710,14 @@ export class DocumentsService {
           documentId: id,
           actorId: userId,
           action: 'approved',
-          payload: addIds.length > 0 ? ({ addApproverIds: addIds } as any) : undefined,
+          // Tasdiqlash paytida yozilgan izohni tarixda ko'rsatish uchun saqlaymiz
+          payload:
+            addIds.length > 0 || dto.approvalNotes
+              ? ({
+                  ...(addIds.length > 0 ? { addApproverIds: addIds } : {}),
+                  ...(dto.approvalNotes ? { note: dto.approvalNotes } : {}),
+                } as any)
+              : undefined,
         },
       });
     });

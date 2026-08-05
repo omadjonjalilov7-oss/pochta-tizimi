@@ -1759,6 +1759,17 @@ const AUDIT_STYLE: Record<
   resolution_added: { icon: ClipboardList, bg: 'bg-amber-100', ring: 'ring-amber-200', text: 'text-amber-700' },
   task_completed: { icon: CheckCircle2, bg: 'bg-emerald-100', ring: 'ring-emerald-200', text: 'text-emerald-700' },
   all_tasks_done: { icon: ShieldCheck, bg: 'bg-emerald-100', ring: 'ring-emerald-200', text: 'text-emerald-700' },
+  resolution_updated: { icon: ClipboardList, bg: 'bg-amber-100', ring: 'ring-amber-200', text: 'text-amber-700' },
+  resolution_deleted: { icon: ClipboardList, bg: 'bg-red-100', ring: 'ring-red-200', text: 'text-red-700' },
+  task_note_added: { icon: MessageSquare, bg: 'bg-slate-100', ring: 'ring-slate-200', text: 'text-slate-600' },
+  task_rescheduled: { icon: Clock, bg: 'bg-amber-100', ring: 'ring-amber-200', text: 'text-amber-700' },
+  presented_to_leader: { icon: Send, bg: 'bg-sky-100', ring: 'ring-sky-200', text: 'text-sky-700' },
+  attachment_replaced: { icon: FileText, bg: 'bg-slate-100', ring: 'ring-slate-200', text: 'text-slate-600' },
+  attachment_online_edited: { icon: FileText, bg: 'bg-slate-100', ring: 'ring-slate-200', text: 'text-slate-600' },
+  approved_with_qr: { icon: CheckCircle2, bg: 'bg-emerald-100', ring: 'ring-emerald-200', text: 'text-emerald-700' },
+  rejected_with_qr: { icon: XCircle, bg: 'bg-red-100', ring: 'ring-red-200', text: 'text-red-700' },
+  extended_deadline: { icon: Clock, bg: 'bg-sky-100', ring: 'ring-sky-200', text: 'text-sky-700' },
+  approved_overdue: { icon: CheckCircle2, bg: 'bg-emerald-100', ring: 'ring-emerald-200', text: 'text-emerald-700' },
 };
 
 const DEFAULT_STYLE = AUDIT_STYLE.created;
@@ -1766,13 +1777,28 @@ const DEFAULT_STYLE = AUDIT_STYLE.created;
 function AuditPayload({
   action,
   payload,
+  actorId,
   participants,
 }: {
   action: string;
   payload: any;
+  actorId?: string;
   participants: EdoDocument['participants'];
 }) {
   const { t } = useTranslation();
+
+  // Tasdiqlash paytidagi izoh — avval audit payloadidan, bo'lmasa ishtirokchining
+  // saqlangan approvalNotes maydonidan (eski yozuvlar uchun) olinadi.
+  if (action === 'approved') {
+    const note =
+      (payload && typeof payload === 'object' ? payload.note : null) ||
+      participants.find((p) => p.userId === actorId && p.role === 'approver')?.approvalNotes;
+    if (note) {
+      return <div className="mt-1 text-xs text-slate-600 italic">“{note}”</div>;
+    }
+    return null;
+  }
+
   if (!payload || typeof payload !== 'object') return null;
 
   if (action === 'rejected' && payload.reason) {
@@ -1870,7 +1896,7 @@ function AuditPanel({ doc }: { doc: EdoDocument }) {
                     {t(`edo.action.${a.action}`, a.action)}
                   </span>
                 </div>
-                <AuditPayload action={a.action} payload={a.payload} participants={doc.participants} />
+                <AuditPayload action={a.action} payload={a.payload} actorId={a.actor?.id} participants={doc.participants} />
               </div>
             </li>
           );

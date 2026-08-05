@@ -120,6 +120,7 @@ export interface EdoParticipant {
   deadline?: string | null;
   actedAt?: string | null;
   rejectReason?: string | null;
+  approvalNotes?: string | null;
   user: ShortUser;
 }
 

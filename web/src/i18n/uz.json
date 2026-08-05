@@ -789,9 +789,20 @@
       "completed": "imzo zanjirini yopdi",
       "signed": "imzoladi",
       "overdue": "muddati o'tdi (avto)",
-      "resolution_added": "poruchenie yozdi",
+      "resolution_added": "topshiriq berdi",
+      "resolution_updated": "topshiriqni tahrirladi",
+      "resolution_deleted": "topshiriqni o'chirdi",
       "task_completed": "topshiriqni bajardi",
-      "all_tasks_done": "barcha topshiriqlar bajarildi (avto)"
+      "task_note_added": "topshiriqqa izoh qo'shdi",
+      "task_rescheduled": "topshiriq muddatini o'zgartirdi",
+      "all_tasks_done": "barcha topshiriqlar bajarildi (avto)",
+      "presented_to_leader": "rahbarga taqdim etdi",
+      "attachment_replaced": "ilovani almashtirdi",
+      "attachment_online_edited": "hujjatni onlayn tahrirladi",
+      "approved_with_qr": "QR orqali tasdiqladi",
+      "rejected_with_qr": "QR orqali rad etdi",
+      "extended_deadline": "muddatni uzaytirdi",
+      "approved_overdue": "muddati o'tganini tasdiqladi"
     },
     "task_status": {
       "pending": "Kutilmoqda",

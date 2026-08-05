@@ -789,8 +789,19 @@
       "signed": "подписал",
       "overdue": "срок истёк (авто)",
       "resolution_added": "дал поручение",
+      "resolution_updated": "изменил поручение",
+      "resolution_deleted": "удалил поручение",
       "task_completed": "выполнил поручение",
-      "all_tasks_done": "все поручения выполнены (авто)"
+      "task_note_added": "добавил комментарий к поручению",
+      "task_rescheduled": "изменил срок поручения",
+      "all_tasks_done": "все поручения выполнены (авто)",
+      "presented_to_leader": "представил руководителю",
+      "attachment_replaced": "заменил вложение",
+      "attachment_online_edited": "отредактировал документ онлайн",
+      "approved_with_qr": "согласовал через QR",
+      "rejected_with_qr": "отклонил через QR",
+      "extended_deadline": "продлил срок",
+      "approved_overdue": "согласовал просрочку"
     },
     "task_status": {
       "pending": "Ожидает",
