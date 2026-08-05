@@ -643,6 +643,20 @@ export function EdoTasksPage() {
   );
 }
 
+// "Tasdiqlash" (korrektor) — kanselyariya xodimi o'zi tasdiqlab rahbarga
+// o'tkazishi kerak bo'lgan hujjatlar (u pending tasdiqlovchi bo'lgan hujjatlar).
+export function EdoKorrektorPage() {
+  return (
+    <DocList
+      queryKey="edo-korrektor"
+      endpoint="/documents/tasks"
+      titleKey="edo.nav.korrektor"
+      emptyKey="edo.list.empty_korrektor"
+      showHolder
+    />
+  );
+}
+
 export function EdoIncomingPage() {
   return (
     <DocList

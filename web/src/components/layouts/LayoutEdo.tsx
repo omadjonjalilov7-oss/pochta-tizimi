@@ -33,6 +33,7 @@ import {
   Search,
   Settings,
   BookText,
+  Stamp,
   Menu,
   X,
 } from 'lucide-react';
@@ -356,6 +357,9 @@ export function LayoutEdo() {
           )}
           {isStaff && (
             <EdoNav to="/edo/control/open-tasks" icon={ClipboardCheck} label={t('edo.nav.open_tasks')} collapsed={collapsed} />
+          )}
+          {isStaff && (
+            <EdoNav to="/edo/korrektor" icon={Stamp} label={t('edo.nav.korrektor')} collapsed={collapsed} />
           )}
           <EdoNav to="/edo/tasks" icon={Handshake} label={t('edo.nav.tasks_approval')} collapsed={collapsed} />
           <EdoNav to="/edo/signing" icon={FileSignature} label={t('edo.nav.to_sign')} collapsed={collapsed} />

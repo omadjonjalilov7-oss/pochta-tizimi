@@ -36,6 +36,7 @@ import {
   EdoToSignPage,
   EdoDepartmentPage,
   EdoOpenTasksPage,
+  EdoKorrektorPage,
 } from './pages/edo/EdoDocList';
 import { EdoControlPage } from './pages/edo/EdoControlPage';
 import { EdoScanPage } from './pages/edo/EdoScanPage';
@@ -87,6 +88,7 @@ export function App() {
           <Route path="approval" element={<EdoApprovalPage />} />
           <Route path="compose" element={<EdoComposePage />} />
           <Route path="tasks" element={<EdoTasksPage />} />
+          <Route path="korrektor" element={<EdoKorrektorPage />} />
           <Route path="drafts" element={<EdoDraftsPage />} />
           <Route path="documents/:id" element={<EdoDocumentViewPage />} />
           <Route path="incoming" element={<EdoIncomingPage />} />
