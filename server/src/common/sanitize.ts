@@ -6,14 +6,16 @@ const RICH_HTML_OPTS: sanitizeHtml.IOptions = {
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
     'ul', 'ol', 'li', 'blockquote', 'hr',
     'table', 'thead', 'tbody', 'tr', 'td', 'th', 'colgroup', 'col',
-    'span', 'div', 'a', 'img',
+    'span', 'div', 'a', 'img', 'figure', 'figcaption',
   ],
   allowedAttributes: {
     a: ['href', 'target', 'rel'],
     td: ['colspan', 'rowspan'],
     th: ['colspan', 'rowspan'],
     img: ['src', 'alt', 'title', 'width', 'height', 'style'],
-    '*': ['style'],
+    // CKEditor jadval o'lchamlari va joylashuvini class + style orqali saqlaydi
+    // (masalan ck-table-resized). class'ga ruxsat beramiz — XSS xavfi yo'q.
+    '*': ['style', 'class'],
   },
   // Rasm manbalari: base64 (data:) va tashqi http(s). Blanka/firmenniy
   // sarlavha rasmlari uchun zarur.
@@ -35,6 +37,21 @@ const RICH_HTML_OPTS: sanitizeHtml.IOptions = {
       'text-orientation': [/^(mixed|upright|sideways)$/],
       'vertical-align': [/^(top|middle|bottom|baseline)$/],
       'white-space': [/^(normal|nowrap|pre|pre-wrap)$/],
+      // Jadval ranglari va chegaralari (CKEditor Table properties) — url()/
+      // expression() kabi xavfli qiymatlarga yo'l qo'ymaydigan tor regexlar.
+      color: [/^#[0-9a-f]{3,8}$/i, /^rgba?\([\d.,\s]+\)$/, /^hsla?\([\d.,%\s]+\)$/, /^[a-z]+$/i],
+      'background-color': [/^#[0-9a-f]{3,8}$/i, /^rgba?\([\d.,\s]+\)$/, /^hsla?\([\d.,%\s]+\)$/, /^[a-z]+$/i],
+      border: [/^[\d.]+px\s+(solid|dashed|dotted|double|none)(\s+(#[0-9a-f]{3,8}|rgba?\([\d.,\s]+\)|hsla?\([\d.,%\s]+\)|[a-z]+))?$/i],
+      'border-top': [/^[\d.]+px\s+(solid|dashed|dotted|double|none)(\s+(#[0-9a-f]{3,8}|rgba?\([\d.,\s]+\)|hsla?\([\d.,%\s]+\)|[a-z]+))?$/i],
+      'border-right': [/^[\d.]+px\s+(solid|dashed|dotted|double|none)(\s+(#[0-9a-f]{3,8}|rgba?\([\d.,\s]+\)|hsla?\([\d.,%\s]+\)|[a-z]+))?$/i],
+      'border-bottom': [/^[\d.]+px\s+(solid|dashed|dotted|double|none)(\s+(#[0-9a-f]{3,8}|rgba?\([\d.,\s]+\)|hsla?\([\d.,%\s]+\)|[a-z]+))?$/i],
+      'border-left': [/^[\d.]+px\s+(solid|dashed|dotted|double|none)(\s+(#[0-9a-f]{3,8}|rgba?\([\d.,\s]+\)|hsla?\([\d.,%\s]+\)|[a-z]+))?$/i],
+      'border-color': [/^#[0-9a-f]{3,8}$/i, /^rgba?\([\d.,\s]+\)$/, /^hsla?\([\d.,%\s]+\)$/, /^[a-z]+$/i],
+      'border-style': [/^(solid|dashed|dotted|double|none)$/i],
+      'border-width': [/^[\d.]+px$/],
+      'border-collapse': [/^(collapse|separate)$/],
+      padding: [/^[\d.]+(px|em|%)(\s+[\d.]+(px|em|%)){0,3}$/],
+      'table-layout': [/^(auto|fixed)$/],
     },
   },
   transformTags: {

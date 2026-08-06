@@ -1200,6 +1200,7 @@
       "tb_row_del": "Qatorni o'chirish",
       "tb_rotate": "Matnni aylantirish (90°)",
       "select_cell_first": "Avval jadval katakchasini tanlang",
+      "ck_hint": "Ustun chegarasini sudrab kengaytiring. Jadval ustiga bosib chiqadigan menyudan qator/ustun qo'shing yoki kataklarni birlashtiring.",
       "table_rows_prompt": "Nechta qator?",
       "table_cols_prompt": "Nechta ustun?",
       "is_shared": "Hammaga ochiq (boshqa xodimlar ham foydalanishi mumkin)",

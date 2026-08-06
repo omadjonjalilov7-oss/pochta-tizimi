@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
@@ -10,36 +10,13 @@ import {
   Globe,
   User as UserIcon,
   Search,
-  Bold,
-  Italic,
-  List,
   Braces,
   Upload,
-  Table as TableIcon,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  ArrowLeftToLine,
-  ArrowRightToLine,
-  ArrowUpToLine,
-  ArrowDownToLine,
-  RotateCw,
-  Rows3,
-  Columns3,
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import type { EdoTemplate } from '../../lib/types';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../lib/utils';
-import {
-  normalizeTables,
-  attachTableResize,
-  tableInsertColumn,
-  tableDeleteColumn,
-  tableInsertRow,
-  tableDeleteRow,
-  rotateCellText,
-} from '../../lib/tableResize';
 
 interface FormState {
   id?: string;
@@ -377,10 +354,18 @@ function TemplateFormModal({
                 }}
               />
             </div>
-            <RichTemplateEditor
-              value={form.bodyTemplate}
-              onChange={(html) => onChange({ ...form, bodyTemplate: html })}
-            />
+            <Suspense
+              fallback={
+                <div className="flex-1 min-h-0 flex items-center justify-center text-sm text-slate-400 border border-slate-300 rounded-lg">
+                  {t('common.loading') ?? 'Yuklanmoqda…'}
+                </div>
+              }
+            >
+              <RichTemplateEditor
+                value={form.bodyTemplate}
+                onChange={(html) => onChange({ ...form, bodyTemplate: html })}
+              />
+            </Suspense>
             {importDocx.error && (
               <div className="mt-1.5 text-xs text-red-600">{extractErr(importDocx.error)}</div>
             )}
@@ -432,274 +417,10 @@ function TemplateFormModal({
   );
 }
 
-function ToolBtn({
-  onClick,
-  title,
-  children,
-}: {
-  onClick: () => void;
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={onClick}
-      title={title}
-      className="p-1.5 rounded text-slate-600 hover:bg-slate-200"
-    >
-      {children}
-    </button>
-  );
-}
+// CKEditor og'ir (~1MB) — faqat shablon muharriri ochilganda yuklanadi
+// (lazy). Asosiy ilova bundle'i yengil qoladi.
+const RichTemplateEditor = lazy(() => import('./RichTemplateEditor'));
 
-function RichTemplateEditor({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (html: string) => void;
-}) {
-  const { t } = useTranslation();
-  const ref = useRef<HTMLDivElement>(null);
-  const savedRange = useRef<Range | null>(null);
-  const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
-
-  // Tashqi qiymat (Word import yoki tahrirlashni ochish) o'zgarganda muharrirga yozamiz.
-  // Yozgandan keyin jadvallarni tayyorlaymiz (colgroup + fixed layout) — Word'dan
-  // kelgan ustunlar siqilib buzilmasligi va o'lchash mumkin bo'lishi uchun.
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    // Faqat TASHQI o'zgarishda (Word import / tahrirlashni ochish) qayta yozamiz va
-    // jadvallarni tayyorlaymiz. Foydalanuvchi tahriri (yozish, ustun sudrash)
-    // paytida el.innerHTML === value bo'ladi — normalize ishlamaydi, shu sabab
-    // qo'lda o'zgartirilgan ustun kengliklari qaytib buzilmaydi.
-    if (el.innerHTML !== value) {
-      el.innerHTML = value || '';
-      const before = el.innerHTML;
-      normalizeTables(el);
-      if (el.innerHTML !== before) onChangeRef.current(el.innerHTML);
-    }
-  }, [value]);
-
-  // Jadval chegaralarini sudrab ustun/satr o'lchamini o'zgartirish.
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    return attachTableResize(el, () => {
-      if (ref.current) onChangeRef.current(ref.current.innerHTML);
-    });
-  }, []);
-
-  const emit = () => {
-    if (ref.current) onChange(ref.current.innerHTML);
-  };
-
-  const saveSelection = () => {
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0 && ref.current?.contains(sel.anchorNode)) {
-      savedRange.current = sel.getRangeAt(0).cloneRange();
-    }
-  };
-
-  const exec = (cmd: string) => {
-    ref.current?.focus();
-    document.execCommand(cmd, false);
-    emit();
-  };
-
-  const restoreSelection = () => {
-    const el = ref.current;
-    if (!el) return;
-    el.focus();
-    const sel = window.getSelection();
-    if (savedRange.current && sel) {
-      sel.removeAllRanges();
-      sel.addRange(savedRange.current);
-    }
-  };
-
-  const insertPlaceholder = () => {
-    const raw = window.prompt(t('edo.templates.placeholder_prompt') ?? '');
-    if (!raw) return;
-    const key = raw
-      .trim()
-      .replace(/[^a-zA-Z0-9_]/g, '_')
-      .replace(/^([0-9])/, '_$1');
-    if (!key) return;
-    if (!ref.current) return;
-    restoreSelection();
-    document.execCommand('insertText', false, `{{${key}}}`);
-    emit();
-  };
-
-  const insertTable = () => {
-    const rows = Math.min(20, Math.max(1, parseInt(window.prompt(t('edo.templates.table_rows_prompt') ?? '', '2') || '', 10) || 0));
-    if (!rows) return;
-    const cols = Math.min(10, Math.max(1, parseInt(window.prompt(t('edo.templates.table_cols_prompt') ?? '', '2') || '', 10) || 0));
-    if (!cols) return;
-    if (!ref.current) return;
-    restoreSelection();
-    let html = '<table><tbody>';
-    for (let r = 0; r < rows; r++) {
-      html += '<tr>';
-      for (let c = 0; c < cols; c++) html += '<td>&nbsp;</td>';
-      html += '</tr>';
-    }
-    html += '</tbody></table><p><br></p>';
-    document.execCommand('insertHTML', false, html);
-    if (ref.current) normalizeTables(ref.current);
-    emit();
-  };
-
-  // Joriy katak/paragraf uchun matn tekislashini o'rnatadi (jadval ustunlarini tenglash uchun)
-  const alignCell = (dir: 'left' | 'center' | 'right') => {
-    const sel = window.getSelection();
-    let node: Node | null = sel && sel.rangeCount > 0 ? sel.getRangeAt(0).startContainer : null;
-    let block: HTMLElement | null = null;
-    while (node && ref.current?.contains(node)) {
-      if (node instanceof HTMLElement && /^(TD|TH|P|LI|DIV|H1|H2|H3|H4|H5|H6)$/.test(node.tagName)) {
-        block = node;
-        break;
-      }
-      node = node.parentNode;
-    }
-    if (block) {
-      block.style.textAlign = dir;
-      emit();
-    }
-  };
-
-  // Joriy katak (kursor turgan yoki oxirgi belgilangan) — jadval amallari uchun.
-  const currentCell = (): HTMLTableCellElement | null => {
-    const sel = window.getSelection();
-    let node: Node | null =
-      sel && sel.rangeCount > 0
-        ? sel.getRangeAt(0).startContainer
-        : (savedRange.current?.startContainer ?? null);
-    while (node && ref.current?.contains(node)) {
-      if (node instanceof HTMLTableCellElement) return node;
-      node = node.parentNode;
-    }
-    return null;
-  };
-
-  // Jadval amali: joriy katakni topib, funksiyani bajaradi va saqlaydi.
-  const tableOp = (fn: (cell: HTMLTableCellElement) => void) => {
-    restoreSelection();
-    const cell = currentCell();
-    if (!cell) {
-      window.alert(t('edo.templates.select_cell_first') ?? 'Avval jadval katakchasini tanlang');
-      return;
-    }
-    fn(cell);
-    emit();
-  };
-
-  return (
-    <div className="border border-slate-300 rounded-lg overflow-hidden flex flex-col flex-1 min-h-0 focus-within:border-asaka-500 focus-within:ring-2 focus-within:ring-asaka-100">
-      <div className="flex items-center gap-1 border-b border-slate-200 bg-slate-50 px-2 py-1.5 shrink-0">
-        <ToolBtn onClick={() => exec('bold')} title={t('edo.templates.tb_bold')}>
-          <Bold size={15} />
-        </ToolBtn>
-        <ToolBtn onClick={() => exec('italic')} title={t('edo.templates.tb_italic')}>
-          <Italic size={15} />
-        </ToolBtn>
-        <ToolBtn onClick={() => exec('insertUnorderedList')} title={t('edo.templates.tb_list')}>
-          <List size={15} />
-        </ToolBtn>
-        <div className="w-px h-5 bg-slate-300 mx-1" />
-        <ToolBtn onClick={() => alignCell('left')} title={t('edo.templates.tb_align_left')}>
-          <AlignLeft size={15} />
-        </ToolBtn>
-        <ToolBtn onClick={() => alignCell('center')} title={t('edo.templates.tb_align_center')}>
-          <AlignCenter size={15} />
-        </ToolBtn>
-        <ToolBtn onClick={() => alignCell('right')} title={t('edo.templates.tb_align_right')}>
-          <AlignRight size={15} />
-        </ToolBtn>
-        <ToolBtn onClick={insertTable} title={t('edo.templates.tb_table')}>
-          <TableIcon size={15} />
-        </ToolBtn>
-        <div className="w-px h-5 bg-slate-300 mx-1" />
-        <button
-          type="button"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={insertPlaceholder}
-          className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2 py-1 rounded"
-        >
-          <Braces size={14} />
-          {t('edo.templates.insert_placeholder')}
-        </button>
-        <div className="w-px h-5 bg-slate-300 mx-1" />
-        {/* Jadval amallari — kursor turgan katakka nisbatan ustun/qator
-            qo'shish/o'chirish va matnni aylantirish. */}
-        <ToolBtn
-          onClick={() => tableOp((c) => tableInsertColumn(c, 'left'))}
-          title={t('edo.templates.tb_col_left') ?? "Chapga ustun qo'shish"}
-        >
-          <ArrowLeftToLine size={15} />
-        </ToolBtn>
-        <ToolBtn
-          onClick={() => tableOp((c) => tableInsertColumn(c, 'right'))}
-          title={t('edo.templates.tb_col_right') ?? "O'ngga ustun qo'shish"}
-        >
-          <ArrowRightToLine size={15} />
-        </ToolBtn>
-        <ToolBtn
-          onClick={() => tableOp(tableDeleteColumn)}
-          title={t('edo.templates.tb_col_del') ?? "Ustunni o'chirish"}
-        >
-          <Columns3 size={15} />
-        </ToolBtn>
-        <div className="w-px h-5 bg-slate-300 mx-1" />
-        <ToolBtn
-          onClick={() => tableOp((c) => tableInsertRow(c, 'above'))}
-          title={t('edo.templates.tb_row_above') ?? "Yuqoriga qator qo'shish"}
-        >
-          <ArrowUpToLine size={15} />
-        </ToolBtn>
-        <ToolBtn
-          onClick={() => tableOp((c) => tableInsertRow(c, 'below'))}
-          title={t('edo.templates.tb_row_below') ?? "Pastga qator qo'shish"}
-        >
-          <ArrowDownToLine size={15} />
-        </ToolBtn>
-        <ToolBtn
-          onClick={() => tableOp(tableDeleteRow)}
-          title={t('edo.templates.tb_row_del') ?? "Qatorni o'chirish"}
-        >
-          <Rows3 size={15} />
-        </ToolBtn>
-        <div className="w-px h-5 bg-slate-300 mx-1" />
-        <ToolBtn
-          onClick={() => tableOp(rotateCellText)}
-          title={t('edo.templates.tb_rotate') ?? 'Matnni aylantirish (90°)'}
-        >
-          <RotateCw size={15} />
-        </ToolBtn>
-      </div>
-      {/* A4 varaq ko'rinishidagi tahrir maydoni — shablon aynan hujjat kabi
-          ko'rinadi (WYSIWYG): jadval kengliklari, shrift (Arial 12pt) va
-          joylashuv hujjatga 1:1 o'tadi. */}
-      <div className="flex-1 min-h-0 overflow-auto bg-slate-200 p-4">
-        <div
-          ref={ref}
-          contentEditable
-          suppressContentEditableWarning
-          onInput={emit}
-          onKeyUp={saveSelection}
-          onMouseUp={saveSelection}
-          onBlur={saveSelection}
-          className="edo-doc-body edo-tpl-editor edo-a4-sheet mx-auto bg-white shadow-md outline-none"
-        />
-      </div>
-    </div>
-  );
-}
 
 function extractErr(e: any): string {
   const m = e?.response?.data?.message;
