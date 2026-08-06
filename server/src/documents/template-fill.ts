@@ -78,6 +78,23 @@ const CYR_MONO: Record<string, string> = {
 };
 const APOS = new Set(["'", '‘', '’', 'ʻ']);
 
+// Xujjatni kiritgan xodim F.I.Sh.ni qisqa ko'rinishga o'giradi:
+// familiya to'liq, ism va sharif bosh harflari nuqta bilan — "Жалилов .О.А.".
+// Harflar krill alifbosida. "o'g'li"/"qizi" kabi qo'shimchalar hisobga olinmaydi.
+const NAME_SUFFIX_RE = /^(o['’ʻ`]?\s*g['’ʻ`]?\s*li|o['’ʻ`]?g['’ʻ`]?li|ugli|qizi|kizi)$/i;
+export function formatCreatorShort(fullName: string | null | undefined): string {
+  const parts = (fullName ?? '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '';
+  const surname = toCyrillic(parts[0]);
+  const rest = parts.slice(1).filter((p) => !NAME_SUFFIX_RE.test(p));
+  const initials = rest
+    .slice(0, 2)
+    .map((p) => toCyrillic(p).charAt(0).toUpperCase())
+    .filter(Boolean);
+  if (initials.length === 0) return surname;
+  return `${surname} .${initials.join('.')}.`;
+}
+
 export function toCyrillic(input: string | null | undefined): string {
   const s = input ?? '';
   if (!s) return '';
@@ -219,9 +236,10 @@ export function buildIchkiTokens(input: AutoFillInput): {
   );
   // Tasdiqlagan xodim katakchasida QR kod (hujjatni ko'rsatuvchi). QR bo'lmasa
   // eski xatti-harakat: "TASDIQLANDI" yozuvi.
+  // QR kod imzo katakchasiga sig'ishi uchun kichik (jadval chegarasiga tegmasin).
   const qrTag = input.qrDataUrl
     ? `<img src="${input.qrDataUrl}" alt="QR" title="Hujjatni skanerlab ko'rish" ` +
-      `style="width:84px;height:84px;display:block;margin:0 auto;" />`
+      `style="width:50px;height:50px;max-width:96%;display:block;margin:3px auto;" />`
     : 'TASDIQLANDI';
   // Tasdiqlash belgisi: shaxs tasdiqlagan bo'lsa QR (yoki matn), aks holda bo'sh.
   const markOf = (login: string) =>
@@ -229,8 +247,8 @@ export function buildIchkiTokens(input: AutoFillInput): {
   const dateOf = (login: string) => fmtDate(byLogin.get(login)?.actedAt ?? null);
 
   const values: Record<string, string> = {
-    // Avtomat to'ldiriladigan oddiy matnlar krill alifbosida ko'rsatiladi.
-    _asaka_1: toCyrillic(input.creatorName),
+    // Xujjatni kiritgan xodim: familiya to'liq + ism/sharif bosh harflari (krill).
+    _asaka_1: formatCreatorShort(input.creatorName),
     // Yaratuvchi hujjatni yuborish bilan tasdiqlagan hisoblanadi.
     _asaka_2: qrTag,
     _asaka_3: markOf('aziza'),

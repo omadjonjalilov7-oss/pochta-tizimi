@@ -5,11 +5,60 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import * as mammoth from 'mammoth';
+import JSZip from 'jszip';
 import { PrismaService } from '../prisma/prisma.service';
 import { sanitizeRichHtml } from '../common/sanitize';
 import { CreateTemplateDto, UpdateTemplateDto } from './dto/template.dto';
 
 const PLACEHOLDER_RE = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g;
+
+// Tayyor hujjat A4 varag'ining ichki (padding'siz) kengligi ~698px. Word
+// jadvalini shu kenglikka moslab (proporsiyalarini saqlab) piksel kengligini
+// beramiz — natijada jadval A4 ramkasidan chiqib ketmaydi.
+const A4_CONTENT_PX = 690;
+
+// .docx (zip) ichidagi word/document.xml dan har bir jadvalning ustun
+// kengliklarini (w:tblGrid > w:gridCol w:w=..., dxa) tartib bo'yicha oladi.
+async function extractTblGrids(buffer: Buffer): Promise<number[][]> {
+  try {
+    const zip = await JSZip.loadAsync(buffer);
+    const file = zip.file('word/document.xml');
+    if (!file) return [];
+    const xml = await file.async('string');
+    const grids: number[][] = [];
+    const gridRe = /<w:tblGrid\b[^>]*>([\s\S]*?)<\/w:tblGrid>/g;
+    let g: RegExpExecArray | null;
+    while ((g = gridRe.exec(xml)) !== null) {
+      const cols: number[] = [];
+      const colRe = /<w:gridCol\b[^>]*?\bw:w="(\d+)"/g;
+      let c: RegExpExecArray | null;
+      while ((c = colRe.exec(g[1])) !== null) cols.push(parseInt(c[1], 10));
+      grids.push(cols);
+    }
+    return grids;
+  } catch {
+    return [];
+  }
+}
+
+// Mammoth chiqargan HTML jadvallariga (kenglik bermaydi) Word gridiga mos
+// <colgroup> qo'shadi — ustun kengliklari A4 ramkasiga proporsional sig'adi,
+// table-layout:fixed bo'lgani uchun kataklar o'zgarmaydi, matn faqat pastga tushadi.
+function applyTableWidths(html: string, grids: number[][]): string {
+  let idx = 0;
+  return html.replace(/<table\b[^>]*>/g, (full) => {
+    const grid = grids[idx++];
+    if (!grid || grid.length === 0) return full;
+    const sum = grid.reduce((a, b) => a + b, 0) || 1;
+    const cols = grid
+      .map((w) => {
+        const px = Math.max(6, Math.round((w / sum) * A4_CONTENT_PX));
+        return `<col style="width:${px}px" />`;
+      })
+      .join('');
+    return `<table style="width:${A4_CONTENT_PX}px"><colgroup>${cols}</colgroup>`;
+  });
+}
 
 function extractPlaceholders(body: string): string[] {
   const set = new Set<string>();
@@ -134,7 +183,11 @@ export class TemplatesService {
         "Faylni o'qib bo'lmadi. To'g'ri .docx ekaniga ishonch hosil qiling",
       );
     }
-    const html = sanitizeBody(raw);
+    // Word jadval ustunlari kengligini o'qib, HTMLga proporsional colgroup
+    // qo'shamiz — jadval A4 ramkasidan chiqmaydi.
+    const grids = await extractTblGrids(buffer);
+    const withWidths = grids.length ? applyTableWidths(raw, grids) : raw;
+    const html = sanitizeBody(withWidths);
     return { html, placeholders: extractPlaceholders(html) };
   }
 }
