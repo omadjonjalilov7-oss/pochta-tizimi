@@ -185,6 +185,109 @@ class CellDecorations extends Plugin {
   }
 }
 
+// --- Qator balandligini pastki chegarani sudrab o'zgartirish plagini ---
+// CKEditor faqat USTUN kengligini sudrab o'zgartiradi; qator balandligini
+// sudrab bo'lmaydi. Shu funksiyani o'zimiz qo'shamiz: katakning pastki
+// chegarasiga yaqin bosib sudralsa — o'sha qatordagi barcha kataklar balandligi
+// o'zgaradi (tableCellHeight komandasi orqali model'ga yoziladi, saqlanadi).
+class RowHeightResize extends Plugin {
+  static get requires() {
+    return [GeneralHtmlSupport];
+  }
+
+  init(): void {
+    const editor = this.editor;
+    const EDGE = 6; // px — pastki chegaraga yaqinlik zonasi
+    const RIGHT_SAFE = 12; // px — o'ng chetdagi ustun-o'lchagichga tegmaslik uchun
+    const MIN_H = 24; // px — minimal balandlik
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let drag: any = null;
+
+    const cellAt = (x: number, y: number): HTMLElement | null => {
+      const el = document.elementFromPoint(x, y) as HTMLElement | null;
+      if (!el || !el.closest) return null;
+      return el.closest('.edo-tpl-ck .ck-content td, .edo-tpl-ck .ck-content th');
+    };
+    const nearBottom = (cell: HTMLElement, x: number, y: number): boolean => {
+      const r = cell.getBoundingClientRect();
+      return Math.abs(r.bottom - y) <= EDGE && r.right - x > RIGHT_SAFE;
+    };
+    const root = () => editor.editing.view.getDomRoot() as HTMLElement | undefined;
+
+    const onMove = (e: MouseEvent) => {
+      if (drag) {
+        const h = Math.max(MIN_H, Math.round(drag.startH + (e.clientY - drag.startY)));
+        for (const td of drag.rowCells) td.style.height = h + 'px';
+        drag.newH = h;
+        e.preventDefault();
+        return;
+      }
+      const r = root();
+      const cell = cellAt(e.clientX, e.clientY);
+      if (cell && nearBottom(cell, e.clientX, e.clientY)) {
+        if (r) r.style.cursor = 'row-resize';
+      } else if (r && r.style.cursor === 'row-resize') {
+        r.style.cursor = '';
+      }
+    };
+
+    const onDown = (e: MouseEvent) => {
+      const cell = cellAt(e.clientX, e.clientY);
+      if (!cell || !nearBottom(cell, e.clientX, e.clientY)) return;
+      const tr = cell.closest('tr');
+      if (!tr) return;
+      const rowCells = Array.from(tr.children).filter((n) =>
+        /^(td|th)$/i.test((n as HTMLElement).tagName),
+      ) as HTMLElement[];
+      drag = {
+        cell,
+        startY: e.clientY,
+        startH: cell.getBoundingClientRect().height,
+        rowCells,
+        newH: null,
+      };
+      e.preventDefault();
+    };
+
+    const onUp = () => {
+      if (!drag) return;
+      const { cell, rowCells } = drag;
+      const finalH = drag.newH || Math.round(drag.startH);
+      drag = null;
+      const r = root();
+      if (r) r.style.cursor = '';
+      for (const td of rowCells) td.style.height = '';
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const viewEl: any = editor.editing.view.domConverter.domToView(cell);
+        const modelCell = viewEl && editor.editing.mapper.toModelElement(viewEl);
+        if (modelCell) {
+          const row = modelCell.parent;
+          const cells = (Array.from(row.getChildren()) as AnyModel[]).filter(
+            (c) => c.is && c.is('element', 'tableCell'),
+          );
+          for (const c of cells) {
+            editor.model.change((w) => w.setSelection(c as AnyModel, 'in'));
+            editor.execute('tableCellHeight', { value: `${finalH}px` });
+          }
+        }
+      } catch {
+        /* e'tibor bermaymiz */
+      }
+      editor.editing.view.focus();
+    };
+
+    document.addEventListener('mousemove', onMove, true);
+    document.addEventListener('mousedown', onDown, true);
+    document.addEventListener('mouseup', onUp, true);
+    editor.on('destroy', () => {
+      document.removeEventListener('mousemove', onMove, true);
+      document.removeEventListener('mousedown', onDown, true);
+      document.removeEventListener('mouseup', onUp, true);
+    });
+  }
+}
+
 const CK_PLUGINS = [
   Essentials, Paragraph, Heading, Autoformat, PasteFromOffice,
   Bold, Italic, Underline, Strikethrough, Subscript, Superscript, Code, CodeBlock,
@@ -199,7 +302,7 @@ const CK_PLUGINS = [
   AutoImage, Base64UploadAdapter,
   Table, TableToolbar, TableColumnResize, TableProperties, TableCellProperties,
   TableCaption, GeneralHtmlSupport,
-  CellDecorations,
+  CellDecorations, RowHeightResize,
 ];
 
 const CK_CONFIG: EditorConfig = {
