@@ -72,12 +72,19 @@ function ensureColgroup(table: HTMLTableElement): HTMLTableColElement[] {
 // KICHRAYTIRADI: kichik jadvallar (blanka imzo bloklari) o'z holida qoladi.
 // Natijada Word'dan kelgan keng jadval A4 ramkasiga aynan sig'adi, kataklar
 // nisbati o'zgarmaydi, matn faqat pastga tushadi.
-function fitTablesToWidth(root: HTMLElement) {
+function fitTablesToWidth(root: HTMLElement, attempt = 0) {
   const cs = getComputedStyle(root);
   const pad =
     (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
   const avail = root.clientWidth - pad;
-  if (!(avail > 0)) return;
+  // Modal ochilish paytida varaq hali o'lchanmagan bo'lishi mumkin (clientWidth=0).
+  // Shu holda keyingi kadrda qayta urinamiz.
+  if (!(avail > 0)) {
+    if (attempt < 10 && typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => fitTablesToWidth(root, attempt + 1));
+    }
+    return;
+  }
   root.querySelectorAll('table').forEach((t) => {
     const table = t as HTMLTableElement;
     const colgroup = table.querySelector(':scope > colgroup');
