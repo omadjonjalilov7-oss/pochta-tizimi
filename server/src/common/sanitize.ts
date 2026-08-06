@@ -7,12 +7,20 @@ const RICH_HTML_OPTS: sanitizeHtml.IOptions = {
     'ul', 'ol', 'li', 'blockquote', 'hr',
     'table', 'thead', 'tbody', 'tr', 'td', 'th', 'colgroup', 'col',
     'span', 'div', 'a', 'img', 'figure', 'figcaption',
+    // Qo'shimcha bepul plaginlar chiqishi: Highlight (mark), Code/CodeBlock
+    // (code/pre), TodoList (input/label), gorizontal chiziq (allaqachon hr).
+    'mark', 'code', 'pre', 'input', 'label',
   ],
   allowedAttributes: {
-    a: ['href', 'target', 'rel'],
+    // Bookmark plagini <a id="..."> chiqaradi — id'ga ruxsat beramiz.
+    a: ['href', 'target', 'rel', 'id', 'name'],
     td: ['colspan', 'rowspan'],
     th: ['colspan', 'rowspan'],
     img: ['src', 'alt', 'title', 'width', 'height', 'style'],
+    // ListProperties: raqamli ro'yxat boshlanishi/teskarisi/turi.
+    ol: ['start', 'reversed', 'type'],
+    // TodoList belgilash katakchasi (faqat ko'rsatish — disabled).
+    input: ['type', 'checked', 'disabled'],
     // CKEditor jadval o'lchamlari va joylashuvini class + style orqali saqlaydi
     // (masalan ck-table-resized). class'ga ruxsat beramiz — XSS xavfi yo'q.
     '*': ['style', 'class'],
@@ -37,6 +45,22 @@ const RICH_HTML_OPTS: sanitizeHtml.IOptions = {
       'text-orientation': [/^(mixed|upright|sideways)$/],
       'vertical-align': [/^(top|middle|bottom|baseline)$/],
       'white-space': [/^(normal|nowrap|pre|pre-wrap)$/],
+      // 90° aylantirilgach harflar oralig'ini ochish (edo-ls-* class'lari CSS'da,
+      // lekin qo'lda kiritilgan inline qiymat ham buzilmasin).
+      'letter-spacing': [/^-?[\d.]+(px|em)$/],
+      // Ro'yxat belgisi turi (ListProperties: disc/circle/decimal/...).
+      'list-style-type': [/^[a-z-]+$/i],
+      // Sahifa uzilishi (PageBreak plagini).
+      'page-break-after': [/^(always|auto|avoid)$/],
+      'page-break-before': [/^(always|auto|avoid)$/],
+      'break-after': [/^(page|auto|avoid)$/],
+      'break-before': [/^(page|auto|avoid)$/],
+      // Rasm/blok joylashuvi uchun cheklangan display qiymatlari.
+      display: [/^(block|inline|inline-block|table|none)$/],
+      float: [/^(left|right|none)$/],
+      margin: [/^[\d.]+(px|em|%|auto)(\s+([\d.]+(px|em|%)|auto)){0,3}$/],
+      'margin-left': [/^([\d.]+(px|em|%)|auto)$/],
+      'margin-right': [/^([\d.]+(px|em|%)|auto)$/],
       // Jadval ranglari va chegaralari (CKEditor Table properties) — url()/
       // expression() kabi xavfli qiymatlarga yo'l qo'ymaydigan tor regexlar.
       color: [/^#[0-9a-f]{3,8}$/i, /^rgba?\([\d.,\s]+\)$/, /^hsla?\([\d.,%\s]+\)$/, /^[a-z]+$/i],

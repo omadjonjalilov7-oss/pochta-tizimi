@@ -310,6 +310,73 @@ input, textarea, select {
   border: 1px solid #b9c0cc;
 }
 
+/* ---------- Katak matnini aylantirish (90° / 180°) va harf oralig'i ----------
+   Bu class'lar CKEditor ichida (.ck-content) HAM tayyor hujjatda (.edo-doc-body,
+   A4 varaq) BIR XIL ishlashi kerak — shuning uchun ikkala kontekst uchun ham
+   aniqlanadi. Class'lar GeneralHtmlSupport orqali <td>/<th> ga qo'yiladi. */
+.edo-tpl-ck .ck-content .edo-rot-90,
+.edo-doc-body .edo-rot-90,
+td.edo-rot-90, th.edo-rot-90 {
+  /* Vertikal (pastdan yuqoriga) — masalan "Согласовано". */
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  text-orientation: mixed;
+  white-space: nowrap;
+  text-align: center;
+  vertical-align: middle;
+}
+.edo-tpl-ck .ck-content .edo-rot-180,
+.edo-doc-body .edo-rot-180,
+td.edo-rot-180, th.edo-rot-180 {
+  /* Teskari (ustma-ust) matn. */
+  transform: rotate(180deg);
+  text-align: center;
+}
+/* 90° aylantirilgach harflar bir-biriga yopishmasin — oraliqni ochamiz. */
+.edo-tpl-ck .ck-content .edo-ls-1,
+.edo-doc-body .edo-ls-1,
+td.edo-ls-1, th.edo-ls-1 { letter-spacing: 1px; }
+.edo-tpl-ck .ck-content .edo-ls-2,
+.edo-doc-body .edo-ls-2,
+td.edo-ls-2, th.edo-ls-2 { letter-spacing: 2px; }
+.edo-tpl-ck .ck-content .edo-ls-3,
+.edo-doc-body .edo-ls-3,
+td.edo-ls-3, th.edo-ls-3 { letter-spacing: 3px; }
+
+/* ---------- Highlight (marker/qalam) ranglari ---------- */
+/* CKEditor Highlight plagini <mark class="marker-yellow"> kabi chiqaradi.
+   Tayyor hujjatda ham bir xil ko'rinsin. */
+.edo-doc-body mark.marker-yellow, .ck-content mark.marker-yellow { background: #fdfd77; color: inherit; }
+.edo-doc-body mark.marker-green,  .ck-content mark.marker-green  { background: #62f962; color: inherit; }
+.edo-doc-body mark.marker-pink,   .ck-content mark.marker-pink   { background: #fc7899; color: inherit; }
+.edo-doc-body mark.marker-blue,   .ck-content mark.marker-blue   { background: #72cdfd; color: inherit; }
+.edo-doc-body mark.pen-red,   .ck-content mark.pen-red   { background: transparent; color: #e91313; }
+.edo-doc-body mark.pen-green, .ck-content mark.pen-green { background: transparent; color: #128a00; }
+
+/* ---------- Rasm joylashuvi (CKEditor Image plagini) ---------- */
+/* CKEditor rasmni <figure class="image image-style-align-left"> kabi o'raydi.
+   Tayyor hujjatda ham markaz/chap/o'ng joylashuvi saqlanadi. */
+.edo-doc-body figure.image { margin: 0.6em 0; max-width: 100%; }
+.edo-doc-body figure.image img { max-width: 100%; height: auto; }
+.edo-doc-body figure.image.image-style-align-center { margin-left: auto; margin-right: auto; text-align: center; }
+.edo-doc-body figure.image.image-style-align-left  { float: left; margin-right: 1em; }
+.edo-doc-body figure.image.image-style-align-right { float: right; margin-left: 1em; }
+.edo-doc-body figure.image.image-style-block-align-center { margin-left: auto; margin-right: auto; }
+.edo-doc-body figure.image > figcaption { font-size: 0.85em; color: #64748b; text-align: center; padding: 2px 0; }
+.edo-doc-body .image-inline, .edo-doc-body .image_resized { display: inline-block; }
+.edo-doc-body .image_resized img { width: 100%; }
+
+/* ---------- Sahifa uzilishi (PageBreak plagini) ---------- */
+/* Muharrirda ko'rinadigan chiziq; chop etishda haqiqiy sahifa uzilishi. */
+.edo-doc-body .page-break { page-break-after: always; break-after: page; clear: both; }
+@media screen {
+  .edo-doc-body .page-break {
+    border-top: 1px dashed #cbd5e1;
+    margin: 12px 0;
+    height: 0;
+  }
+}
+
 /* ---------- A4 varaq (tayyor hujjat / to'ldirilgan blanka) ---------- */
 /* Blanka shablonlari A4 kengligiga (210mm) mo'ljallangan. Tor konteynerda
    yozuvlar tarqalib ketmasligi uchun hujjat doim qat'iy A4 varaqqa joylanadi. */
