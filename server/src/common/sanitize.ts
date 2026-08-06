@@ -28,6 +28,13 @@ const RICH_HTML_OPTS: sanitizeHtml.IOptions = {
       'text-decoration': [/^(underline|line-through|none)$/],
       width: [/^\d+(\.\d+)?(px|%|em)$/],
       height: [/^\d+(\.\d+)?(px|%|em)$/],
+      // Matnni aylantirish (90°/180°/270°) va vertikal yozuv — shablon
+      // muharririda katak matnini burish uchun. Saqlashda o'chib ketmasin.
+      transform: [/^rotate\(-?\d+(\.\d+)?deg\)$/],
+      'writing-mode': [/^(horizontal-tb|vertical-rl|vertical-lr)$/],
+      'text-orientation': [/^(mixed|upright|sideways)$/],
+      'vertical-align': [/^(top|middle|bottom|baseline)$/],
+      'white-space': [/^(normal|nowrap|pre|pre-wrap)$/],
     },
   },
   transformTags: {

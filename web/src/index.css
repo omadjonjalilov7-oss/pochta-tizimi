@@ -276,9 +276,9 @@ input, textarea, select {
    sudrab kenglikni o'zgartirish mumkin (tableResize.ts). */
 .edo-tpl-editor table {
   width: auto !important;
-  /* Jadval hech qachon A4 varaq (konteyner) kengligidan oshmasin — oshsa
-     ustunlar proporsional siqiladi, ramkadan chiqib ketmaydi. */
-  max-width: 100% !important;
+  /* Muharrirda ustun chegaralarini sichqoncha bilan surib kengaytirish
+     mumkin bo'lsin — shuning uchun A4 kengligi bilan cheklamaymiz. */
+  max-width: none !important;
   table-layout: fixed;
 }
 .edo-tpl-editor table td,

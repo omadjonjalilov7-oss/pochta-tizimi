@@ -19,12 +19,27 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  ArrowLeftToLine,
+  ArrowRightToLine,
+  ArrowUpToLine,
+  ArrowDownToLine,
+  RotateCw,
+  Rows3,
+  Columns3,
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import type { EdoTemplate } from '../../lib/types';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../lib/utils';
-import { normalizeTables, attachTableResize } from '../../lib/tableResize';
+import {
+  normalizeTables,
+  attachTableResize,
+  tableInsertColumn,
+  tableDeleteColumn,
+  tableInsertRow,
+  tableDeleteRow,
+  rotateCellText,
+} from '../../lib/tableResize';
 
 interface FormState {
   id?: string;
@@ -458,12 +473,16 @@ function RichTemplateEditor({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    // Faqat TASHQI o'zgarishda (Word import / tahrirlashni ochish) qayta yozamiz va
+    // jadvallarni tayyorlaymiz. Foydalanuvchi tahriri (yozish, ustun sudrash)
+    // paytida el.innerHTML === value bo'ladi — normalize ishlamaydi, shu sabab
+    // qo'lda o'zgartirilgan ustun kengliklari qaytib buzilmaydi.
     if (el.innerHTML !== value) {
       el.innerHTML = value || '';
+      const before = el.innerHTML;
+      normalizeTables(el);
+      if (el.innerHTML !== before) onChangeRef.current(el.innerHTML);
     }
-    const before = el.innerHTML;
-    normalizeTables(el);
-    if (el.innerHTML !== before) onChangeRef.current(el.innerHTML);
   }, [value]);
 
   // Jadval chegaralarini sudrab ustun/satr o'lchamini o'zgartirish.
@@ -554,6 +573,32 @@ function RichTemplateEditor({
     }
   };
 
+  // Joriy katak (kursor turgan yoki oxirgi belgilangan) — jadval amallari uchun.
+  const currentCell = (): HTMLTableCellElement | null => {
+    const sel = window.getSelection();
+    let node: Node | null =
+      sel && sel.rangeCount > 0
+        ? sel.getRangeAt(0).startContainer
+        : (savedRange.current?.startContainer ?? null);
+    while (node && ref.current?.contains(node)) {
+      if (node instanceof HTMLTableCellElement) return node;
+      node = node.parentNode;
+    }
+    return null;
+  };
+
+  // Jadval amali: joriy katakni topib, funksiyani bajaradi va saqlaydi.
+  const tableOp = (fn: (cell: HTMLTableCellElement) => void) => {
+    restoreSelection();
+    const cell = currentCell();
+    if (!cell) {
+      window.alert(t('edo.templates.select_cell_first') ?? 'Avval jadval katakchasini tanlang');
+      return;
+    }
+    fn(cell);
+    emit();
+  };
+
   return (
     <div className="border border-slate-300 rounded-lg overflow-hidden flex flex-col flex-1 min-h-0 focus-within:border-asaka-500 focus-within:ring-2 focus-within:ring-asaka-100">
       <div className="flex items-center gap-1 border-b border-slate-200 bg-slate-50 px-2 py-1.5 shrink-0">
@@ -589,6 +634,53 @@ function RichTemplateEditor({
           <Braces size={14} />
           {t('edo.templates.insert_placeholder')}
         </button>
+        <div className="w-px h-5 bg-slate-300 mx-1" />
+        {/* Jadval amallari — kursor turgan katakka nisbatan ustun/qator
+            qo'shish/o'chirish va matnni aylantirish. */}
+        <ToolBtn
+          onClick={() => tableOp((c) => tableInsertColumn(c, 'left'))}
+          title={t('edo.templates.tb_col_left') ?? "Chapga ustun qo'shish"}
+        >
+          <ArrowLeftToLine size={15} />
+        </ToolBtn>
+        <ToolBtn
+          onClick={() => tableOp((c) => tableInsertColumn(c, 'right'))}
+          title={t('edo.templates.tb_col_right') ?? "O'ngga ustun qo'shish"}
+        >
+          <ArrowRightToLine size={15} />
+        </ToolBtn>
+        <ToolBtn
+          onClick={() => tableOp(tableDeleteColumn)}
+          title={t('edo.templates.tb_col_del') ?? "Ustunni o'chirish"}
+        >
+          <Columns3 size={15} />
+        </ToolBtn>
+        <div className="w-px h-5 bg-slate-300 mx-1" />
+        <ToolBtn
+          onClick={() => tableOp((c) => tableInsertRow(c, 'above'))}
+          title={t('edo.templates.tb_row_above') ?? "Yuqoriga qator qo'shish"}
+        >
+          <ArrowUpToLine size={15} />
+        </ToolBtn>
+        <ToolBtn
+          onClick={() => tableOp((c) => tableInsertRow(c, 'below'))}
+          title={t('edo.templates.tb_row_below') ?? "Pastga qator qo'shish"}
+        >
+          <ArrowDownToLine size={15} />
+        </ToolBtn>
+        <ToolBtn
+          onClick={() => tableOp(tableDeleteRow)}
+          title={t('edo.templates.tb_row_del') ?? "Qatorni o'chirish"}
+        >
+          <Rows3 size={15} />
+        </ToolBtn>
+        <div className="w-px h-5 bg-slate-300 mx-1" />
+        <ToolBtn
+          onClick={() => tableOp(rotateCellText)}
+          title={t('edo.templates.tb_rotate') ?? 'Matnni aylantirish (90°)'}
+        >
+          <RotateCw size={15} />
+        </ToolBtn>
       </div>
       {/* A4 varaq ko'rinishidagi tahrir maydoni — shablon aynan hujjat kabi
           ko'rinadi (WYSIWYG): jadval kengliklari, shrift (Arial 12pt) va
