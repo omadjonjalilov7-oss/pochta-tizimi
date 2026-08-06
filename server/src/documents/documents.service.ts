@@ -52,6 +52,7 @@ import {
   fillCustomPlaceholders,
   stripTaskTypePrefix,
   toCyrillic,
+  hasSignatureTokens,
 } from './template-fill';
 import { ConfigService } from '@nestjs/config';
 import { QrApprovalService } from './qr-approval.service';
@@ -1943,10 +1944,16 @@ export class DocumentsService {
     if (!doc?.templateId) return false;
     const tpl = await this.prisma.documentTemplate.findUnique({
       where: { id: doc.templateId },
-      select: { name: true },
+      select: { name: true, bodyTemplate: true },
     });
     const n = (tpl?.name ?? '').trim().toLowerCase();
-    return n === 'ichki' || n === 'ichki_yuristli';
+    // Nom "ichki"/"ichki_yuristli" bo'lsa YOKI foydalanuvchi yuklagan blanka
+    // imzo-jadval tokenlarini (_asaka_*/_sana_*) ishlatsa — ichki oqim.
+    return (
+      n === 'ichki' ||
+      n === 'ichki_yuristli' ||
+      hasSignatureTokens(tpl?.bodyTemplate)
+    );
   }
 
   // "ichki" shabloniga solingan hujjatning to'ldirilgan HTML matnini quradi.
@@ -1966,7 +1973,13 @@ export class DocumentsService {
     // nomli shablonni qo'lda tanlagan bo'lsa ishlaydi. Aks holda oddiy blanka.
     const tplName = (tpl.name ?? '').trim().toLowerCase();
     const isYuristli = tplName === 'ichki_yuristli';
-    const isIchki = doc.autoFilled || tplName === 'ichki' || isYuristli;
+    // Nom orqali ("ichki"/"ichki_yuristli") YOKI foydalanuvchi yuklagan blanka
+    // imzo-jadval tokenlarini ishlatsa — avto-to'ldirish (QR/sana) oqimiga tushadi.
+    const isIchki =
+      doc.autoFilled ||
+      tplName === 'ichki' ||
+      isYuristli ||
+      hasSignatureTokens(tpl.bodyTemplate);
 
     // Foydalanuvchi tanlagan blanka (ichki avto-shablon emas): blanka ramka bo'lib,
     // {{matn}} → hujjat matni, {{xujjat_n}} → raqam, {{sana_soat}} → sana.

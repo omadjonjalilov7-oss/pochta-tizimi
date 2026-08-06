@@ -299,6 +299,13 @@ export function buildIchkiTokens(input: AutoFillInput): {
 const TOKEN_RE =
   /\{\{\s*(_(?:asaka|sana)_\d+|_gen_dir)\s*\}\}|(_(?:asaka|sana)_\d+|_gen_dir)/g;
 
+// Shablon tanasida imzo-jadval tokenlari (_asaka_* / _sana_* / _gen_dir) bo'lsa
+// true. Foydalanuvchi Word'dan yuklagan blanka ham shu tokenlarni ishlatsa,
+// "ichki" avto-to'ldirish (QR + sana + tasdiqlash) oqimiga tushadi.
+export function hasSignatureTokens(html: string | null | undefined): boolean {
+  return /_(?:asaka|sana)_\d+|_gen_dir/.test(html ?? '');
+}
+
 export function renderIchki(
   bodyTemplate: string,
   values: Record<string, string>,

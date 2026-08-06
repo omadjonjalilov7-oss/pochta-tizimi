@@ -7,6 +7,9 @@ const RICH_HTML_OPTS: sanitizeHtml.IOptions = {
     'ul', 'ol', 'li', 'blockquote', 'hr',
     'table', 'thead', 'tbody', 'tr', 'td', 'th', 'colgroup', 'col',
     'span', 'div', 'a', 'img', 'figure', 'figcaption',
+    // Word (.docx) import — docx-preview sahifa/paragraf o'ramlari sifatida
+    // <section>/<article> chiqaradi. Word ko'rinishini saqlash uchun ruxsat.
+    'section', 'article',
     // Qo'shimcha bepul plaginlar chiqishi: Highlight (mark), Code/CodeBlock
     // (code/pre), TodoList (input/label), gorizontal chiziq (allaqachon hr).
     'mark', 'code', 'pre', 'input', 'label',
@@ -36,6 +39,11 @@ const RICH_HTML_OPTS: sanitizeHtml.IOptions = {
       'font-weight': [/^(bold|bolder|[1-9]00)$/],
       'font-style': [/^(italic|normal)$/],
       'text-decoration': [/^(underline|line-through|none)$/],
+      // Word import: shrift oilasi/o'lchami/qator balandligi (docx-preview px).
+      // Tirnoq, bo'sh joy, vergul, chiziqcha — url()/expression() ga yo'l yo'q.
+      'font-family': [/^[a-zA-Z0-9\s,"'\u2019.\-]+$/],
+      'font-size': [/^\d+(\.\d+)?(px|pt|em|%)$/],
+      'line-height': [/^(normal|\d+(\.\d+)?(px|em|%)?)$/],
       width: [/^\d+(\.\d+)?(px|%|em)$/],
       height: [/^\d+(\.\d+)?(px|%|em)$/],
       // Matnni aylantirish (90°/180°/270°) va vertikal yozuv — shablon

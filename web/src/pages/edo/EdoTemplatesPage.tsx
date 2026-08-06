@@ -17,6 +17,12 @@ import { api } from '../../lib/api';
 import type { EdoTemplate } from '../../lib/types';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../lib/utils';
+import { importDocxToHtml } from './importDocx';
+
+// Word'dan aynan ko'rinishda yuklangan blanka (docx-preview <section> chiqaradi)
+// yoki imzo-jadval tokenli (_asaka_*/_sana_*) shablon — CKEditor buni buzadi,
+// shuning uchun tahrirlanmaydi, faqat ko'rsatiladi (read-only).
+const FAITHFUL_RE = /<section|_(?:asaka|sana)_\d+|_gen_dir/;
 
 interface FormState {
   id?: string;
@@ -257,20 +263,18 @@ function TemplateFormModal({
   const { t } = useTranslation();
   const placeholders = extractPlaceholders(form.bodyTemplate);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Aynan-ko'rinishli (faithful) rejim: Word'dan yuklangan yoki imzo-jadval tokenli
+  // blanka CKEditor'ga solinmaydi (buzilmasin), read-only ko'rsatiladi.
+  const [faithful, setFaithful] = useState(() => FAITHFUL_RE.test(form.bodyTemplate));
 
   const importDocx = useMutation({
-    mutationFn: async (file: File) => {
-      const fd = new FormData();
-      fd.append('file', file);
-      return (
-        await api.post<{ html: string; placeholders: string[] }>(
-          '/templates/import-docx',
-          fd,
-          { headers: { 'Content-Type': 'multipart/form-data' } },
-        )
-      ).data;
+    // Word faylni brauzerda (docx-preview) render qilib, hech narsani
+    // o'zgartirmasdan to'liq ko'rinishli HTML olamiz — backendga yubormaymiz.
+    mutationFn: (file: File) => importDocxToHtml(file),
+    onSuccess: (data) => {
+      setFaithful(true);
+      onChange({ ...form, bodyTemplate: data.html });
     },
-    onSuccess: (data) => onChange({ ...form, bodyTemplate: data.html }),
   });
 
   return (
@@ -354,18 +358,42 @@ function TemplateFormModal({
                 }}
               />
             </div>
-            <Suspense
-              fallback={
-                <div className="flex-1 min-h-0 flex items-center justify-center text-sm text-slate-400 border border-slate-300 rounded-lg">
-                  {t('common.loading') ?? 'Yuklanmoqda…'}
+            {faithful ? (
+              <div className="flex-1 min-h-0 flex flex-col border border-slate-300 rounded-lg overflow-hidden">
+                <div className="flex items-center justify-between gap-2 px-3 py-1.5 bg-amber-50 border-b border-amber-200 text-xs text-amber-800 shrink-0">
+                  <span>
+                    Word ko'rinishi aynan saqlanadi (tahrirlanmaydi). Belgilar
+                    avtomat to'ldiriladi.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setFaithful(false)}
+                    className="shrink-0 underline hover:no-underline"
+                  >
+                    Oddiy tahrirlashga o'tish
+                  </button>
                 </div>
-              }
-            >
-              <RichTemplateEditor
-                value={form.bodyTemplate}
-                onChange={(html) => onChange({ ...form, bodyTemplate: html })}
-              />
-            </Suspense>
+                <div className="flex-1 min-h-0 overflow-auto bg-slate-100 p-4">
+                  <div
+                    className="edo-doc-body bg-white mx-auto shadow-sm"
+                    dangerouslySetInnerHTML={{ __html: form.bodyTemplate }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <Suspense
+                fallback={
+                  <div className="flex-1 min-h-0 flex items-center justify-center text-sm text-slate-400 border border-slate-300 rounded-lg">
+                    {t('common.loading') ?? 'Yuklanmoqda…'}
+                  </div>
+                }
+              >
+                <RichTemplateEditor
+                  value={form.bodyTemplate}
+                  onChange={(html) => onChange({ ...form, bodyTemplate: html })}
+                />
+              </Suspense>
+            )}
             {importDocx.error && (
               <div className="mt-1.5 text-xs text-red-600">{extractErr(importDocx.error)}</div>
             )}
