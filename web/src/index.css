@@ -270,13 +270,13 @@ input, textarea, select {
 [data-theme="dark"] .edo-doc-body table td,
 [data-theme="dark"] .edo-doc-body table th { border-color: #475569; }
 
-/* Shablon muharriri (A4 varaq): jadval har doim A4 eniga proporsional
-   sig'diriladi — ustun nisbatlari (colgroup) saqlanadi, lekin jadval varaqdan
-   chiqib ketmaydi. Bu muharrir ko'rinishini tayyor hujjat bilan 1:1 qiladi.
-   Ustun chegarasini sudrab nisbatni o'zgartirish mumkin (tableResize.ts). */
+/* Shablon muharriri: jadvallar 100% ga siqilmasin — o'z (colgroup) kengligida
+   ko'rinsin va konteynerdan chiqsa gorizontal scroll bo'lsin. Bu ko'p ustunli
+   Word jadvallari muharrirda buzilmasligini ta'minlaydi. Ustun chegarasini
+   sudrab kenglikni o'zgartirish mumkin (tableResize.ts). */
 .edo-tpl-editor table {
-  width: 100% !important;
-  max-width: 100% !important;
+  width: auto !important;
+  max-width: none !important;
   table-layout: fixed;
 }
 .edo-tpl-editor table td,
@@ -347,12 +347,13 @@ input, textarea, select {
   line-height: 1.35 !important;
 }
 
-/* Tayyor hujjatdagi jadval A4 varaq eniga proporsional sig'diriladi — ustun
-   nisbatlari (colgroup) shablondagidek saqlanadi, lekin jadval ramkadan
-   chiqib ketmaydi. So'z katakka sig'masa pastga tushadi, jadval o'lchami emas. */
+/* Tayyor hujjatdagi jadvallar shablondagi kenglikni AYNAN saqlaydi (colgroup
+   piksellari — absolyut). width:100% ga majburlamaymiz, aks holda ustunlar
+   qayta taqsimlanib siqilib ketardi. So'zlar sig'masa pastga tushadi, lekin
+   jadval o'lchami o'zgarmaydi. */
 .edo-a4-sheet .edo-doc-body table {
-  width: 100% !important;
-  max-width: 100% !important;
+  width: auto !important;
+  max-width: none !important;
   table-layout: fixed;
 }
 .edo-a4-sheet .edo-doc-body table td,
