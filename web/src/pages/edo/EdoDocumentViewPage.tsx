@@ -262,23 +262,19 @@ export function EdoDocumentViewPage({
   }
 
   const isCreator = doc.createdById === user?.id;
-  // Parallel (alohida-alohida) yuborishda bir nechta tasdiqlovchi bir vaqtda
-  // navbatda bo'ladi (bir xil eng kichik tartib). Shu sabab "hozir sizning
-  // navbatingizda" holati faqat currentHolderId bilan emas, navbatdagi (eng kichik
-  // tartibli) har qanday kutuvchi tasdiqlovchi uchun ham to'g'ri bo'lishi kerak.
+  // Buyurtmachi talabi: hujjat "Tasdiqlashda" (in_review) — ya'ni hali
+  // yakunlanmagan (bajarilmagan) bo'lsa — tasdiqlash zanjiridagi ISTALGAN
+  // kutayotgan (pending) tasdiqlovchi o'z navbatini kutmasdan tasdiqlashi
+  // mumkin. Shu sabab tasdiqlash tugmasi faqat joriy navbat egasiga emas,
+  // har qanday kutayotgan tasdiqlovchiga ko'rinadi.
   const pendingApprovers = doc.participants.filter(
     (p) => p.role === 'approver' && p.status === 'pending',
   );
-  const minPendingOrder = pendingApprovers.length
-    ? Math.min(...pendingApprovers.map((p) => p.order))
-    : null;
-  const isMinOrderPendingApprover =
-    !!user &&
-    minPendingOrder !== null &&
-    pendingApprovers.some((p) => p.userId === user.id && p.order === minPendingOrder);
+  const isPendingApprover =
+    !!user && pendingApprovers.some((p) => p.userId === user.id);
   const isCurrentApprover =
     doc.status === 'in_review' &&
-    (doc.currentHolderId === user?.id || isMinOrderPendingApprover);
+    (doc.currentHolderId === user?.id || isPendingApprover);
   const isParticipant = !!user && doc.participants.some((p) => p.userId === user.id);
   const canUploadAttachment = (isCreator || isParticipant) && ['draft', 'in_review', 'in_progress'].includes(doc.status);
   const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';

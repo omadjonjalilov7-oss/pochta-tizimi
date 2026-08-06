@@ -3281,6 +3281,11 @@ export class DocumentsService {
     // egasiga to'g'ri keladi, shu bois xatti-harakat o'zgarmaydi.
     if (await this.isPendingApproverAtMinOrder(userId, id)) return doc;
     if (await this.isMandatoryPendingApprover(userId, id)) return doc;
+    // Buyurtmachi talabi: hujjat bajarilmaguncha (in_review) zanjirdagi ISTALGAN
+    // kutayotgan (pending) tasdiqlovchi navbatini kutmasdan amal (tasdiqlash/rad/
+    // yo'naltirish/imzo) qila oladi. Yuqoridagi qat'iy tekshiruvlar o'tmasa ham,
+    // foydalanuvchida kutilayotgan tasdiqlash bo'lsa — ruxsat beramiz.
+    if (await this.isAnyPendingApprover(userId, id)) return doc;
     throw new ForbiddenException("Hujjat hozir sizning navbatingizda emas");
   }
 
@@ -3311,6 +3316,24 @@ export class DocumentsService {
       select: { order: true },
     });
     return !!min && mine.order === min.order;
+  }
+
+  // Foydalanuvchida shu hujjatda kutilayotgan (pending) tasdiqlash bormi?
+  // (tartibdan qat'i nazar — buyurtmachi talabi bo'yicha navbatsiz tasdiqlash)
+  private async isAnyPendingApprover(
+    userId: string,
+    docId: string,
+  ): Promise<boolean> {
+    const p = await this.prisma.documentParticipant.findFirst({
+      where: {
+        documentId: docId,
+        userId,
+        role: ParticipantRole.approver,
+        status: ParticipantStatus.pending,
+      },
+      select: { id: true },
+    });
+    return !!p;
   }
 
   // Foydalanuvchi majburiy tasdiqlovchimi va shu hujjatda kutilayotgan
