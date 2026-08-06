@@ -103,6 +103,9 @@ export function EdoScanPage() {
 
   const docContent = data?.renderedHtml ?? data?.body ?? '';
   const isHtml = /^\s*<[a-z]/i.test(docContent);
+  // Word'dan aynan yuklangan shablon <section> o'ramida keladi — u global
+  // "Arial 12pt / width:100%" qoidalariga tushmasin (Word ko'rinishi buzilmasin).
+  const isFaithful = /<section[\s>]/i.test(docContent);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 flex flex-col items-center px-4 py-8">
@@ -220,7 +223,7 @@ export function EdoScanPage() {
               {isHtml ? (
                 <div className="a4-scroll">
                   <div
-                    className="a4-sheet edo-doc-body"
+                    className={isFaithful ? 'a4-sheet edo-faithful' : 'a4-sheet edo-doc-body'}
                     dangerouslySetInnerHTML={{ __html: docContent }}
                   />
                 </div>

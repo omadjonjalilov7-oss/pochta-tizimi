@@ -482,6 +482,7 @@ export function EdoDocumentViewPage({
             {(() => {
               const shown = doc.renderedBody ?? doc.body;
               const isHtml = /^\s*<[a-z]/i.test(shown || '');
+              const isFaithful = /<section[\s>]/i.test(shown || '');
               return (
                 <div className="edo-a4-scroll overflow-auto bg-slate-100 rounded-lg p-2 md:p-4">
                   <div
@@ -490,7 +491,11 @@ export function EdoDocumentViewPage({
                   >
                     {isHtml ? (
                       <div
-                        className="edo-doc-body prose prose-sm max-w-none text-slate-800"
+                        className={
+                          isFaithful
+                            ? 'edo-faithful max-w-none'
+                            : 'edo-doc-body prose prose-sm max-w-none text-slate-800'
+                        }
                         dangerouslySetInnerHTML={{ __html: shown }}
                       />
                     ) : (

@@ -375,7 +375,7 @@ function TemplateFormModal({
                 </div>
                 <div className="flex-1 min-h-0 overflow-auto bg-slate-100 p-4">
                   <div
-                    className="edo-doc-body bg-white mx-auto shadow-sm"
+                    className="edo-faithful bg-white mx-auto shadow-sm"
                     dangerouslySetInnerHTML={{ __html: form.bodyTemplate }}
                   />
                 </div>
