@@ -67,9 +67,38 @@ function ensureColgroup(table: HTMLTableElement): HTMLTableColElement[] {
   return list;
 }
 
-// Konteyner ichidagi barcha jadvallarni tayyorlaydi (colgroup + fixed layout).
+// Jadval ustunlari yig'indisi varaqning ichki kengligidan oshsa — barcha ustun
+// kengliklarini bir xil nisbatda kichraytiramiz (proporsiya saqlanadi). Faqat
+// KICHRAYTIRADI: kichik jadvallar (blanka imzo bloklari) o'z holida qoladi.
+// Natijada Word'dan kelgan keng jadval A4 ramkasiga aynan sig'adi, kataklar
+// nisbati o'zgarmaydi, matn faqat pastga tushadi.
+function fitTablesToWidth(root: HTMLElement) {
+  const cs = getComputedStyle(root);
+  const pad =
+    (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+  const avail = root.clientWidth - pad;
+  if (!(avail > 0)) return;
+  root.querySelectorAll('table').forEach((t) => {
+    const table = t as HTMLTableElement;
+    const colgroup = table.querySelector(':scope > colgroup');
+    if (!colgroup) return;
+    const cols = Array.from(colgroup.children) as HTMLElement[];
+    const widths = cols.map((c) => parseFloat(c.style.width) || 0);
+    const total = widths.reduce((a, b) => a + b, 0);
+    if (total > avail && total > 0) {
+      const f = avail / total;
+      cols.forEach((c, i) => {
+        c.style.width = `${Math.max(6, Math.round(widths[i] * f))}px`;
+      });
+    }
+  });
+}
+
+// Konteyner ichidagi barcha jadvallarni tayyorlaydi (colgroup + fixed layout)
+// va A4 varaq kengligiga sig'diradi.
 export function normalizeTables(root: HTMLElement) {
   root.querySelectorAll('table').forEach((t) => ensureColgroup(t as HTMLTableElement));
+  fitTablesToWidth(root);
 }
 
 type Handle =
