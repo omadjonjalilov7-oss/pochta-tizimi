@@ -314,23 +314,43 @@ input, textarea, select {
    Bu class'lar CKEditor ichida (.ck-content) HAM tayyor hujjatda (.edo-doc-body,
    A4 varaq) BIR XIL ishlashi kerak — shuning uchun ikkala kontekst uchun ham
    aniqlanadi. Class'lar GeneralHtmlSupport orqali <td>/<th> ga qo'yiladi. */
-.edo-tpl-ck .ck-content .edo-rot-90,
-.edo-doc-body .edo-rot-90,
-td.edo-rot-90, th.edo-rot-90 {
+/* MUHIM: aylantirishni <td> ning O'ZIGA emas, ICHIDAGI elementga qo'llaymiz.
+   writing-mode/transform to'g'ridan-to'g'ri katakka berilsa, jadval balandligini
+   noto'g'ri hisoblab, qator juda uzunga cho'zilib ketadi. Ichki <p> ni
+   aylantirsak — katak faqat matn bo'yiga (qisqa) qoladi. */
+.edo-tpl-ck .ck-content td.edo-rot-90,
+.edo-tpl-ck .ck-content th.edo-rot-90,
+.edo-doc-body td.edo-rot-90,
+.edo-doc-body th.edo-rot-90 {
+  text-align: center;
+  vertical-align: middle;
+}
+.edo-tpl-ck .ck-content td.edo-rot-90 > *,
+.edo-tpl-ck .ck-content th.edo-rot-90 > *,
+.edo-doc-body td.edo-rot-90 > *,
+.edo-doc-body th.edo-rot-90 > * {
   /* Vertikal (pastdan yuqoriga) — masalan "Согласовано". */
   writing-mode: vertical-rl;
   transform: rotate(180deg);
   text-orientation: mixed;
   white-space: nowrap;
-  text-align: center;
-  vertical-align: middle;
+  display: inline-block;
+  margin: 0;
 }
-.edo-tpl-ck .ck-content .edo-rot-180,
-.edo-doc-body .edo-rot-180,
-td.edo-rot-180, th.edo-rot-180 {
+.edo-tpl-ck .ck-content td.edo-rot-180,
+.edo-tpl-ck .ck-content th.edo-rot-180,
+.edo-doc-body td.edo-rot-180,
+.edo-doc-body th.edo-rot-180 {
+  text-align: center;
+}
+.edo-tpl-ck .ck-content td.edo-rot-180 > *,
+.edo-tpl-ck .ck-content th.edo-rot-180 > *,
+.edo-doc-body td.edo-rot-180 > *,
+.edo-doc-body th.edo-rot-180 > * {
   /* Teskari (ustma-ust) matn. */
   transform: rotate(180deg);
-  text-align: center;
+  display: inline-block;
+  margin: 0;
 }
 /* 90° aylantirilgach harflar bir-biriga yopishmasin — oraliqni ochamiz. */
 .edo-tpl-ck .ck-content .edo-ls-1,
