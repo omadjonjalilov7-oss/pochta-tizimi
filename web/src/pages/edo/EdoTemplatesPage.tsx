@@ -17,7 +17,6 @@ import { api } from '../../lib/api';
 import type { EdoTemplate } from '../../lib/types';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../lib/utils';
-import { importDocxToHtml } from './importDocx';
 
 interface FormState {
   id?: string;
@@ -260,9 +259,17 @@ function TemplateFormModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const importDocx = useMutation({
-    // Word faylni brauzerda (docx-preview) render qilib, hech narsani
-    // o'zgartirmasdan to'liq ko'rinishli HTML olamiz — backendga yubormaymiz.
-    mutationFn: (file: File) => importDocxToHtml(file),
+    mutationFn: async (file: File) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      return (
+        await api.post<{ html: string; placeholders: string[] }>(
+          '/templates/import-docx',
+          fd,
+          { headers: { 'Content-Type': 'multipart/form-data' } },
+        )
+      ).data;
+    },
     onSuccess: (data) => onChange({ ...form, bodyTemplate: data.html }),
   });
 
