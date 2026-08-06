@@ -36,6 +36,11 @@ const RICH_HTML_OPTS: sanitizeHtml.IOptions = {
       'font-weight': [/^(bold|bolder|[1-9]00)$/],
       'font-style': [/^(italic|normal)$/],
       'text-decoration': [/^(underline|line-through|none)$/],
+      // Word import: shrift oilasi va o'lchami (docx-preview computed px qiymatlar).
+      // Tirnoq, bo'sh joy, vergul, chiziqcha — url()/expression() ga yo'l yo'q.
+      'font-family': [/^[a-zA-Z0-9\s,"'\u2019.\-]+$/],
+      'font-size': [/^\d+(\.\d+)?(px|pt|em|%)$/],
+      'line-height': [/^(normal|\d+(\.\d+)?(px|em|%)?)$/],
       width: [/^\d+(\.\d+)?(px|%|em)$/],
       height: [/^\d+(\.\d+)?(px|%|em)$/],
       // Matnni aylantirish (90°/180°/270°) va vertikal yozuv — shablon
