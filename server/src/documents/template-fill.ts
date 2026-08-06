@@ -63,6 +63,51 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
+// Lotincha (o'zbek) matnni krill alifbosiga o'giradi. Avtomat to'ldiriladigan
+// oddiy matnli qiymatlar (F.I.Sh., bo'lim nomi, mavzu) krillda ko'rsatilishi
+// uchun ishlatiladi. Allaqachon krill bo'lgan matn o'zgarmaydi (lotin harflari
+// yo'q). HTML matn (hujjat tanasi) BU funksiyadan O'TKAZILMAYDI — teglar buziladi.
+const CYR_DIGRAPHS: Record<string, string> = {
+  "o'": 'ў', 'o‘': 'ў', 'oʻ': 'ў', "g'": 'ғ', 'g‘': 'ғ', 'gʻ': 'ғ',
+  sh: 'ш', ch: 'ч', yo: 'ё', yu: 'ю', ya: 'я', ye: 'е', ts: 'ц',
+};
+const CYR_MONO: Record<string, string> = {
+  a: 'а', b: 'б', d: 'д', e: 'е', f: 'ф', g: 'г', h: 'ҳ', i: 'и', j: 'ж',
+  k: 'к', l: 'л', m: 'м', n: 'н', o: 'о', p: 'п', q: 'қ', r: 'р', s: 'с',
+  t: 'т', u: 'у', v: 'в', w: 'в', x: 'х', y: 'й', z: 'з', c: 'к',
+};
+const APOS = new Set(["'", '‘', '’', 'ʻ']);
+
+export function toCyrillic(input: string | null | undefined): string {
+  const s = input ?? '';
+  if (!s) return '';
+  const lower = s.toLowerCase();
+  const isUpper = (ch: string) => ch !== ch.toLowerCase();
+  const withCase = (cyr: string, upper: boolean) =>
+    upper ? cyr.toUpperCase() : cyr;
+  let out = '';
+  let i = 0;
+  while (i < s.length) {
+    const two = lower.substr(i, 2);
+    if (CYR_DIGRAPHS[two]) {
+      out += withCase(CYR_DIGRAPHS[two], isUpper(s[i]));
+      i += 2;
+      continue;
+    }
+    const ch = s[i];
+    const lc = lower[i];
+    if (CYR_MONO[lc]) {
+      out += withCase(CYR_MONO[lc], isUpper(ch));
+    } else if (APOS.has(ch)) {
+      // Bog'lovchi apostrof (masalan, "ma'lumot") — krillda tashlab yuboriladi.
+    } else {
+      out += ch; // raqam, tinish belgisi, bo'sh joy yoki noma'lum belgi
+    }
+    i++;
+  }
+  return out;
+}
+
 // Foydalanuvchi shabloniga (firmenniy blanka) qo'yadigan maxsus o'zgaruvchilar.
 // Kirill oy nomlari — "28 июль 2026 йил" ko'rinishi uchun.
 const CYR_MONTHS = [
@@ -184,7 +229,8 @@ export function buildIchkiTokens(input: AutoFillInput): {
   const dateOf = (login: string) => fmtDate(byLogin.get(login)?.actedAt ?? null);
 
   const values: Record<string, string> = {
-    _asaka_1: input.creatorName,
+    // Avtomat to'ldiriladigan oddiy matnlar krill alifbosida ko'rsatiladi.
+    _asaka_1: toCyrillic(input.creatorName),
     // Yaratuvchi hujjatni yuborish bilan tasdiqlagan hisoblanadi.
     _asaka_2: qrTag,
     _asaka_3: markOf('aziza'),
@@ -192,13 +238,13 @@ export function buildIchkiTokens(input: AutoFillInput): {
     _asaka_5: markOf('abduxalil'),
     _asaka_6: markOf('mirzaxid'),
     _asaka_7: input.number,
-    _asaka_8: input.senderDept,
-    _asaka_9: input.recipientDept,
+    _asaka_8: toCyrillic(input.senderDept),
+    _asaka_9: toCyrillic(input.recipientDept),
     // "ichki_yuristli" da _asaka_10 → tasdiqlangach hujjat QR kodi; oddiy "ichki"
-    // da esa hujjat mavzusi.
-    _asaka_10: input.yuristli ? markOf('avazbek') : input.subject,
+    // da esa hujjat mavzusi (krillda).
+    _asaka_10: input.yuristli ? markOf('avazbek') : toCyrillic(input.subject),
     _asaka_11: input.body,
-    _asaka_12: input.recipientName,
+    _asaka_12: toCyrillic(input.recipientName),
     // Bosh direktor (avazbek) tasdig'i — QR kod (tasdiqlagan bo'lsa).
     _gen_dir: markOf('avazbek'),
     // Ichki hujjat sanasi — ochilgan emas, TASDIQLANGAN (yakunlangan) sana.
@@ -240,9 +286,11 @@ export function renderIchki(
   values: Record<string, string>,
   raw: Set<string>,
 ): string {
-  return bodyTemplate.replace(TOKEN_RE, (match, braced, bare) => {
+  return bodyTemplate.replace(TOKEN_RE, (_match, braced, bare) => {
     const key: string = braced ?? bare;
-    if (!(key in values)) return match; // noma'lum token — o'zgarishsiz qoldiramiz
+    // Noma'lum _asaka_/_sana_ tokeni — foydalanuvchiga xom ko'rinmasligi uchun
+    // bo'sh qoldiriladi ("fonda" bo'lsin talabi).
+    if (!(key in values)) return '';
     const v = values[key] ?? '';
     return raw.has(key) ? v : escapeHtml(v);
   });

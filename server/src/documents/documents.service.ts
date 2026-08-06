@@ -51,6 +51,7 @@ import {
   renderIchki,
   fillCustomPlaceholders,
   stripTaskTypePrefix,
+  toCyrillic,
 } from './template-fill';
 import { ConfigService } from '@nestjs/config';
 import { QrApprovalService } from './qr-approval.service';
@@ -2061,7 +2062,17 @@ export class DocumentsService {
       qrDataUrl,
       yuristli: isYuristli,
     });
-    return renderIchki(tpl.bodyTemplate, values, raw);
+    let out = renderIchki(tpl.bodyTemplate, values, raw);
+    // "ichki" blankasida _asaka_* bilan bir qatorda {{mavzu}} / {{xujjat_matni}}
+    // kabi {{...}} tokenlari ham bo'lishi mumkin — ularni ham to'ldiramiz.
+    // {{mavzu}} krillda; {{xujjat_matni}} — hujjat tanasi (xom HTML, o'zgarmaydi).
+    out = fillCustomPlaceholders(out, {
+      matn: doc.body ?? '',
+      mavzu: toCyrillic(doc.subject ?? ''),
+      number: doc.number ?? '',
+      date: this.effectiveDocDate(doc),
+    });
+    return out;
   }
 
   // Mening barcha hujjatlarim (yaratganlarim + ishtirok etganlarim)

@@ -283,11 +283,11 @@ function TemplateFormModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-2 sm:p-3"
       onClick={onCancel}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col"
+        className="bg-white rounded-xl shadow-2xl w-[98vw] h-[96vh] max-w-none flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
@@ -301,40 +301,42 @@ function TemplateFormModal({
             <X size={18} />
           </button>
         </div>
-        <div className="p-5 space-y-4 overflow-y-auto">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              {t('edo.templates.f_name')}
-            </label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => onChange({ ...form, name: e.target.value })}
-              maxLength={255}
-              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none"
-            />
+        <div className="p-4 flex-1 min-h-0 flex flex-col gap-3 overflow-hidden">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 shrink-0">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                {t('edo.templates.f_name')}
+              </label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => onChange({ ...form, name: e.target.value })}
+                maxLength={255}
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                {t('edo.templates.f_category')}
+              </label>
+              <select
+                value={form.category}
+                onChange={(e) => onChange({ ...form, category: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none bg-white"
+              >
+                <option value="">{t('edo.templates.category_ph')}</option>
+                <option value="internal">{t('edo.doc_type.internal')}</option>
+                <option value="incoming">{t('edo.doc_type.incoming')}</option>
+                <option value="outgoing">{t('edo.doc_type.outgoing')}</option>
+                {form.category &&
+                  !['internal', 'incoming', 'outgoing'].includes(form.category) && (
+                    <option value={form.category}>{form.category}</option>
+                  )}
+              </select>
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              {t('edo.templates.f_category')}
-            </label>
-            <select
-              value={form.category}
-              onChange={(e) => onChange({ ...form, category: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none bg-white"
-            >
-              <option value="">{t('edo.templates.category_ph')}</option>
-              <option value="internal">{t('edo.doc_type.internal')}</option>
-              <option value="incoming">{t('edo.doc_type.incoming')}</option>
-              <option value="outgoing">{t('edo.doc_type.outgoing')}</option>
-              {form.category &&
-                !['internal', 'incoming', 'outgoing'].includes(form.category) && (
-                  <option value={form.category}>{form.category}</option>
-                )}
-            </select>
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
+          <div className="flex-1 min-h-0 flex flex-col">
+            <div className="flex items-center justify-between mb-1.5 shrink-0">
               <label className="block text-sm font-medium text-slate-700">
                 {t('edo.templates.f_body')}
                 <span className="ml-2 text-xs text-slate-400">{t('edo.templates.body_hint')}</span>
@@ -368,7 +370,7 @@ function TemplateFormModal({
               <div className="mt-1.5 text-xs text-red-600">{extractErr(importDocx.error)}</div>
             )}
             {placeholders.length > 0 && (
-              <div className="mt-1.5 flex flex-wrap gap-1">
+              <div className="mt-1.5 flex flex-wrap gap-1 shrink-0 max-h-14 overflow-auto">
                 {placeholders.map((p) => (
                   <span
                     key={p}
@@ -553,8 +555,8 @@ function RichTemplateEditor({
   };
 
   return (
-    <div className="border border-slate-300 rounded-lg overflow-hidden focus-within:border-asaka-500 focus-within:ring-2 focus-within:ring-asaka-100">
-      <div className="flex items-center gap-1 border-b border-slate-200 bg-slate-50 px-2 py-1.5">
+    <div className="border border-slate-300 rounded-lg overflow-hidden flex flex-col flex-1 min-h-0 focus-within:border-asaka-500 focus-within:ring-2 focus-within:ring-asaka-100">
+      <div className="flex items-center gap-1 border-b border-slate-200 bg-slate-50 px-2 py-1.5 shrink-0">
         <ToolBtn onClick={() => exec('bold')} title={t('edo.templates.tb_bold')}>
           <Bold size={15} />
         </ToolBtn>
@@ -588,16 +590,21 @@ function RichTemplateEditor({
           {t('edo.templates.insert_placeholder')}
         </button>
       </div>
-      <div
-        ref={ref}
-        contentEditable
-        suppressContentEditableWarning
-        onInput={emit}
-        onKeyUp={saveSelection}
-        onMouseUp={saveSelection}
-        onBlur={saveSelection}
-        className="edo-doc-body edo-tpl-editor prose prose-sm max-w-none min-h-[220px] max-h-[420px] overflow-auto px-3 py-2 text-sm text-slate-800 outline-none"
-      />
+      {/* A4 varaq ko'rinishidagi tahrir maydoni — shablon aynan hujjat kabi
+          ko'rinadi (WYSIWYG): jadval kengliklari, shrift (Arial 12pt) va
+          joylashuv hujjatga 1:1 o'tadi. */}
+      <div className="flex-1 min-h-0 overflow-auto bg-slate-200 p-4">
+        <div
+          ref={ref}
+          contentEditable
+          suppressContentEditableWarning
+          onInput={emit}
+          onKeyUp={saveSelection}
+          onMouseUp={saveSelection}
+          onBlur={saveSelection}
+          className="edo-doc-body edo-tpl-editor edo-a4-sheet mx-auto bg-white shadow-md outline-none"
+        />
+      </div>
     </div>
   );
 }

@@ -326,17 +326,42 @@ input, textarea, select {
 .edo-a4-sheet {
   width: 794px;
   max-width: 794px;
+  min-height: 1123px; /* A4 balandligi (297mm ≈ 1123px @96dpi) */
+  box-sizing: border-box;
   padding: 40px 48px;
   border-radius: 2px;
-  /* Hujjat matni bir xilda Arial 12pt — blanka ichidagi aniq stil ustun turadi,
-     stilsiz erkin matn esa Arial 12pt sifatida ko'rinadi. */
   font-family: Arial, sans-serif;
   font-size: 12pt;
   line-height: 1.5;
   color: #0f172a;
 }
-.edo-doc-body { font-family: Arial, sans-serif; }
 .edo-a4-sheet img { max-width: 100%; height: auto; }
+
+/* Barcha hujjat/shablon yozuvlari BIR XIL: Arial 12pt (foydalanuvchi talabi).
+   Blanka ichidagi har bir katak, sarlavha va matn shu o'lchamda ko'rinadi —
+   shablonda qanday avtomat qiymat qo'yilishidan qat'i nazar shrift o'zgarmaydi. */
+.edo-doc-body,
+.edo-doc-body * {
+  font-family: Arial, sans-serif !important;
+  font-size: 12pt !important;
+  line-height: 1.35 !important;
+}
+
+/* Tayyor hujjatdagi jadvallar shablondagi kenglikni AYNAN saqlaydi (colgroup
+   piksellari — absolyut). width:100% ga majburlamaymiz, aks holda ustunlar
+   qayta taqsimlanib siqilib ketardi. So'zlar sig'masa pastga tushadi, lekin
+   jadval o'lchami o'zgarmaydi. */
+.edo-a4-sheet .edo-doc-body table {
+  width: auto !important;
+  max-width: none !important;
+  table-layout: fixed;
+}
+.edo-a4-sheet .edo-doc-body table td,
+.edo-a4-sheet .edo-doc-body table th {
+  word-break: normal;
+  overflow-wrap: break-word;
+  white-space: normal;
+}
 
 /* ---------- Shablonni to'ldirish muharriri (TemplateFillEditor) ---------- */
 /* Shablon to'liq blanka ko'rinishida ochiladi; faqat {{mavzu}} va

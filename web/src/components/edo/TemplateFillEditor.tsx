@@ -142,6 +142,13 @@ export function TemplateFillEditor({
     const editable = disabled ? 'false' : 'true';
     const { style: parsedStyle, inner } = parseWrapper(body || '');
     const html = tpl.bodyTemplate
+      // Avtomat to'ldiriladigan _asaka_* / _sana_* / _gen_dir tokenlari
+      // foydalanuvchiga ko'rinmasin — ular tasdiqlash jarayonida "fonda"
+      // avtomat to'ladi. Ham {{_asaka_1}}, ham yalang'och _asaka_1 ko'rinishi.
+      .replace(
+        /\{\{\s*(?:_(?:asaka|sana)_\d+|_gen_dir)\s*\}\}|_(?:asaka|sana)_\d+|_gen_dir/g,
+        '',
+      )
       .replace(/\{\{\s*xujjat_n\s*\}\}/g, '<span class="tpl-ph">[рақам]</span>')
       .replace(/\{\{\s*sana_soat\s*\}\}/g, '<span class="tpl-ph">[сана]</span>')
       .replace(/\{\{\s*qr_kod\s*\}\}/g, '')
