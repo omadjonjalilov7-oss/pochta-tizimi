@@ -251,6 +251,10 @@ export function TemplateFillEditor({
     );
   }
 
+  // Ichki / ichki_yuristli blanka: jadval chapga yopishib, listni to'liq egallaydi
+  // (abzatssiz, to'liq kenglik) — foydalanuvchi talabi.
+  const isIchki = tpl.name === 'ichki' || tpl.name === 'ichki_yuristli';
+
   const btnCls = 'p-1.5 rounded hover:bg-slate-200 text-slate-600';
   const selCls =
     'h-8 text-xs border border-slate-200 rounded-md px-1.5 bg-white text-slate-600 outline-none focus:border-asaka-400';
@@ -367,11 +371,14 @@ export function TemplateFillEditor({
           onInput={sync}
           onKeyUp={saveSelection}
           onMouseUp={saveSelection}
-          className="tpl-sheet bg-white mx-auto shadow-sm text-slate-900"
+          className={`tpl-sheet bg-white mx-auto shadow-sm text-slate-900${
+            isIchki ? ' edo-ichki-doc' : ''
+          }`}
           style={{
             width: '210mm',
             minHeight: '297mm',
-            padding: '18mm 16mm',
+            // Ichki blankada yon otступ kichik — jadval listni to'ldirsin.
+            padding: isIchki ? '12mm 6mm' : '18mm 16mm',
             boxSizing: 'border-box',
             fontSize: '12px',
             lineHeight: 1.5,

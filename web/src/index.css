@@ -499,3 +499,23 @@ td.edo-ls-3, th.edo-ls-3 { letter-spacing: 3px; }
 }
 div.tpl-fill { display: block; min-height: 1.5em; }
 .tpl-ph { color: #94a3b8; }
+
+/* ---------- Ichki / ichki_yuristli blanka ----------
+   Foydalanuvchi talabi: ichki shablonda jadval chapga yopishib tursin (abzats/
+   chap otступ bo'lmasin) va listni to'liq egallasin. Jadval eni 100%, chap/o'ng
+   margin 0; o'rovchi paragraf/div indenti olib tashlanadi. Har qanday render
+   kontekstida (tpl-sheet, edo-doc-body) ishlashi uchun bitta class. */
+.edo-ichki-doc table {
+  width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  table-layout: fixed;
+}
+.edo-ichki-doc,
+.edo-ichki-doc > p,
+.edo-ichki-doc > div,
+.edo-ichki-doc p {
+  text-indent: 0 !important;
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+}

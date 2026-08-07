@@ -490,7 +490,9 @@ export function EdoDocumentViewPage({
                   >
                     {isHtml ? (
                       <div
-                        className="edo-doc-body prose prose-sm max-w-none text-slate-800"
+                        className={`edo-doc-body prose prose-sm max-w-none text-slate-800${
+                          doc.autoFilled ? ' edo-ichki-doc' : ''
+                        }`}
                         dangerouslySetInnerHTML={{ __html: shown }}
                       />
                     ) : (

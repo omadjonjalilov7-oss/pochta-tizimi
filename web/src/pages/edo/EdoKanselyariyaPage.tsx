@@ -261,7 +261,10 @@ export function EdoKanselyariyaPage() {
                     <div className="edo-a4-sheet mx-auto bg-white shadow-md">
                       {isHtml ? (
                         <div
-                          className="edo-doc-body prose prose-sm max-w-none text-slate-800"
+                          className={cn(
+                            'edo-doc-body prose prose-sm max-w-none text-slate-800',
+                            selected.autoFilled && 'edo-ichki-doc',
+                          )}
                           dangerouslySetInnerHTML={{ __html: shownBody }}
                         />
                       ) : (
