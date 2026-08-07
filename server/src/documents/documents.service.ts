@@ -2072,7 +2072,10 @@ export class DocumentsService {
       number: doc.number ?? '',
       date: this.effectiveDocDate(doc),
     });
-    return out;
+    // Ichki blanka: chap abzatssiz, jadval listni to'liq egallaydi. Konteyner
+    // "edo-ichki-doc" klassi bilan o'raladi — barcha frontend kontekstlarida
+    // (hujjat ko'rinishi, kanselyariya, QR skaner) bir xil qo'llanadi.
+    return `<div class="edo-ichki-doc">${out}</div>`;
   }
 
   // Mening barcha hujjatlarim (yaratganlarim + ishtirok etganlarim)

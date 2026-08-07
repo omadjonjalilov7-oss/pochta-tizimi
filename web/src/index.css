@@ -507,9 +507,32 @@ div.tpl-fill { display: block; min-height: 1.5em; }
    kontekstida (tpl-sheet, edo-doc-body) ishlashi uchun bitta class. */
 .edo-ichki-doc table {
   width: 100% !important;
+  max-width: 100% !important;
   margin-left: 0 !important;
   margin-right: 0 !important;
+  float: none !important;
   table-layout: fixed;
+}
+/* CKEditor jadvalni <figure class="table"> ichiga o'raydi va uni
+   margin:auto bilan markazlashtiradi — figure/o'rovchini ham chapga majburlaymiz. */
+.edo-ichki-doc figure,
+.edo-ichki-doc figure.table,
+.edo-ichki-doc .table {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  float: none !important;
+  text-align: left !important;
+}
+/* HTML presentatsion markazlashtirish (align="center", <center>) — bekor qilinadi. */
+.edo-ichki-doc table[align='center'],
+.edo-ichki-doc center,
+.edo-ichki-doc [style*='margin-left: auto'],
+.edo-ichki-doc [style*='margin: 0 auto'] {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  text-align: left !important;
 }
 .edo-ichki-doc,
 .edo-ichki-doc > p,
