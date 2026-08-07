@@ -272,8 +272,11 @@ export function EdoDocumentViewPage({
   );
   const isPendingApprover =
     !!user && pendingApprovers.some((p) => p.userId === user.id);
+  // Hujjat "Tasdiqlashda" (in_review) YOKI muddati o'tган (overdue) bo'lsa —
+  // tasdiqlash zanjiri hali faol. Muddati o'tgani tasdiqlashni to'smasligi kerak:
+  // kutayotgan har qanday tasdiqlovchi tugmani ko'radi va tasdiqlay oladi.
   const isCurrentApprover =
-    doc.status === 'in_review' &&
+    (doc.status === 'in_review' || doc.status === 'overdue') &&
     (doc.currentHolderId === user?.id || isPendingApprover);
   const isParticipant = !!user && doc.participants.some((p) => p.userId === user.id);
   const canUploadAttachment = (isCreator || isParticipant) && ['draft', 'in_review', 'in_progress'].includes(doc.status);
