@@ -98,7 +98,6 @@ export function EdoKanselyariyaPage() {
   const primaryAtt = selected?.attachments?.[0];
   const shownBody = selected?.renderedBody ?? selected?.body ?? '';
   const isHtml = /^\s*<[a-z]/i.test(shownBody || '');
-  const isFaithful = /<section[\s>]/i.test(shownBody || '');
 
   return (
     <div className="w-full h-full flex flex-col">
@@ -262,11 +261,7 @@ export function EdoKanselyariyaPage() {
                     <div className="edo-a4-sheet mx-auto bg-white shadow-md">
                       {isHtml ? (
                         <div
-                          className={
-                            isFaithful
-                              ? 'edo-faithful max-w-none'
-                              : 'edo-doc-body prose prose-sm max-w-none text-slate-800'
-                          }
+                          className="edo-doc-body prose prose-sm max-w-none text-slate-800"
                           dangerouslySetInnerHTML={{ __html: shownBody }}
                         />
                       ) : (
