@@ -272,11 +272,17 @@ export function EdoDocumentViewPage({
   );
   const isPendingApprover =
     !!user && pendingApprovers.some((p) => p.userId === user.id);
-  // Hujjat "Tasdiqlashda" (in_review) YOKI muddati o'tган (overdue) bo'lsa —
-  // tasdiqlash zanjiri hali faol. Muddati o'tgani tasdiqlashni to'smasligi kerak:
-  // kutayotgan har qanday tasdiqlovchi tugmani ko'radi va tasdiqlay oladi.
+  // Tasdiqlash tugmasi STATUSGA bog'liq emas — u "men kutayotgan tasdiqlovchiman"ga
+  // bog'liq. Hujjat yakunlanmagan (done/rejected/draft emas) bo'lsa, kutayotgan har
+  // qanday tasdiqlovchi tugmani ko'radi va tasdiqlay oladi. Shu sabab:
+  //  - avazbek (direktor) tasdiqlasin yoki yo'q — qolgan tasdiqlovchilar tasdiqlay oladi;
+  //  - kanselyariya topshiriq (poruchenie) kiritib hujjatni "Ijroda" (in_progress)
+  //    holatiga o'tkazsa ham — bu tasdiqlash uchun ahamiyatsiz, tugma yoniq qoladi;
+  //  - muddati o'tsa (overdue) ham tugma yo'qolmaydi.
+  // Tugma faqat foydalanuvchi tasdiqlagach (pending emas) yoki hujjat yopilgach so'nadi.
+  const APPROVABLE_STATUSES = ['in_review', 'in_progress', 'overdue'];
   const isCurrentApprover =
-    (doc.status === 'in_review' || doc.status === 'overdue') &&
+    APPROVABLE_STATUSES.includes(doc.status) &&
     (doc.currentHolderId === user?.id || isPendingApprover);
   const isParticipant = !!user && doc.participants.some((p) => p.userId === user.id);
   const canUploadAttachment = (isCreator || isParticipant) && ['draft', 'in_review', 'in_progress'].includes(doc.status);

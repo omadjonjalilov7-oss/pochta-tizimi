@@ -3274,10 +3274,14 @@ export class DocumentsService {
   private async requireActiveApprover(userId: string, id: string) {
     const doc = await this.prisma.document.findUnique({ where: { id } });
     if (!doc) throw new NotFoundException('Hujjat topilmadi');
-    // "in_review" — tasdiqlash bosqichi. "overdue" — o'sha bosqichning muddati
-    // o'tган ko'rinishi (cron belgilaydi), lekin zanjir hali faol. Muddati o'tgani
-    // tasdiqlash/rad/yo'naltirishni to'smasligi kerak — ikkalasiga ham ruxsat.
-    if (doc.status !== 'in_review' && doc.status !== 'overdue') {
+    // Tasdiqlash STATUSGA bog'liq emas — foydalanuvchida kutilayotgan (pending)
+    // tasdiqlash bo'lsa yetarli (quyidagi isAnyPendingApprover). Faqat yakunlangan
+    // (done/rejected) yoki hali yuborilmagan (draft) hujjatni to'smaymiz.
+    //  - "in_review"   — tasdiqlash bosqichi;
+    //  - "in_progress" — kanselyariya topshiriq kiritib Ijroga o'tkazgan, lekin
+    //    tasdiqlovchilar hali kutayotgan bo'lishi mumkin — ular tasdiqlay olsin;
+    //  - "overdue"     — muddati o'tган, lekin zanjir hali faol.
+    if (!['in_review', 'in_progress', 'overdue'].includes(doc.status)) {
       throw new BadRequestException("Hujjat tasdiqlash bosqichida emas");
     }
     if (doc.currentHolderId === userId) return doc;
