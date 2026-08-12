@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { localizeApiError } from './apiError';
 
 const API_BASE = '/api';
 const TOKEN_KEY = 'pochta_token';
@@ -35,6 +36,14 @@ api.interceptors.response.use(
         location.href = '/login';
       }
     }
+    // Xom inglizcha xato xabarini (masalan "Request failed with status code
+    // 413") foydalanuvchi tiliga moslangan xabar bilan almashtiramiz. Shu
+    // sabab ilovadagi har bir `e.message` fallback avtomat tarjima bo'ladi.
+    try {
+      err.message = localizeApiError(err);
+    } catch {
+      // i18n hali tayyor bo'lmasa — xom xabar qoladi (kamdan-kam holat)
+    }
     return Promise.reject(err);
   },
 );
@@ -45,3 +54,16 @@ export const publicApi = axios.create({
   baseURL: API_BASE,
   timeout: 30_000,
 });
+
+// Ommaviy so'rovlarda ham xato xabarini foydalanuvchi tiliga moslaymiz.
+publicApi.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    try {
+      err.message = localizeApiError(err);
+    } catch {
+      // ignore
+    }
+    return Promise.reject(err);
+  },
+);

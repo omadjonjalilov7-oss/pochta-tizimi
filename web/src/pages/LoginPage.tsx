@@ -5,6 +5,7 @@ import { Mail, Eye, EyeOff, Languages } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { SUPPORTED_LANGUAGES, setLanguage, getLanguage, type LanguageCode } from '../i18n';
 import { cn } from '../lib/utils';
+import { localizeApiError } from '../lib/apiError';
 
 export function LoginPage() {
   const { t } = useTranslation();
@@ -30,7 +31,7 @@ export function LoginPage() {
       await login(loginValue, password, rememberMe);
       navigate('/inbox', { replace: true });
     } catch (err: any) {
-      setError(err?.response?.data?.message || t('auth.error_generic'));
+      setError(localizeApiError(err));
     } finally {
       setSubmitting(false);
     }

@@ -1,4 +1,17 @@
 {
+  "errors": {
+    "file_too_large": "Fayl hajmi juda katta. Iltimos, kichikroq fayl yuklang.",
+    "network": "Serverga ulanib bo'lmadi. Internet aloqasini yoki serverni tekshiring.",
+    "timeout": "So'rov vaqti tugadi. Qayta urinib ko'ring.",
+    "bad_request": "So'rovda xatolik. Kiritilgan ma'lumotlarni tekshiring.",
+    "unauthorized": "Sessiya tugadi. Iltimos, qaytadan tizimga kiring.",
+    "forbidden": "Bu amalni bajarishga ruxsatingiz yo'q.",
+    "not_found": "So'ralgan ma'lumot topilmadi.",
+    "too_many": "Juda ko'p urinish. Biroz kutib, qayta urinib ko'ring.",
+    "server": "Serverda xatolik yuz berdi. Keyinroq urinib ko'ring.",
+    "gateway": "Server vaqtincha ishlamayapti. Keyinroq urinib ko'ring.",
+    "generic": "Noma'lum xatolik yuz berdi. Qayta urinib ko'ring."
+  },
   "translate_modal": {
     "title": "Xabarni tarjima qilish",
     "from": "Qaysi tildan",
