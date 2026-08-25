@@ -322,6 +322,9 @@ export interface IchkiYangiInput {
   approvers: IchkiYangiApprover[]; // BARCHA tasdiqlovchilar (tartibda)
   qrDataUrl?: string; // hujjatning ommaviy QR kodi (PNG data URL)
   maxSlots?: number; // default 10
+  // "Для исполнения" — ijro uchun biriktirilgan xodim va sana (topshiriq).
+  fioFinal?: string; // ijrochi F.I.Sh. (xom — krillga bu yerda o'giriladi)
+  sanaFinal?: Date | null; // topshiriq/ijro sanasi
 }
 
 // internal_kind bo'yicha ko'rsatiladigan (krill) tur nomi.
@@ -362,10 +365,20 @@ export function renderIchkiYangi(
     );
 
   let html = bodyTemplate
-    .replace(/\{\{\s*ichki_nom\s*\}\}/g, escapeHtml(input.ichkiNom))
+    // {{ichki_nom}} ham, {{ichki_nomi}} ham (ikkala imlo) qo'llab-quvvatlanadi.
+    .replace(/\{\{\s*ichki_nomi?\s*\}\}/g, escapeHtml(input.ichkiNom))
     .replace(/\{\{\s*mavzu\s*\}\}/g, escapeHtml(toCyrillic(input.mavzu)))
     .replace(/\{\{\s*xujjat_matni\s*\}\}/g, input.body ?? '')
-    .replace(/\{\{\s*matn\s*\}\}/g, input.body ?? '');
+    .replace(/\{\{\s*matn\s*\}\}/g, input.body ?? '')
+    // "Для исполнения" — ijrochi va sana.
+    .replace(
+      /\{\{\s*fio_final\s*\}\}/g,
+      escapeHtml(toCyrillic(input.fioFinal ?? '')),
+    )
+    .replace(
+      /\{\{\s*sana_final\s*\}\}/g,
+      escapeHtml(fmtDate(input.sanaFinal ?? null)),
+    );
 
   for (let i = 1; i <= slots; i++) {
     const a = approved[i - 1];

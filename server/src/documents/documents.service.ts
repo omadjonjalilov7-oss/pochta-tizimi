@@ -1998,12 +1998,18 @@ export class DocumentsService {
           actedAt: p.actedAt ?? null,
           approved: p.status === ParticipantStatus.approved,
         }));
+      // "Для исполнения" — kanselyariya kiritgan birinchi topshiriq (resolution)
+      // ijrochisi va sanasi. Topshiriq bo'lmasa — bo'sh qoladi.
+      const yangiFirstRes = (doc.resolutions ?? [])[0];
+      const yangiFirstTarget = yangiFirstRes?.targets?.[0];
       const out = renderIchkiYangi(tpl.bodyTemplate, {
         ichkiNom: internalKindLabel(doc.internalKind, doc.docName),
         mavzu: doc.subject ?? '',
         body: doc.body ?? '',
         approvers: yangiApprovers,
         qrDataUrl,
+        fioFinal: yangiFirstTarget?.user?.fullName ?? '',
+        sanaFinal: yangiFirstRes?.createdAt ?? doc.closedAt ?? null,
       });
       return `<div class="edo-ichki-doc">${out}</div>`;
     }
