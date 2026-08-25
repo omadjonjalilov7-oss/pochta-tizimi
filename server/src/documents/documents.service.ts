@@ -49,6 +49,8 @@ import {
   MANDATORY_APPROVER_LOGINS,
   buildIchkiTokens,
   renderIchki,
+  renderIchkiYangi,
+  internalKindLabel,
   fillCustomPlaceholders,
   stripTaskTypePrefix,
   toCyrillic,
@@ -1946,7 +1948,12 @@ export class DocumentsService {
       select: { name: true },
     });
     const n = (tpl?.name ?? '').trim().toLowerCase();
-    return n === 'ichki' || n === 'ichki_yuristli';
+    return (
+      n === 'ichki' ||
+      n === 'ichki_yuristli' ||
+      n === 'ichki yangi' ||
+      n === 'ichki_yangi'
+    );
   }
 
   // "ichki" shabloniga solingan hujjatning to'ldirilgan HTML matnini quradi.
@@ -1966,7 +1973,40 @@ export class DocumentsService {
     // nomli shablonni qo'lda tanlagan bo'lsa ishlaydi. Aks holda oddiy blanka.
     const tplName = (tpl.name ?? '').trim().toLowerCase();
     const isYuristli = tplName === 'ichki_yuristli';
+    const isYangi = tplName === 'ichki yangi' || tplName === 'ichki_yangi';
     const isIchki = doc.autoFilled || tplName === 'ichki' || isYuristli;
+
+    // "ichki yangi" — dinamik tasdiqlovchilar shabloni. {{fioN}}/{{sanaN}}/
+    // {{qr_kodN}} slotlari faqat TASDIQLAGAN xodimlar bilan ketma-ket to'ladi.
+    if (isYangi) {
+      let qrDataUrl: string | undefined;
+      try {
+        const token = await this.ensurePublicToken(doc.id, doc.publicToken);
+        qrDataUrl = await QRCode.toDataURL(this.buildScanUrl(token), {
+          errorCorrectionLevel: 'M',
+          margin: 1,
+          width: 160,
+        });
+      } catch {
+        qrDataUrl = undefined;
+      }
+      const yangiApprovers = (doc.participants ?? [])
+        .filter((p: any) => p.role === ParticipantRole.approver && p.user)
+        .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
+        .map((p: any) => ({
+          fullName: p.user.fullName ?? '',
+          actedAt: p.actedAt ?? null,
+          approved: p.status === ParticipantStatus.approved,
+        }));
+      const out = renderIchkiYangi(tpl.bodyTemplate, {
+        ichkiNom: internalKindLabel(doc.internalKind, doc.docName),
+        mavzu: doc.subject ?? '',
+        body: doc.body ?? '',
+        approvers: yangiApprovers,
+        qrDataUrl,
+      });
+      return `<div class="edo-ichki-doc">${out}</div>`;
+    }
 
     // Foydalanuvchi tanlagan blanka (ichki avto-shablon emas): blanka ramka bo'lib,
     // {{matn}} → hujjat matni, {{xujjat_n}} → raqam, {{sana_soat}} → sana.

@@ -293,6 +293,95 @@ export function buildIchkiTokens(input: AutoFillInput): {
   return { values, raw };
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// "ichki yangi" shabloni — dinamik tasdiqlovchilar.
+//
+// Yangi (moslashuvchan) ichki shablon quyidagi o'zgaruvchilardan foydalanadi:
+//   {{ichki_nom}}     → ichki hujjat turi (masalan "Хизмат хати") — escape
+//   {{mavzu}}         → hujjat mavzusi (krillga o'giriladi) — escape
+//   {{xujjat_matni}}  → hujjat asosiy matni (xom HTML — escape qilinmaydi)
+//   {{fio1}}..{{fio10}}     → tasdiqlagan xodimlar F.I.Sh. (krill)
+//   {{sana1}}..{{sana10}}   → tasdiqlagan sana/vaqt "14.08.2026 15:50"
+//   {{qr_kod1}}..{{qr_kod10}} → tasdiqlagan paytdagi hujjat QR kodi (<img>)
+//
+// Tasdiqlash zanjiri qat'iy emas — nechta xodim tasdiqlagan bo'lsa, o'shancha
+// slot (fio/sana/qr_kod) KETMA-KET to'ldiriladi. Masalan 4 xodim tasdiqlasa
+// faqat 1..4 to'ldiriladi, 5..10 tokenlari bo'shatiladi ("avtomat o'chadi").
+// Bo'sh slotlar bo'shliq bilan almashtiriladi, xom token hech qachon ko'rinmaydi.
+
+export interface IchkiYangiApprover {
+  fullName: string;
+  actedAt: Date | null;
+  approved: boolean;
+}
+
+export interface IchkiYangiInput {
+  ichkiNom: string; // ko'rsatishga tayyor (krill) tur nomi
+  mavzu: string; // xom mavzu (krillga bu yerda o'giriladi)
+  body: string; // xom HTML hujjat matni
+  approvers: IchkiYangiApprover[]; // BARCHA tasdiqlovchilar (tartibda)
+  qrDataUrl?: string; // hujjatning ommaviy QR kodi (PNG data URL)
+  maxSlots?: number; // default 10
+}
+
+// internal_kind bo'yicha ko'rsatiladigan (krill) tur nomi.
+export function internalKindLabel(
+  internalKind: string | null | undefined,
+  fallbackName?: string | null,
+): string {
+  switch ((internalKind ?? '').trim().toLowerCase()) {
+    case 'service_letter':
+      return 'Хизмат хати';
+    case 'order':
+      return 'Буйруқ';
+    default:
+      return toCyrillic(fallbackName ?? '');
+  }
+}
+
+export function renderIchkiYangi(
+  bodyTemplate: string,
+  input: IchkiYangiInput,
+): string {
+  const slots = input.maxSlots ?? 10;
+  // Tasdiqlagan paytdagi QR kod (hujjatni ko'rsatuvchi). Imzo katakchasiga
+  // sig'ishi uchun kichik. QR bo'lmasa — bo'sh (matn qoldirilmaydi).
+  const qrTag = input.qrDataUrl
+    ? `<img src="${input.qrDataUrl}" alt="QR" title="Hujjatni skanerlab ko'rish" ` +
+      `style="width:50px;height:50px;max-width:96%;display:block;margin:3px auto;" />`
+    : '';
+
+  // Faqat TASDIQLAGAN xodimlar, tasdiqlagan vaqti bo'yicha ketma-ket. Shu tariqa
+  // slotlar bo'shliqsiz to'ladi ("4 tasdiqlasa — 1..4").
+  const approved = input.approvers
+    .filter((a) => a.approved)
+    .sort(
+      (a, b) =>
+        (a.actedAt ? new Date(a.actedAt).getTime() : 0) -
+        (b.actedAt ? new Date(b.actedAt).getTime() : 0),
+    );
+
+  let html = bodyTemplate
+    .replace(/\{\{\s*ichki_nom\s*\}\}/g, escapeHtml(input.ichkiNom))
+    .replace(/\{\{\s*mavzu\s*\}\}/g, escapeHtml(toCyrillic(input.mavzu)))
+    .replace(/\{\{\s*xujjat_matni\s*\}\}/g, input.body ?? '')
+    .replace(/\{\{\s*matn\s*\}\}/g, input.body ?? '');
+
+  for (let i = 1; i <= slots; i++) {
+    const a = approved[i - 1];
+    const fio = a ? escapeHtml(toCyrillic(a.fullName)) : '';
+    const sana = a ? escapeHtml(fmtDate(a.actedAt)) : '';
+    const qr = a ? qrTag : '';
+    // `fio1` `{{fio10}}` ichida noto'g'ri mos kelmasligi uchun yopuvchi `}}`
+    // talab qilinadi (raqamdan keyin darhol `\s*}}`).
+    html = html
+      .replace(new RegExp(`\\{\\{\\s*fio${i}\\s*\\}\\}`, 'g'), fio)
+      .replace(new RegExp(`\\{\\{\\s*sana${i}\\s*\\}\\}`, 'g'), sana)
+      .replace(new RegExp(`\\{\\{\\s*qr_kod${i}\\s*\\}\\}`, 'g'), qr);
+  }
+  return html;
+}
+
 // Ham `{{_asaka_1}}`, ham yalang'och `_asaka_1` ko'rinishini almashtiradi.
 // `\d+` ochko'z bo'lgani uchun `_asaka_12` to'liq mos keladi (`_asaka_1` bilan
 // qisman to'qnashmaydi).
