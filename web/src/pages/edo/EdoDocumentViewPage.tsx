@@ -1829,7 +1829,7 @@ function ParticipantsPanel({
                   {t(`edo.role.${p.role}`)}
                   {p.user.position?.name && ` — ${trDyn(p.user.position.name)}`}
                 </div>
-                <ParticipantStatusBadge status={p.status} />
+                <ParticipantStatusBadge status={p.status} role={p.role} />
                 {p.rejectReason && (
                   <p className="text-xs text-red-700 mt-1 italic">"{p.rejectReason}"</p>
                 )}
@@ -1842,7 +1842,13 @@ function ParticipantsPanel({
   );
 }
 
-function ParticipantStatusBadge({ status }: { status: 'pending' | 'approved' | 'rejected' | 'done' }) {
+function ParticipantStatusBadge({
+  status,
+  role,
+}: {
+  status: 'pending' | 'approved' | 'rejected' | 'done';
+  role?: string;
+}) {
   const { t } = useTranslation();
   const map: Record<string, string> = {
     pending: 'text-amber-700',
@@ -1850,9 +1856,13 @@ function ParticipantStatusBadge({ status }: { status: 'pending' | 'approved' | '
     rejected: 'text-red-700',
     done: 'text-emerald-700',
   };
-  return (
-    <span className={cn('text-xs font-medium', map[status])}>{t(`edo.p_status.${status}`)}</span>
-  );
+  // Yaratuvchi hujjatni "tasdiqlamaydi" — uni yaratadi/kiritadi. Shu sabab
+  // yaratuvchi uchun "Tasdiqladi" o'rniga "Yaratdi" yozuvi ko'rsatiladi.
+  const label =
+    role === 'creator' && status === 'approved'
+      ? t('edo.p_status.created')
+      : t(`edo.p_status.${status}`);
+  return <span className={cn('text-xs font-medium', map[status])}>{label}</span>;
 }
 
 const AUDIT_STYLE: Record<
