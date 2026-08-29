@@ -2575,6 +2575,50 @@ export class DocumentsService {
     return { url, token, dataUrl };
   }
 
+  // Chiquvchi hujjat uchun tasdiqlash zanjirini Word'ga eksport qilish ma'lumoti:
+  // har bir tasdiqlovchining F.I.Sh., bo'lim/lavozimi, tasdiqlagan sana/vaqti va
+  // (tasdiqlagan bo'lsa) hujjat QR kodi (PNG data URL). QR faqat serverda
+  // yaratiladi — shu bois frontend shu metod orqali oladi.
+  async getChainExport(userId: string, id: string) {
+    const doc = await this.prisma.document.findUnique({
+      where: { id },
+      include: FULL_INCLUDE,
+    });
+    if (!doc) throw new NotFoundException('Hujjat topilmadi');
+    await this.requireAccess(userId, doc);
+
+    let qrDataUrl = '';
+    try {
+      const token = await this.ensurePublicToken(doc.id, doc.publicToken);
+      qrDataUrl = await QRCode.toDataURL(this.buildScanUrl(token), {
+        errorCorrectionLevel: 'M',
+        margin: 1,
+        width: 160,
+      });
+    } catch {
+      qrDataUrl = '';
+    }
+
+    const rows = (doc.participants ?? [])
+      .filter((p: any) => p.role === ParticipantRole.approver && p.user)
+      .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
+      .map((p: any) => {
+        const dept = p.user.department?.name ?? '';
+        const pos = p.user.position?.name ?? '';
+        const approved = p.status === ParticipantStatus.approved;
+        return {
+          fullName: p.user.fullName ?? p.user.login ?? '',
+          deptPos: [dept, pos].filter(Boolean).join(', '),
+          actedAt: p.actedAt ? new Date(p.actedAt).toISOString() : null,
+          approved,
+          // Tasdiqlagan bo'lsa — hujjat QR kodi; aks holda bo'sh.
+          qrDataUrl: approved ? qrDataUrl : '',
+        };
+      });
+
+    return { number: doc.number ?? '', subject: doc.subject ?? '', rows };
+  }
+
   // ── YORDAMCHILAR ──────────────────────────────────────────────────────
 
   private async buildManagerChain(userId: string): Promise<string[]> {

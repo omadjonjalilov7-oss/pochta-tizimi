@@ -394,7 +394,7 @@ export function EdoDocumentViewPage({
                   doc={doc}
                   disabled={doc.status === 'draft'}
                 />
-                {doc.status === 'done' && <ChainWordButton doc={doc} />}
+                {doc.type === 'outgoing' && <ChainWordButton doc={doc} />}
                 <QrButton docId={doc.id} docNumber={doc.number} />
               </div>
             </div>
@@ -1033,20 +1033,35 @@ function WordExportButton({
 // Tasdiqlovchilar zanjirini Word (.doc) faylga saqlash (faqat xujjat tayyor bo'lганда).
 function ChainWordButton({ doc }: { doc: EdoDocument }) {
   const { t } = useTranslation();
+  const [busy, setBusy] = useState(false);
+  const handleExport = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      // Zanjir + QR ma'lumotini backend'dan olamiz (QR faqat serverda yaratiladi).
+      const { data } = await api.get(`/documents/${doc.id}/chain-export`);
+      exportApproverChainWord(data, {
+        title: t('edo.view.chain_word_title'),
+        num: t('edo.view.chain_word_num'),
+        fio: t('edo.view.chain_word_fio'),
+        when: t('edo.view.chain_word_when'),
+        qr: t('edo.view.chain_word_qr'),
+      });
+    } catch (e) {
+      alert(extractError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
     <button
-      onClick={() =>
-        exportApproverChainWord(doc, {
-          deptPos: t('edo.view.chain_word_deptpos'),
-          fullName: t('edo.view.chain_word_fio'),
-          title: t('edo.view.chain_word_title'),
-        })
-      }
+      onClick={handleExport}
+      disabled={busy}
       title={t('edo.view.chain_word')}
-      className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-700 hover:text-blue-800 hover:bg-blue-50 px-2 py-1 rounded-md shrink-0"
+      className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-700 hover:text-blue-800 hover:bg-blue-50 px-2 py-1 rounded-md shrink-0 disabled:opacity-50"
     >
       <FileDown size={14} />
-      <span>{t('edo.view.chain_word')}</span>
+      <span>{busy ? t('common.saving') : t('edo.view.chain_word')}</span>
     </button>
   );
 }

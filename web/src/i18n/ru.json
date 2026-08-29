@@ -1097,7 +1097,10 @@
       "chain_word": "Цепочка (Word)",
       "chain_word_title": "Цепочка сотрудников, утвердивших документ",
       "chain_word_deptpos": "Отдел и должность сотрудника",
-      "chain_word_fio": "Фамилия, имя, отчество сотрудника"
+      "chain_word_fio": "Фамилия, имя, отчество",
+      "chain_word_num": "№",
+      "chain_word_when": "Время утверждения",
+      "chain_word_qr": "QR код"
     },
     "sign": {
       "title": "Подписание через E-IMZO",

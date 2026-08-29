@@ -516,6 +516,16 @@ export class DocumentsController {
     createReadStream(f.fullPath).pipe(res);
   }
 
+  // Tasdiqlash zanjirini Word'ga eksport qilish uchun ma'lumot (F.I.Sh., sana,
+  // QR). QR faqat serverda yaratiladi, shu bois frontend shu endpoint'dan oladi.
+  @Get(':id/chain-export')
+  chainExport(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.docs.getChainExport(user.id, id);
+  }
+
   @Delete(':id/attachments/:attId')
   deleteAttachment(
     @CurrentUser() user: CurrentUserPayload,

@@ -1098,7 +1098,10 @@
       "chain_word": "Zanjir (Word)",
       "chain_word_title": "Xujjatni tasdiqlagan xodimlar zanjiri",
       "chain_word_deptpos": "Xodim ishlaydigan bo'lim va lavozimi",
-      "chain_word_fio": "Xodim familiya ism sharifi"
+      "chain_word_fio": "Familiya, ism, sharifi",
+      "chain_word_num": "№",
+      "chain_word_when": "Tasdiqlagan vaqti",
+      "chain_word_qr": "QR kod"
     },
     "sign": {
       "title": "E-IMZO bilan imzolash",

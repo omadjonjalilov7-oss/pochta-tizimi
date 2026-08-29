@@ -1,11 +1,28 @@
-import type { EdoDocument } from './types';
+// Tasdiqlash zanjirini Word (.doc) fayl sifatida saqlaydi. Har bir tasdiqlovchi
+// uchun bitta qator: F.I.Sh. (bo'lim/lavozimi), tasdiqlagan sana/vaqti va QR kodi.
+// Ma'lumot (jumladan QR PNG) backend'dagi `/documents/:id/chain-export` dan olinadi.
 
-// Xujjatni tasdiqlagan xodimlar zanjirini Word (.doc) fayl sifatida saqlaydi.
-// Format (har bir xodim uchun bir qator):
-//   Xodim ishlaydigan bo'lim va lavozimi : ______(imzo joyi)______ Familiya Ism Sharifi
-// zulxumor va avazbek login egalari ro'yxatga kiritilmaydi.
+export interface ChainExportRow {
+  fullName: string;
+  deptPos: string;
+  actedAt: string | null; // ISO
+  approved: boolean;
+  qrDataUrl: string; // PNG data URL (tasdiqlagan bo'lsa)
+}
 
-const EXCLUDED_LOGINS = ['zulxumor', 'avazbek'];
+export interface ChainExportData {
+  number: string;
+  subject: string;
+  rows: ChainExportRow[];
+}
+
+export interface ChainExportLabels {
+  title: string; // "Tasdiqlash varaqasi" kabi sarlavha
+  num: string; // "№"
+  fio: string; // "F.I.Sh."
+  when: string; // "Tasdiqlagan vaqti"
+  qr: string; // "QR kod"
+}
 
 function esc(s: string): string {
   return (s ?? '')
@@ -14,27 +31,41 @@ function esc(s: string): string {
     .replace(/>/g, '&gt;');
 }
 
-export function exportApproverChainWord(doc: EdoDocument, labels: { deptPos: string; fullName: string; title: string }) {
-  const approvers = (doc.participants ?? [])
-    .filter((p) => p.role === 'approver')
-    .filter((p) => !EXCLUDED_LOGINS.includes(p.user.login))
-    .sort((a, b) => a.order - b.order);
+// "14.08.2026 15:50" ko'rinishida (mahalliy — Toshkent) sana/vaqt.
+function fmtWhen(iso: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(
+    d.getHours(),
+  )}:${p(d.getMinutes())}`;
+}
 
-  const rows = approvers
-    .map((p) => {
-      const dept = p.user.department?.name ?? '';
-      const pos = p.user.position?.name ?? '';
-      const deptPos = [dept, pos].filter(Boolean).join(', ');
-      const fio = p.user.fullName ?? p.user.login;
+export function exportApproverChainWord(
+  data: ChainExportData,
+  labels: ChainExportLabels,
+) {
+  const rows = data.rows
+    .map((r, i) => {
+      const person = r.deptPos
+        ? `${esc(r.fullName)}<br/><span style="font-size:11px;color:#444;">${esc(
+            r.deptPos,
+          )}</span>`
+        : esc(r.fullName);
+      const qrCell = r.qrDataUrl
+        ? `<img src="${r.qrDataUrl}" width="90" height="90" alt="QR" />`
+        : '';
       return `
         <tr>
-          <td style="padding:6px 8px;border:none;white-space:nowrap;vertical-align:bottom;">
-            ${esc(labels.deptPos)}: ${esc(deptPos)}
-          </td>
-          <td style="padding:6px 8px;border:none;width:220px;border-bottom:1px solid #000;">&nbsp;</td>
-          <td style="padding:6px 8px;border:none;white-space:nowrap;text-align:right;vertical-align:bottom;">
-            ${esc(fio)}
-          </td>
+          <td style="border:1px solid #000;padding:6px 8px;text-align:center;vertical-align:middle;">${
+            i + 1
+          }</td>
+          <td style="border:1px solid #000;padding:6px 8px;vertical-align:middle;">${person}</td>
+          <td style="border:1px solid #000;padding:6px 8px;text-align:center;vertical-align:middle;white-space:nowrap;">${esc(
+            fmtWhen(r.actedAt),
+          )}</td>
+          <td style="border:1px solid #000;padding:6px 8px;text-align:center;vertical-align:middle;">${qrCell}</td>
         </tr>`;
     })
     .join('');
@@ -47,14 +78,24 @@ export function exportApproverChainWord(doc: EdoDocument, labels: { deptPos: str
   <style>
     @page { size: A4; margin: 2cm; }
     body { font-family: 'Times New Roman', serif; font-size: 14px; color: #000; }
-    h2 { font-size: 16px; text-align: center; margin-bottom: 24px; }
+    h2 { font-size: 16px; text-align: center; margin-bottom: 6px; }
+    .subj { text-align: center; margin-bottom: 18px; font-weight: bold; }
     table { width: 100%; border-collapse: collapse; }
+    th { border: 1px solid #000; padding: 6px 8px; background: #f0f0f0; }
   </style>
 </head>
 <body>
-  <h2>${esc(labels.title)}${doc.number ? ` № ${esc(doc.number)}` : ''}</h2>
-  <div style="margin-bottom:16px;font-weight:bold;">${esc(doc.subject ?? '')}</div>
+  <h2>${esc(labels.title)}${data.number ? ` № ${esc(data.number)}` : ''}</h2>
+  <div class="subj">${esc(data.subject)}</div>
   <table>
+    <thead>
+      <tr>
+        <th style="width:36px;">${esc(labels.num)}</th>
+        <th>${esc(labels.fio)}</th>
+        <th style="width:150px;">${esc(labels.when)}</th>
+        <th style="width:110px;">${esc(labels.qr)}</th>
+      </tr>
+    </thead>
     <tbody>
       ${rows}
     </tbody>
@@ -66,7 +107,7 @@ export function exportApproverChainWord(doc: EdoDocument, labels: { deptPos: str
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  const safeNum = (doc.number ?? 'xujjat').toString().replace(/[^\w\-]+/g, '_');
+  const safeNum = (data.number || 'xujjat').toString().replace(/[^\w\-]+/g, '_');
   a.download = `zanjir_${safeNum}.doc`;
   document.body.appendChild(a);
   a.click();
