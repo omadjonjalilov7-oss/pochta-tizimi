@@ -465,82 +465,101 @@ export function EdoDocumentViewPage({
               <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">
                 {t('edo.view.body')}
               </h2>
-              {/* Zoom boshqaruvi — A4 varaqni kattalashtirish/kichraytirish */}
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setDocZoom((z) => Math.max(40, z - 10))}
-                  title={t('edo.view.zoom_out')}
-                  className="p-1.5 text-slate-500 hover:text-asaka-700 hover:bg-slate-100 rounded"
-                >
-                  <ZoomOut size={16} />
-                </button>
-                <span className="text-xs font-medium text-slate-500 w-10 text-center tabular-nums">
-                  {docZoom}%
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setDocZoom((z) => Math.min(200, z + 10))}
-                  title={t('edo.view.zoom_in')}
-                  className="p-1.5 text-slate-500 hover:text-asaka-700 hover:bg-slate-100 rounded"
-                >
-                  <ZoomIn size={16} />
-                </button>
-              </div>
+              {/* Zoom boshqaruvi — faqat shablon (A4 varaq) bo'lganda */}
+              {(doc.templateId || doc.autoFilled) && (
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setDocZoom((z) => Math.max(40, z - 10))}
+                    title={t('edo.view.zoom_out')}
+                    className="p-1.5 text-slate-500 hover:text-asaka-700 hover:bg-slate-100 rounded"
+                  >
+                    <ZoomOut size={16} />
+                  </button>
+                  <span className="text-xs font-medium text-slate-500 w-10 text-center tabular-nums">
+                    {docZoom}%
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setDocZoom((z) => Math.min(200, z + 10))}
+                    title={t('edo.view.zoom_in')}
+                    className="p-1.5 text-slate-500 hover:text-asaka-700 hover:bg-slate-100 rounded"
+                  >
+                    <ZoomIn size={16} />
+                  </button>
+                </div>
+              )}
             </div>
             {(() => {
-              const shown = doc.renderedBody ?? doc.body;
-              const isHtml = /^\s*<[a-z]/i.test(shown || '');
-              return (
-                <div className="edo-a4-scroll overflow-auto bg-slate-100 rounded-lg p-2 md:p-4">
-                  <div
-                    className="edo-a4-sheet mx-auto bg-white shadow-md"
-                    style={{ zoom: docZoom / 100 }}
-                  >
-                    {isHtml ? (
-                      <div
-                        className={`edo-doc-body prose prose-sm max-w-none text-slate-800${
-                          doc.autoFilled ? ' edo-ichki-doc' : ''
-                        }`}
-                        dangerouslySetInnerHTML={{ __html: shown }}
-                      />
-                    ) : (
-                      <div className="prose prose-sm max-w-none whitespace-pre-wrap text-slate-800">
-                        {shown}
-                      </div>
-                    )}
+              const shown = doc.renderedBody ?? doc.body ?? '';
+              const isHtml = /^\s*<[a-z]/i.test(shown);
+              const isTemplate = !!doc.templateId || !!doc.autoFilled;
+              if (!shown.trim()) return null;
+              // Shablon — A4 varaqqa moslab; ko'p list bo'lsa skrul bilan.
+              if (isTemplate) {
+                return (
+                  <div className="edo-a4-scroll overflow-auto bg-slate-100 rounded-lg p-2 md:p-4">
+                    <div
+                      className="edo-a4-sheet mx-auto bg-white shadow-md"
+                      style={{ zoom: docZoom / 100 }}
+                    >
+                      {isHtml ? (
+                        <div
+                          className={`edo-doc-body prose prose-sm max-w-none text-slate-800${
+                            doc.autoFilled ? ' edo-ichki-doc' : ''
+                          }`}
+                          dangerouslySetInnerHTML={{ __html: shown }}
+                        />
+                      ) : (
+                        <div className="prose prose-sm max-w-none whitespace-pre-wrap text-slate-800">
+                          {shown}
+                        </div>
+                      )}
+                    </div>
                   </div>
+                );
+              }
+              // Shablonsiz (fayl + mavzu/matn) — A4 emas, to'liq kenglikda.
+              return (
+                <div className="rounded-lg border border-slate-100 bg-white px-1 md:px-2 py-1">
+                  {isHtml ? (
+                    <div
+                      className="edo-doc-body prose prose-sm max-w-none text-slate-800"
+                      dangerouslySetInnerHTML={{ __html: shown }}
+                    />
+                  ) : (
+                    <div className="prose prose-sm max-w-none whitespace-pre-wrap text-slate-800">
+                      {shown}
+                    </div>
+                  )}
                 </div>
               );
             })()}
 
-            {/* Kiruvchi hujjat: tashqaridan kelgan asosiy fayl (pdf/word/excel)
-                to'g'ridan-to'g'ri shu oyna ichida ko'rsatiladi — kiruvchi shablon
-                bilan bir joyda. Word/Excel serverda PDF'ga aylantiriladi. */}
-            {doc.type === 'incoming' && (doc.attachments?.length ?? 0) > 0 && (
-              <div className="mt-5 pt-4 border-t border-slate-100">
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+            {/* Biriktirilgan fayl(lar) — HAR QANDAY hujjatda shu oyna ichida
+                ochilgan holatda, skrul bilan barcha listlar ko'rinadi.
+                Shablon bo'lsa yuqorida A4 varaq, keyin bu yerda fayl.
+                Word/Excel serverda PDF'ga aylantiriladi. */}
+            {(doc.attachments?.length ?? 0) > 0 && (
+              <div className="mt-5 pt-4 border-t border-slate-100 space-y-4">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">
                   <FileText size={14} />
                   {t('edo.view.primary_document')}
                 </div>
-                <InlineAttachmentPreview
-                  documentId={doc.id}
-                  attId={doc.attachments![0].id}
-                  filename={doc.attachments![0].filename}
-                  onExpand={() =>
-                    setViewAtt({
-                      id: doc.attachments![0].id,
-                      filename: doc.attachments![0].filename,
-                    })
-                  }
-                  onDownload={() =>
-                    downloadAttachment(
-                      doc.id,
-                      doc.attachments![0].id,
-                      doc.attachments![0].filename,
-                    )
-                  }
-                />
+                {doc.attachments!.map((a) => (
+                  <InlineAttachmentPreview
+                    key={a.id}
+                    documentId={doc.id}
+                    attId={a.id}
+                    filename={a.filename}
+                    onExpand={() =>
+                      setViewAtt({ id: a.id, filename: a.filename })
+                    }
+                    onDownload={() =>
+                      downloadAttachment(doc.id, a.id, a.filename)
+                    }
+                  />
+                ))}
               </div>
             )}
 
