@@ -526,6 +526,27 @@ export class DocumentsController {
     return this.docs.getChainExport(user.id, id);
   }
 
+  // Hujjatni yagona PDF sifatida beradi (shablon + biriktirilgan fayl birga).
+  // ?inline=1 bo'lsa brauzerda ochiladigan (preview), aks holda yuklanadigan.
+  @Get(':id/export-pdf')
+  async exportDocPdf(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Query('inline') inline: string | undefined,
+    @Res() res: Response,
+  ) {
+    const { buffer, filename } = await this.docs.buildExportPdf(user.id, id);
+    const disposition = inline === '1' ? 'inline' : 'attachment';
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `${disposition}; filename*=UTF-8''${encodeURIComponent(
+        filename,
+      )}`,
+      'Content-Length': String(buffer.length),
+    });
+    res.end(buffer);
+  }
+
   @Delete(':id/attachments/:attId')
   deleteAttachment(
     @CurrentUser() user: CurrentUserPayload,

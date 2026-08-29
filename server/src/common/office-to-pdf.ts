@@ -95,6 +95,71 @@ export function convertOfficeToPdf(
   return enqueue(run);
 }
 
+// HTML ichidagi `src="data:image/...;base64,..."` rasmlarni vaqtinchalik
+// fayllarga (workDir ichida) chiqarib, HTML'da ularga fayl nomi bilan murojaat
+// qiladi. LibreOffice HTML importda data-URI rasmlarni ba'zan tashlab ketadi
+// (masalan QR kod yo'qoladi), fayl yo'li bilan esa ishonchli o'qiydi.
+async function externalizeDataUriImages(
+  html: string,
+  workDir: string,
+): Promise<string> {
+  const re = /src\s*=\s*(["'])(data:(image\/[a-z0-9.+-]+);base64,([^"']+))\1/gi;
+  const matches = [...html.matchAll(re)];
+  let out = html;
+  let idx = 0;
+  for (const m of matches) {
+    const mime = m[3].toLowerCase();
+    const b64 = m[4];
+    const ext =
+      mime === 'image/jpeg'
+        ? 'jpg'
+        : mime === 'image/gif'
+          ? 'gif'
+          : mime === 'image/bmp'
+            ? 'bmp'
+            : mime === 'image/webp'
+              ? 'webp'
+              : 'png';
+    const name = `imgdata_${idx++}.${ext}`;
+    try {
+      await fsp.writeFile(path.join(workDir, name), Buffer.from(b64, 'base64'));
+      // Butun data-URI matnini fayl nomiga almashtiramiz (literal split/join).
+      out = out.split(m[2]).join(name);
+    } catch {
+      /* rasmni yoza olmadik — data-URI'ni qoldiramiz */
+    }
+  }
+  return out;
+}
+
+// HTML matnni (masalan to'ldirilgan shablon yoki hujjat kartasi) PDF ga
+// aylantirib, `destPath` ga yozadi. data-URI rasmlar (QR) avval fayllarga
+// chiqariladi. LibreOffice orqali render qilinadi — brauzer chop oynasidagi
+// ko'rinishga yaqin natija beradi.
+export function convertHtmlToPdf(
+  html: string,
+  destPath: string,
+): Promise<string> {
+  const run = async (): Promise<string> => {
+    const workDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'html2pdf_'));
+    const tmpSrc = path.join(workDir, 'source.html');
+    try {
+      const externalized = await externalizeDataUriImages(html, workDir);
+      const full = /<html[\s>]/i.test(externalized)
+        ? externalized
+        : `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>${externalized}</body></html>`;
+      await fsp.writeFile(tmpSrc, full, 'utf8');
+      const tmpPdf = await runLibreOffice(tmpSrc, workDir, 'pdf', 'pdf');
+      await fsp.mkdir(path.dirname(destPath), { recursive: true });
+      await fsp.copyFile(tmpPdf, destPath);
+      return destPath;
+    } finally {
+      await fsp.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    }
+  };
+  return enqueue(run);
+}
+
 // Rasm kengaytmasi → MIME turi (HTML ichiga data-URI qilib joylash uchun).
 const IMG_MIME: Record<string, string> = {
   '.png': 'image/png',

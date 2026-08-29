@@ -28,7 +28,9 @@ import {
   convertOfficeToPdf,
   convertDocToHtml,
   convertHtmlToDoc,
+  convertHtmlToPdf,
 } from '../common/office-to-pdf';
+import { mergePdfBuffers } from '../common/pdf-merge';
 import { randomBytes } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import * as QRCode from 'qrcode';
@@ -2617,6 +2619,133 @@ export class DocumentsService {
       });
 
     return { number: doc.number ?? '', subject: doc.subject ?? '', rows };
+  }
+
+  // Hujjatni yagona PDF sifatida quradi (PDF-tugma yuklaydi, strelka-tugma
+  // yangi oynada ko'rsatadi). Tarkib hujjat turiga qarab:
+  //  - shablonli hujjat  → shablonning to'ldirilgan sahifasi
+  //  - shablon + fayl     → avval shablon, keyin fayl (bitta PDF)
+  //  - tashqi (kiruvchi)  → hujjat kartasi, keyin biriktirilgan fayl(lar)
+  //  - faqat fayl         → faylning o'zi hujjat sifatida
+  async buildExportPdf(
+    userId: string,
+    id: string,
+  ): Promise<{ buffer: Buffer; filename: string }> {
+    const doc = await this.prisma.document.findUnique({
+      where: { id },
+      include: FULL_INCLUDE,
+    });
+    if (!doc) throw new NotFoundException('Hujjat topilmadi');
+    await this.requireAccess(userId, doc);
+    await this.attachRenderedBody(doc);
+
+    const workRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'docexport_'));
+    try {
+      const hasTemplate = !!doc.templateId;
+      const isExternal = doc.type === DocumentType.incoming;
+      const attachments: any[] = (doc as any).attachments ?? [];
+      const parts: Buffer[] = [];
+
+      // 1) Hujjat sahifasi (shablon yoki karta)
+      let docHtml: string | null = null;
+      if (hasTemplate) {
+        docHtml = this.buildPrintHtml(doc);
+      } else if (isExternal || attachments.length === 0) {
+        docHtml = this.buildCardHtml(doc);
+      }
+      if (docHtml) {
+        const p = path.join(workRoot, 'doc.pdf');
+        await convertHtmlToPdf(docHtml, p);
+        parts.push(await fs.readFile(p));
+      }
+
+      // 2) Biriktirilgan fayllar (Office → LibreOffice orqali PDF, keshlanadi)
+      for (const att of attachments) {
+        try {
+          const f = await this.getAttachmentAsPdf(userId, doc.id, att.id);
+          parts.push(await fs.readFile(f.fullPath));
+        } catch {
+          /* arxiv/exe kabi PDF'ga aylanmaydigan fayllarni tashlab ketamiz */
+        }
+      }
+
+      // 3) Hech narsa chiqmasa — hech bo'lmasa karta
+      if (parts.length === 0) {
+        const p = path.join(workRoot, 'card.pdf');
+        await convertHtmlToPdf(this.buildCardHtml(doc), p);
+        parts.push(await fs.readFile(p));
+      }
+
+      const merged = await mergePdfBuffers(parts);
+      const safeNum = (doc.number || 'hujjat')
+        .toString()
+        .replace(/[^\w.-]+/g, '_');
+      return { buffer: merged, filename: `${safeNum}.pdf` };
+    } finally {
+      await fs.rm(workRoot, { recursive: true, force: true }).catch(() => {});
+    }
+  }
+
+  // Hujjatning A4 varaqqa joylangan HTML'i (brauzerdagi chop/preview oynasiga
+  // mos). Shablon bo'lsa renderedBody, aks holda oddiy matn. printDoc.ts bilan
+  // bir xil ko'rinish beradi.
+  private buildPrintHtml(doc: any): string {
+    const esc = (s: string) =>
+      (s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const content: string = doc.renderedBody ?? doc.body ?? '';
+    const isHtml = /^\s*<[a-z]/i.test(content);
+    const bodyInner = isHtml
+      ? content
+      : `<div style="white-space:pre-wrap;font-size:12px;line-height:1.5">${esc(
+          content,
+        )}</div>`;
+    return `<!DOCTYPE html><html lang="uz"><head><meta charset="UTF-8">
+<title>${esc(doc.number ?? '')}</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Calibri","Arial",sans-serif; color: #0f172a; }
+  .sheet { width: 210mm; min-height: 297mm; padding: 18mm 16mm; background: #fff; font-size: 12px; line-height: 1.5; }
+  table { border-collapse: collapse; }
+  img { max-width: 100%; height: auto; }
+  @page { size: A4; margin: 0; }
+</style></head><body><div class="sheet"><div class="doc-body">${bodyInner}</div></div></body></html>`;
+  }
+
+  // Shablon tanlanmagan (tashqi/kiruvchi yoki oddiy) hujjat uchun sodda karta:
+  // raqam, sana, mavzu va matn. Faqat fayl bo'lsa ishlatilmaydi.
+  private buildCardHtml(doc: any): string {
+    const esc = (s: string) =>
+      (s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const body: string = doc.renderedBody ?? doc.body ?? '';
+    const isHtml = /^\s*<[a-z]/i.test(body);
+    const bodyInner = isHtml
+      ? body
+      : `<div style="white-space:pre-wrap">${esc(body)}</div>`;
+    const dateStr = this.effectiveDocDate(doc)
+      ? new Date(this.effectiveDocDate(doc) as any).toLocaleDateString('ru-RU')
+      : '';
+    const sender = doc.senderOrg?.name ?? doc.externalRecipient ?? '';
+    return `<!DOCTYPE html><html lang="uz"><head><meta charset="UTF-8">
+<title>${esc(doc.number ?? '')}</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Calibri","Arial",sans-serif; color: #0f172a; }
+  .sheet { width: 210mm; min-height: 297mm; padding: 18mm 16mm; background: #fff; font-size: 13px; line-height: 1.5; }
+  .hdr { display: flex; justify-content: space-between; font-size: 12px; color: #333; margin-bottom: 14px; }
+  h1 { font-size: 16px; text-align: center; margin: 8px 0 16px; }
+  .meta { font-size: 12px; color: #444; margin-bottom: 12px; }
+  img { max-width: 100%; height: auto; }
+  @page { size: A4; margin: 0; }
+</style></head><body><div class="sheet">
+  <div class="hdr"><span>№ ${esc(doc.number ?? '')}</span><span>${esc(
+    dateStr,
+  )}</span></div>
+  ${sender ? `<div class="meta">${esc(sender)}</div>` : ''}
+  <h1>${esc(doc.subject ?? '')}</h1>
+  <div class="doc-body">${bodyInner}</div>
+</div></body></html>`;
   }
 
   // ── YORDAMCHILAR ──────────────────────────────────────────────────────

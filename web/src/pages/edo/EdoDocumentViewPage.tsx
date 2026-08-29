@@ -31,6 +31,7 @@ import {
   UserCheck,
   Maximize2,
   Minimize2,
+  Loader2,
 } from 'lucide-react';
 import { EimzoSignModal } from '../../components/edo/EimzoSignModal';
 import { ControlAssignmentModal } from '../../components/edo/ControlAssignmentModal';
@@ -45,7 +46,6 @@ import { useAuth } from '../../context/AuthContext';
 import { cn, formatBytes, cyrName, trDyn } from '../../lib/utils';
 import { SecretInput } from '../../components/SecretInput';
 import { ApproverChainPicker } from '../../components/edo/ApproverChainPicker';
-import { openDocumentPrint } from '../../lib/printDoc';
 import { exportApproverChainWord } from '../../lib/exportChainWord';
 
 // Chop etish uchun sarlavha ma'lumotini tayyorlaydi (ekrandagi ko'rinishga mos).
@@ -982,6 +982,34 @@ export function EdoDocumentViewPage({
   );
 }
 
+// Hujjatni yagona PDF sifatida backend'dan oladi (shablon + biriktirilgan fayl
+// birga). `inline` bo'lsa yangi oynada ochadi, aks holda yuklab oladi.
+async function fetchExportPdf(
+  doc: EdoDocument,
+  mode: 'download' | 'open',
+): Promise<void> {
+  const res = await api.get(
+    `/documents/${doc.id}/export-pdf${mode === 'open' ? '?inline=1' : ''}`,
+    { responseType: 'blob', timeout: 180_000 },
+  );
+  const blob = new Blob([res.data as Blob], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  if (mode === 'open') {
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } else {
+    const a = document.createElement('a');
+    a.href = url;
+    const safeNum = (doc.number || 'hujjat').replace(/[^\w.-]+/g, '_');
+    a.download = `${safeNum}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+}
+
+// PDF tugmasi — hujjatni bitta PDF fayl qilib YUKLAB oladi (pechatsiz).
 function PdfDownloadButton({
   doc,
   disabled,
@@ -992,23 +1020,41 @@ function PdfDownloadButton({
   isCreator?: boolean;
 }) {
   const { t } = useTranslation();
+  const [busy, setBusy] = useState(false);
 
-  const isDisabled = disabled && isCreator;
-  const title = isDisabled ? t('edo.view.pdf_disabled_creator') : t('edo.view.download_pdf');
+  const isDisabled = (disabled && isCreator) || busy;
+  const title =
+    disabled && isCreator
+      ? t('edo.view.pdf_disabled_creator')
+      : t('edo.view.download_pdf');
+
+  const handleClick = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await fetchExportPdf(doc, 'download');
+    } catch (e) {
+      alert(extractError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <button
-      onClick={() => openDocumentPrint(doc, true)}
+      onClick={handleClick}
       disabled={isDisabled}
       title={title}
       className="inline-flex items-center gap-1.5 text-xs font-medium text-asaka-700 hover:text-asaka-800 hover:bg-asaka-50 px-2 py-1 rounded-md disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
     >
-      <Download size={14} />
+      {busy ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
       <span>PDF</span>
     </button>
   );
 }
 
+// Strelka tugmasi — xuddi PDF tugmasidagi tarkib, lekin YUKLAMASDAN yangi
+// oynada (brauzer PDF ko'rgichida) ochadi.
 function WordExportButton({
   doc,
   disabled,
@@ -1017,15 +1063,28 @@ function WordExportButton({
   disabled?: boolean;
 }) {
   const { t } = useTranslation();
+  const [busy, setBusy] = useState(false);
+
+  const handleClick = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await fetchExportPdf(doc, 'open');
+    } catch (e) {
+      alert(extractError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <button
-      onClick={() => openDocumentPrint(doc, false)}
-      disabled={disabled}
+      onClick={handleClick}
+      disabled={disabled || busy}
       title={t('edo.view.preview_word')}
       className="inline-flex items-center justify-center text-slate-600 hover:text-slate-700 hover:bg-slate-50 p-1.5 rounded-md disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
     >
-      <FileDown size={16} />
+      {busy ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />}
     </button>
   );
 }
