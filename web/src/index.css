@@ -14,18 +14,18 @@
   --color-brand-950: #172554;
 
   /* ---------- Asaka Motors EDO palitrasi (faqat hujjat aylanmasi) ---------- */
-  /* Pochta tizimidan mustaqil — tema almashsa ham o'zgarmaydi. To'q sariq urg'u. */
-  --color-asaka-50: #fff7ed;
-  --color-asaka-100: #ffedd5;
-  --color-asaka-200: #fed7aa;
-  --color-asaka-300: #fdba74;
-  --color-asaka-400: #fb923c;
-  --color-asaka-500: #f97316;
-  --color-asaka-600: #f5821f;
-  --color-asaka-700: #c2560c;
-  --color-asaka-800: #9a3f0f;
-  --color-asaka-900: #7c3510;
-  --color-asaka-950: #431a06;
+  /* Pochta tizimidan mustaqil — tema almashsa ham o'zgarmaydi. Ko'k urg'u. */
+  --color-asaka-50: #eff6ff;
+  --color-asaka-100: #dbeafe;
+  --color-asaka-200: #bfdbfe;
+  --color-asaka-300: #93c5fd;
+  --color-asaka-400: #60a5fa;
+  --color-asaka-500: #3b82f6;
+  --color-asaka-600: #2563eb;
+  --color-asaka-700: #1d4ed8;
+  --color-asaka-800: #1e40af;
+  --color-asaka-900: #1e3a8a;
+  --color-asaka-950: #172554;
 
   /* EDO yon paneli — to'q ko'k (navy) */
   --color-edonav-800: #1e293b;
