@@ -629,8 +629,9 @@ export function EdoDocumentViewPage({
             {/* Hujjat matni — karta ko'rinishida (biriktirilgan fayllardek). */}
             <div className="rounded-xl border border-slate-200 overflow-hidden">
             <div className="flex items-center gap-3 p-4">
-              {/* Fayl kartasidek: chapda ikonka, o'rtada sarlavha, o'ngda Ochish. */}
-              <div className="w-12 h-12 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+              {/* Fayl kartasidek: chapda ikonka, o'rtada sarlavha, o'ngda Ochish.
+                  Tepadagi hujjat matni — KO'K (biriktirilgan fayllar past, olov rang). */}
+              <div className="w-12 h-12 rounded-lg bg-asaka-50 text-asaka-600 flex items-center justify-center shrink-0">
                 <FileText size={22} />
               </div>
               <div className="min-w-0 flex-1">
@@ -668,7 +669,7 @@ export function EdoDocumentViewPage({
               <button
                 type="button"
                 onClick={() => setBodyOpen((v) => !v)}
-                className="inline-flex items-center gap-2 text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 px-4 py-2 rounded-lg transition-colors shrink-0"
+                className="inline-flex items-center gap-2 text-sm font-medium text-white bg-asaka-600 hover:bg-asaka-700 px-4 py-2 rounded-lg transition-colors shrink-0"
                 title={bodyOpen ? t('common.close') : t('common.open')}
               >
                 {bodyOpen ? <EyeOff size={16} /> : <Eye size={16} />}
