@@ -628,21 +628,19 @@ export function EdoDocumentViewPage({
           <section className="bg-white border border-slate-200 rounded-2xl p-4 md:p-6">
             {/* Hujjat matni — karta ko'rinishida (biriktirilgan fayllardek). */}
             <div className="rounded-xl border border-slate-200 overflow-hidden">
-            <div className="flex items-center justify-between gap-2 p-4">
-              {/* Ko'z tugmasi — hujjat matnini ochish/yopish. Standart: yopiq. */}
-              <button
-                type="button"
-                onClick={() => setBodyOpen((v) => !v)}
-                className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-500 hover:text-asaka-700"
-                title={bodyOpen ? t('common.close') : t('common.open')}
-              >
-                {bodyOpen ? (
-                  <Eye size={16} className="text-asaka-600" />
-                ) : (
-                  <EyeOff size={16} />
-                )}
-                {t('edo.view.body')}
-              </button>
+            <div className="flex items-center gap-3 p-4">
+              {/* Fayl kartasidek: chapda ikonka, o'rtada sarlavha, o'ngda Ochish. */}
+              <div className="w-12 h-12 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+                <FileText size={22} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold text-slate-800">
+                  {t('edo.view.body')}
+                </div>
+                <div className="text-xs text-slate-400">
+                  {t('edo.view.body_hint')}
+                </div>
+              </div>
               {/* Zoom boshqaruvi — faqat matn ochiq va shablon (A4 varaq) bo'lganda */}
               {bodyOpen && (doc.templateId || doc.autoFilled) && (
                 <div className="flex items-center gap-1 shrink-0">
@@ -667,6 +665,15 @@ export function EdoDocumentViewPage({
                   </button>
                 </div>
               )}
+              <button
+                type="button"
+                onClick={() => setBodyOpen((v) => !v)}
+                className="inline-flex items-center gap-2 text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 px-4 py-2 rounded-lg transition-colors shrink-0"
+                title={bodyOpen ? t('common.close') : t('common.open')}
+              >
+                {bodyOpen ? <EyeOff size={16} /> : <Eye size={16} />}
+                {bodyOpen ? t('common.close') : t('common.open')}
+              </button>
             </div>
             {bodyOpen && (
               <div className="border-t border-slate-100 p-4">

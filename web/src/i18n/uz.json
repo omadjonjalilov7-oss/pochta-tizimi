@@ -1006,6 +1006,7 @@
       "overdue_hint": "Muddatni uzaytirsangiz, tasdiqlash jarayonini davom ettirish mumkin",
       "extend_deadline": "Muddatni uzaytirish",
       "body": "Hujjat matni",
+      "body_hint": "Ochish uchun tugmani bosing",
       "no_body": "Hujjat matni yo'q",
       "file_name": "Fayl nomi",
       "file_size": "Hajmi",
