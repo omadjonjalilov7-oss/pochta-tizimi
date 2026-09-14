@@ -32,6 +32,8 @@ import {
   Maximize2,
   Minimize2,
   Loader2,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { EimzoSignModal } from '../../components/edo/EimzoSignModal';
 import { ControlAssignmentModal } from '../../components/edo/ControlAssignmentModal';
@@ -40,13 +42,105 @@ import WordEditorModal from '../../components/edo/WordEditorModal';
 import AttachmentViewerModal from '../../components/edo/AttachmentViewerModal';
 import InlineAttachmentPreview from '../../components/edo/InlineAttachmentPreview';
 import { api } from '../../lib/api';
-import type { DocumentStatus, EdoAuditEntry, EdoDocument, EdoResolution, User } from '../../lib/types';
+import type { DocumentStatus, EdoAttachment, EdoAuditEntry, EdoDocument, EdoResolution, User } from '../../lib/types';
 import { Avatar } from '../../components/Avatar';
 import { useAuth } from '../../context/AuthContext';
 import { cn, formatBytes, cyrName, trDyn } from '../../lib/utils';
 import { SecretInput } from '../../components/SecretInput';
 import { ApproverChainPicker } from '../../components/edo/ApproverChainPicker';
 import { exportApproverChainWord } from '../../lib/exportChainWord';
+
+// Biriktirilgan fayl — ixcham karta ko'rinishida (fayl nomi, hajmi, sanasi).
+// "Ochish" (ko'z) tugmasi bosilgandagina ichida hujjat ko'rinishi (preview)
+// ochiladi; aks holda yopiq turadi. Shu tufayli hujjat oynasi ozoda ko'rinadi.
+function AttachmentCard({
+  documentId,
+  att,
+  editable,
+  onDownload,
+  onEdit,
+  onExpandFull,
+}: {
+  documentId: string;
+  att: EdoAttachment;
+  editable: boolean;
+  onDownload: () => void;
+  onEdit: () => void;
+  onExpandFull: () => void;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <div className="flex items-center gap-3 p-3">
+        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-asaka-50 text-asaka-600 shrink-0">
+          <FileText size={20} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div
+            className="text-sm font-medium text-slate-800 truncate"
+            title={att.filename}
+          >
+            {att.filename}
+          </div>
+          <div className="flex items-center gap-3 text-xs text-slate-400 mt-0.5">
+            <span>{formatBytes(att.sizeBytes)}</span>
+            {att.createdAt && (
+              <span>{new Date(att.createdAt).toLocaleDateString('ru-RU')}</span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className={cn(
+              'inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors',
+              open
+                ? 'bg-asaka-600 text-white border-asaka-600 hover:bg-asaka-700'
+                : 'text-asaka-600 border-asaka-200 hover:bg-asaka-50',
+            )}
+            title={open ? t('common.close') : t('common.open')}
+          >
+            {open ? <EyeOff size={14} /> : <Eye size={14} />}
+            <span className="hidden sm:inline">
+              {open ? t('common.close') : t('common.open')}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={onDownload}
+            className="inline-flex items-center justify-center text-slate-500 hover:text-asaka-600 p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50"
+            title={t('common.download')}
+          >
+            <Download size={15} />
+          </button>
+          {editable && (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="inline-flex items-center justify-center text-slate-500 hover:text-asaka-600 p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50"
+              title={t('edo.editor.hint')}
+            >
+              <Pencil size={14} />
+            </button>
+          )}
+        </div>
+      </div>
+      {open && (
+        <div className="border-t border-slate-100 p-2 md:p-3 bg-slate-50">
+          <InlineAttachmentPreview
+            documentId={documentId}
+            attId={att.id}
+            filename={att.filename}
+            onExpand={onExpandFull}
+            onDownload={onDownload}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Chop etish uchun sarlavha ma'lumotini tayyorlaydi (ekrandagi ko'rinishga mos).
 export function EdoDocumentViewPage({
@@ -227,6 +321,8 @@ export function EdoDocumentViewPage({
     return Math.max(40, Math.round(((w - 32) / 794) * 100));
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Hujjat matni (body) yopiq holatда turadi; ko'z tugmasi bilan ochiladi.
+  const [bodyOpen, setBodyOpen] = useState(false);
   // O'z brauzer ichi Word muharririmizда ochilgan biriktirma.
   const [editAtt, setEditAtt] = useState<{ id: string; filename: string } | null>(null);
 
@@ -462,11 +558,22 @@ export function EdoDocumentViewPage({
         <div className="space-y-4 min-w-0">
           <section className="bg-white border border-slate-200 rounded-2xl p-4 md:p-6">
             <div className="flex items-center justify-between gap-2 mb-3">
-              <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">
+              {/* Ko'z tugmasi — hujjat matnini ochish/yopish. Standart: yopiq. */}
+              <button
+                type="button"
+                onClick={() => setBodyOpen((v) => !v)}
+                className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-500 hover:text-asaka-700"
+                title={bodyOpen ? t('common.close') : t('common.open')}
+              >
+                {bodyOpen ? (
+                  <Eye size={16} className="text-asaka-600" />
+                ) : (
+                  <EyeOff size={16} />
+                )}
                 {t('edo.view.body')}
-              </h2>
-              {/* Zoom boshqaruvi — faqat shablon (A4 varaq) bo'lganda */}
-              {(doc.templateId || doc.autoFilled) && (
+              </button>
+              {/* Zoom boshqaruvi — faqat matn ochiq va shablon (A4 varaq) bo'lganda */}
+              {bodyOpen && (doc.templateId || doc.autoFilled) && (
                 <div className="flex items-center gap-1 shrink-0">
                   <button
                     type="button"
@@ -490,11 +597,16 @@ export function EdoDocumentViewPage({
                 </div>
               )}
             </div>
-            {(() => {
+            {bodyOpen && (() => {
               const shown = doc.renderedBody ?? doc.body ?? '';
               const isHtml = /^\s*<[a-z]/i.test(shown);
               const isTemplate = !!doc.templateId || !!doc.autoFilled;
-              if (!shown.trim()) return null;
+              if (!shown.trim())
+                return (
+                  <p className="text-sm text-slate-400 italic">
+                    {t('edo.view.no_body')}
+                  </p>
+                );
               // Shablon — A4 varaqqa moslab; ko'p list bo'lsa skrul bilan.
               if (isTemplate) {
                 return (
@@ -536,39 +648,16 @@ export function EdoDocumentViewPage({
               );
             })()}
 
-            {/* Biriktirilgan fayl(lar) — HAR QANDAY hujjatda shu oyna ichida
-                ochilgan holatda, skrul bilan barcha listlar ko'rinadi.
-                Shablon bo'lsa yuqorida A4 varaq, keyin bu yerda fayl.
-                Word/Excel serverda PDF'ga aylantiriladi. */}
-            {(doc.attachments?.length ?? 0) > 0 && (
-              <div className="mt-5 pt-4 border-t border-slate-100 space-y-4">
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                  <FileText size={14} />
-                  {t('edo.view.primary_document')}
-                </div>
-                {doc.attachments!.map((a) => (
-                  <InlineAttachmentPreview
-                    key={a.id}
-                    documentId={doc.id}
-                    attId={a.id}
-                    filename={a.filename}
-                    onExpand={() =>
-                      setViewAtt({ id: a.id, filename: a.filename })
-                    }
-                    onDownload={() =>
-                      downloadAttachment(doc.id, a.id, a.filename)
-                    }
-                  />
-                ))}
-              </div>
-            )}
-
+            {/* Biriktirilgan fayllar — ixcham karta ko'rinishida (yopiq).
+                Har bir kartadagi "Ochish" (ko'z) tugmasi shu joyning o'zida
+                hujjat ko'rinishini (preview) ochadi. Word/Excel serverda
+                PDF'ga aylantirilib ko'rsatiladi. */}
             {((doc.attachments?.length ?? 0) > 0 || canUploadAttachment) && (
               <div className="mt-5 pt-4 border-t border-slate-100">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">
                     <Paperclip size={14} />
-                    {t('edo.view.attachments', { count: doc.attachments!.length })}
+                    {t('edo.view.attachments', { count: doc.attachments?.length ?? 0 })}
                   </div>
                   {canUploadAttachment && (
                     <button
@@ -583,52 +672,25 @@ export function EdoDocumentViewPage({
                   )}
                 </div>
                 {(doc.attachments?.length ?? 0) > 0 && (
-                  <ul className="space-y-1.5">
-                    {doc.attachments!.map((a) => {
-                      const editable = canUploadAttachment && isWordEditable(a.filename);
-                      return (
-                        <li key={a.id} className="rounded-lg hover:bg-slate-50 transition-colors">
-                          <div className="flex items-center gap-2 px-2 py-1.5">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setViewAtt({ id: a.id, filename: a.filename })
-                              }
-                              className="group flex items-center gap-2 text-sm text-slate-700 hover:text-asaka-700 flex-1 min-w-0 text-left"
-                              title={t('edo.viewer.hint')}
-                            >
-                              <Paperclip size={14} className="text-slate-400 group-hover:text-asaka-600 shrink-0" />
-                              <span className="truncate flex-1">{a.filename}</span>
-                              <span className="text-xs text-slate-400 shrink-0">{formatBytes(a.sizeBytes)}</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                downloadAttachment(doc.id, a.id, a.filename)
-                              }
-                              className="inline-flex items-center justify-center text-slate-400 hover:text-asaka-600 shrink-0 p-1 rounded-md hover:bg-slate-100"
-                              title={t('common.download')}
-                            >
-                              <Download size={15} />
-                            </button>
-                            {editable && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setEditAtt({ id: a.id, filename: a.filename })
-                                }
-                                className="inline-flex items-center gap-1 text-xs font-semibold text-white bg-asaka-600 hover:bg-asaka-700 shrink-0 px-2.5 py-1 rounded-md"
-                                title={t('edo.editor.hint')}
-                              >
-                                <Pencil size={13} />
-                                {t('edo.editor.button')}
-                              </button>
-                            )}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                  <div className="space-y-2.5">
+                    {doc.attachments!.map((a) => (
+                      <AttachmentCard
+                        key={a.id}
+                        documentId={doc.id}
+                        att={a}
+                        editable={canUploadAttachment && isWordEditable(a.filename)}
+                        onDownload={() =>
+                          downloadAttachment(doc.id, a.id, a.filename)
+                        }
+                        onEdit={() =>
+                          setEditAtt({ id: a.id, filename: a.filename })
+                        }
+                        onExpandFull={() =>
+                          setViewAtt({ id: a.id, filename: a.filename })
+                        }
+                      />
+                    ))}
+                  </div>
                 )}
                 <input
                   ref={fileInputRef}
