@@ -45,14 +45,59 @@ import { api } from '../../lib/api';
 import type { DocumentStatus, EdoAttachment, EdoAuditEntry, EdoDocument, EdoResolution, User } from '../../lib/types';
 import { Avatar } from '../../components/Avatar';
 import { useAuth } from '../../context/AuthContext';
-import { cn, formatBytes, cyrName, trDyn } from '../../lib/utils';
+import { cn, cyrName, trDyn } from '../../lib/utils';
 import { SecretInput } from '../../components/SecretInput';
 import { ApproverChainPicker } from '../../components/edo/ApproverChainPicker';
 import { exportApproverChainWord } from '../../lib/exportChainWord';
 
-// Biriktirilgan fayl — ixcham karta ko'rinishida (fayl nomi, hajmi, sanasi).
-// "Ochish" (ko'z) tugmasi bosilgandagina ichida hujjat ko'rinishi (preview)
-// ochiladi; aks holda yopiq turadi. Shu tufayli hujjat oynasi ozoda ko'rinadi.
+// Fayl kengaytmasi → rangli yorliq (DOCX ko'k, PDF qizil, XLS yashil, ...).
+function fileBadge(filename: string): { label: string; cls: string } {
+  const ext = (filename.split('.').pop() || '').toLowerCase();
+  const map: Record<string, { label: string; cls: string }> = {
+    doc: { label: 'DOC', cls: 'bg-blue-600' },
+    docx: { label: 'DOCX', cls: 'bg-blue-600' },
+    rtf: { label: 'RTF', cls: 'bg-blue-600' },
+    odt: { label: 'ODT', cls: 'bg-blue-600' },
+    xls: { label: 'XLS', cls: 'bg-emerald-600' },
+    xlsx: { label: 'XLSX', cls: 'bg-emerald-600' },
+    csv: { label: 'CSV', cls: 'bg-emerald-600' },
+    pdf: { label: 'PDF', cls: 'bg-red-600' },
+    png: { label: 'PNG', cls: 'bg-violet-600' },
+    jpg: { label: 'JPG', cls: 'bg-violet-600' },
+    jpeg: { label: 'JPG', cls: 'bg-violet-600' },
+    gif: { label: 'GIF', cls: 'bg-violet-600' },
+    webp: { label: 'WEBP', cls: 'bg-violet-600' },
+    txt: { label: 'TXT', cls: 'bg-slate-500' },
+    zip: { label: 'ZIP', cls: 'bg-amber-600' },
+    rar: { label: 'RAR', cls: 'bg-amber-600' },
+  };
+  return (
+    map[ext] || {
+      label: ext ? ext.toUpperCase().slice(0, 4) : 'FILE',
+      cls: 'bg-slate-500',
+    }
+  );
+}
+
+// Hajmni "0,03 mb" ko'rinishida (namunaga o'xshab) qaytaradi.
+function formatMb(bytes: number): string {
+  const mb = bytes / (1024 * 1024);
+  return `${mb.toFixed(2).replace('.', ',')} mb`;
+}
+
+// ISO sanani "16.07.2026 10:50" ko'rinishida qaytaradi.
+function formatFileDate(iso?: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+// Biriktirilgan fayl — namunadagidek katta karta: rangli fayl-turi belgisi
+// (DOCX/PDF/...), "Fayl nomi / Hajmi / Yaratilgan sanasi" maydonlari va
+// "Ochish" (ko'z) + "Yuklab olish" tugmalari. "Ochish" bosilganda hujjat
+// ko'rinishi (preview) shu joyning o'zida ochiladi; aks holda yopiq turadi.
 function AttachmentCard({
   documentId,
   att,
@@ -70,61 +115,85 @@ function AttachmentCard({
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const badge = fileBadge(att.filename);
+  const dateStr = formatFileDate(att.createdAt);
   return (
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-      <div className="flex items-center gap-3 p-3">
-        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-asaka-50 text-asaka-600 shrink-0">
-          <FileText size={20} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div
-            className="text-sm font-medium text-slate-800 truncate"
-            title={att.filename}
-          >
-            {att.filename}
-          </div>
-          <div className="flex items-center gap-3 text-xs text-slate-400 mt-0.5">
-            <span>{formatBytes(att.sizeBytes)}</span>
-            {att.createdAt && (
-              <span>{new Date(att.createdAt).toLocaleDateString('ru-RU')}</span>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            className={cn(
-              'inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors',
-              open
-                ? 'bg-asaka-600 text-white border-asaka-600 hover:bg-asaka-700'
-                : 'text-asaka-600 border-asaka-200 hover:bg-asaka-50',
-            )}
-            title={open ? t('common.close') : t('common.open')}
-          >
-            {open ? <EyeOff size={14} /> : <Eye size={14} />}
-            <span className="hidden sm:inline">
-              {open ? t('common.close') : t('common.open')}
+      <div className="flex flex-col sm:flex-row gap-4 p-4">
+        {/* Katta fayl-turi belgisi */}
+        <div className="shrink-0 flex sm:block justify-center">
+          <div className="relative w-20 h-24 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center">
+            <FileText size={40} className="text-slate-300" strokeWidth={1.5} />
+            <span
+              className={cn(
+                'absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] font-bold text-white px-1.5 py-0.5 rounded',
+                badge.cls,
+              )}
+            >
+              {badge.label}
             </span>
-          </button>
-          <button
-            type="button"
-            onClick={onDownload}
-            className="inline-flex items-center justify-center text-slate-500 hover:text-asaka-600 p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50"
-            title={t('common.download')}
-          >
-            <Download size={15} />
-          </button>
-          {editable && (
+          </div>
+        </div>
+        {/* Maydonlar */}
+        <div className="min-w-0 flex-1 space-y-2.5">
+          <div>
+            <div className="text-xs text-slate-400">
+              {t('edo.view.file_name')}
+            </div>
+            <div
+              className="text-sm font-medium text-slate-800 break-all"
+              title={att.filename}
+            >
+              {att.filename}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-x-10 gap-y-2.5">
+            <div>
+              <div className="text-xs text-slate-400">
+                {t('edo.view.file_size')}
+              </div>
+              <div className="text-sm text-slate-700">
+                {formatMb(att.sizeBytes)}
+              </div>
+            </div>
+            {dateStr && (
+              <div>
+                <div className="text-xs text-slate-400">
+                  {t('edo.view.file_date')}
+                </div>
+                <div className="text-sm text-slate-700">{dateStr}</div>
+              </div>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 pt-1">
             <button
               type="button"
-              onClick={onEdit}
-              className="inline-flex items-center justify-center text-slate-500 hover:text-asaka-600 p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50"
-              title={t('edo.editor.hint')}
+              onClick={() => setOpen((v) => !v)}
+              className="inline-flex items-center gap-2 text-sm font-medium text-white bg-asaka-600 hover:bg-asaka-700 px-4 py-2 rounded-lg transition-colors"
             >
-              <Pencil size={14} />
+              {open ? <EyeOff size={16} /> : <Eye size={16} />}
+              {open ? t('common.close') : t('common.open')}
             </button>
-          )}
+            <button
+              type="button"
+              onClick={onDownload}
+              className="inline-flex items-center gap-2 text-sm font-medium text-asaka-700 bg-asaka-50 hover:bg-asaka-100 px-4 py-2 rounded-lg transition-colors"
+            >
+              <Download size={16} />
+              {t('common.download')}
+            </button>
+            {editable && (
+              <button
+                type="button"
+                onClick={onEdit}
+                className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg transition-colors"
+                title={t('edo.editor.hint')}
+              >
+                <Pencil size={16} />
+                {t('edo.editor.button')}
+              </button>
+            )}
+          </div>
         </div>
       </div>
       {open && (
