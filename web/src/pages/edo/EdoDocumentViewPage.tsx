@@ -169,7 +169,7 @@ function AttachmentCard({
             <button
               type="button"
               onClick={() => setOpen((v) => !v)}
-              className="inline-flex items-center gap-2 text-sm font-medium text-white bg-asaka-600 hover:bg-asaka-700 px-4 py-2 rounded-lg transition-colors"
+              className="inline-flex items-center gap-2 text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 px-4 py-2 rounded-lg transition-colors"
             >
               {open ? <EyeOff size={16} /> : <Eye size={16} />}
               {open ? t('common.close') : t('common.open')}
@@ -177,7 +177,7 @@ function AttachmentCard({
             <button
               type="button"
               onClick={onDownload}
-              className="inline-flex items-center gap-2 text-sm font-medium text-asaka-700 bg-asaka-50 hover:bg-asaka-100 px-4 py-2 rounded-lg transition-colors"
+              className="inline-flex items-center gap-2 text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 px-4 py-2 rounded-lg transition-colors"
             >
               <Download size={16} />
               {t('common.download')}
@@ -626,7 +626,9 @@ export function EdoDocumentViewPage({
         {/* Asosiy ustun */}
         <div className="space-y-4 min-w-0">
           <section className="bg-white border border-slate-200 rounded-2xl p-4 md:p-6">
-            <div className="flex items-center justify-between gap-2 mb-3">
+            {/* Hujjat matni — karta ko'rinishida (biriktirilgan fayllardek). */}
+            <div className="rounded-xl border border-slate-200 overflow-hidden">
+            <div className="flex items-center justify-between gap-2 p-4">
               {/* Ko'z tugmasi — hujjat matnini ochish/yopish. Standart: yopiq. */}
               <button
                 type="button"
@@ -666,7 +668,9 @@ export function EdoDocumentViewPage({
                 </div>
               )}
             </div>
-            {bodyOpen && (() => {
+            {bodyOpen && (
+              <div className="border-t border-slate-100 p-4">
+                {(() => {
               const shown = doc.renderedBody ?? doc.body ?? '';
               const isHtml = /^\s*<[a-z]/i.test(shown);
               const isTemplate = !!doc.templateId || !!doc.autoFilled;
@@ -715,16 +719,19 @@ export function EdoDocumentViewPage({
                   )}
                 </div>
               );
-            })()}
+                })()}
+              </div>
+            )}
+            </div>
 
-            {/* Biriktirilgan fayllar — ixcham karta ko'rinishida (yopiq).
+            {/* Biriktirilgan fayllar — karta ko'rinishida (yopiq).
                 Har bir kartadagi "Ochish" (ko'z) tugmasi shu joyning o'zida
                 hujjat ko'rinishini (preview) ochadi. Word/Excel serverda
                 PDF'ga aylantirilib ko'rsatiladi. */}
             {((doc.attachments?.length ?? 0) > 0 || canUploadAttachment) && (
               <div className="mt-5 pt-4 border-t border-slate-100">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-orange-600 uppercase tracking-wide">
                     <Paperclip size={14} />
                     {t('edo.view.attachments', { count: doc.attachments?.length ?? 0 })}
                   </div>
@@ -733,7 +740,7 @@ export function EdoDocumentViewPage({
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploadAttachment.isPending}
-                      className="inline-flex items-center gap-1 text-xs text-asaka-600 hover:text-asaka-700 font-medium disabled:opacity-50"
+                      className="inline-flex items-center gap-1 text-xs text-orange-600 hover:text-orange-700 font-medium disabled:opacity-50"
                     >
                       <Paperclip size={12} />
                       {uploadAttachment.isPending ? t('common.saving') : t('edo.compose.add_file')}
