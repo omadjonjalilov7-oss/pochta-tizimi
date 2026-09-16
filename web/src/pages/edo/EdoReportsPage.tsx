@@ -5,6 +5,7 @@ import { BarChart3, Users, Clock, FileCheck2, AlertTriangle } from 'lucide-react
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../lib/utils';
+import { StatDocListModal } from '../../components/edo/StatDocListModal';
 
 interface MineStats {
   from: string;
@@ -52,6 +53,7 @@ export function EdoReportsPage() {
   const { user } = useAuth();
   const canSeeAll = user?.role === 'admin' || user?.role === 'chancellery';
   const [{ from, to }, setRange] = useState(defaultRange);
+  const [openMetric, setOpenMetric] = useState<{ metric: string; title: string } | null>(null);
 
   const params = useMemo(() => {
     const p = new URLSearchParams();
@@ -63,6 +65,14 @@ export function EdoReportsPage() {
     }
     return p.toString();
   }, [from, to]);
+
+  const fromIso = from ? new Date(from).toISOString() : undefined;
+  const toIso = (() => {
+    if (!to) return undefined;
+    const d = new Date(to);
+    d.setHours(23, 59, 59, 999);
+    return d.toISOString();
+  })();
 
   const mineQ = useQuery({
     queryKey: ['edo-stats-mine', params],
@@ -189,6 +199,7 @@ export function EdoReportsPage() {
                   title={t('edo.reports.by_status')}
                   data={globalQ.data.byStatus}
                   labelKey="edo.status"
+                  onItemClick={(k) => setOpenMetric({ metric: k, title: t(`edo.status.${k}`, k) })}
                 />
                 <BreakdownBlock
                   title={t('edo.reports.by_type')}
@@ -225,6 +236,15 @@ export function EdoReportsPage() {
           )}
         </section>
       )}
+
+      <StatDocListModal
+        open={!!openMetric}
+        onClose={() => setOpenMetric(null)}
+        metric={openMetric?.metric ?? null}
+        title={openMetric?.title ?? ''}
+        from={fromIso}
+        to={toIso}
+      />
     </div>
   );
 }
@@ -279,10 +299,12 @@ function BreakdownBlock({
   title,
   data,
   labelKey,
+  onItemClick,
 }: {
   title: string;
   data: Record<string, number>;
   labelKey: string;
+  onItemClick?: (key: string) => void;
 }) {
   const { t } = useTranslation();
   const total = Object.values(data).reduce((s, v) => s + v, 0);
@@ -299,8 +321,16 @@ function BreakdownBlock({
             .sort(([, a], [, b]) => b - a)
             .map(([k, v]) => {
               const pct = total > 0 ? Math.round((v / total) * 100) : 0;
+              const clickable = !!onItemClick && v > 0;
               return (
-                <div key={k} className="flex items-center gap-2 text-xs">
+                <div
+                  key={k}
+                  onClick={clickable ? () => onItemClick!(k) : undefined}
+                  className={cn(
+                    'flex items-center gap-2 text-xs rounded-md',
+                    clickable && 'cursor-pointer hover:bg-slate-50 -mx-1 px-1',
+                  )}
+                >
                   <span
                     className={cn(
                       'px-1.5 py-0.5 rounded font-medium min-w-[110px] inline-block',

@@ -156,6 +156,55 @@ export class StatsService {
     return { documents, tasks: taskBucket, signatures: sigCount, approvals };
   }
 
+  // Bitta ko'rsatkich (metric) bo'yicha hujjatlar ro'yxati — dashboard/jurnal/
+  // kalendar/hisobotdagi raqam ustiga bosilganda shu ro'yxat chiqadi.
+  async documentsByMetric(
+    metric?: string,
+    from?: string,
+    to?: string,
+    journalId?: string,
+    journalKind?: string,
+  ) {
+    const range = this.dateRange(from, to);
+    const where: Record<string, unknown> = range ? { createdAt: range } : {};
+
+    const statusByMetric: Record<string, string | undefined> = {
+      total: undefined,
+      draft: 'draft',
+      in_review: 'in_review',
+      inReview: 'in_review',
+      in_progress: 'in_progress',
+      inProgress: 'in_progress',
+      done: 'done',
+      rejected: 'rejected',
+      overdue: 'overdue',
+    };
+
+    if (metric && metric in statusByMetric) {
+      const st = statusByMetric[metric];
+      if (st) where.status = st;
+    }
+    if (journalId) where.journalId = journalId;
+    if (journalKind) where.journal = { kind: journalKind };
+
+    const docs = await this.prisma.document.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+      select: {
+        id: true,
+        number: true,
+        docUid: true,
+        subject: true,
+        status: true,
+        type: true,
+        createdAt: true,
+        createdBy: { select: { fullName: true } },
+      },
+    });
+    return docs;
+  }
+
   // Bo'limlar bo'yicha statistika — hujjatlar (bo'lim yaratgan) va topshiriqlar
   // (bo'lim xodimlariga biriktirilgan porucheniyalar) alohida ko'rsatiladi.
   async departments(from?: string, to?: string) {

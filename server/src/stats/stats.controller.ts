@@ -13,6 +13,17 @@ export class StatsController {
     return this.stats.overview(from, to);
   }
 
+  @Get('documents')
+  documents(
+    @Query('metric') metric?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('journalId') journalId?: string,
+    @Query('journalKind') journalKind?: string,
+  ) {
+    return this.stats.documentsByMetric(metric, from, to, journalId, journalKind);
+  }
+
   @Get('departments')
   departments(@Query('from') from?: string, @Query('to') to?: string) {
     return this.stats.departments(from, to);

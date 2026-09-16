@@ -5,6 +5,7 @@ import { Navigate, useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../lib/utils';
+import { StatDocListModal } from '../../components/edo/StatDocListModal';
 
 interface Bucket {
   total: number;
@@ -48,7 +49,17 @@ function defaultRange() {
   return { from: fmt(from), to: fmt(to) };
 }
 
-function StatCard({ label, value, tone = 'slate' }: { label: string; value: number; tone?: string }) {
+function StatCard({
+  label,
+  value,
+  tone = 'slate',
+  onClick,
+}: {
+  label: string;
+  value: number;
+  tone?: string;
+  onClick?: () => void;
+}) {
   const tones: Record<string, string> = {
     slate: 'text-slate-800',
     sky: 'text-sky-600',
@@ -57,11 +68,22 @@ function StatCard({ label, value, tone = 'slate' }: { label: string; value: numb
     rose: 'text-rose-600',
     indigo: 'text-indigo-600',
   };
+  const clickable = !!onClick && value > 0;
   return (
-    <div className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-center">
+    <button
+      type="button"
+      onClick={clickable ? onClick : undefined}
+      disabled={!clickable}
+      className={cn(
+        'bg-white border border-slate-200 rounded-xl px-4 py-3 text-center transition',
+        clickable
+          ? 'cursor-pointer hover:border-asaka-400 hover:shadow-sm hover:-translate-y-0.5'
+          : 'cursor-default',
+      )}
+    >
       <div className={cn('text-2xl font-bold', tones[tone] || tones.slate)}>{value}</div>
       <div className="text-xs text-slate-500 mt-1">{label}</div>
-    </div>
+    </button>
   );
 }
 
@@ -71,6 +93,7 @@ export function EdoStatsPage() {
   const isStaff = user?.role === 'admin' || user?.role === 'chancellery';
   const { view } = useParams<{ view?: string }>();
   const [{ from, to }, setRange] = useState(defaultRange);
+  const [openMetric, setOpenMetric] = useState<{ metric: string; title: string } | null>(null);
   const validViews: TabKey[] = ['overview', 'departments', 'staff', 'signing', 'approvals'];
   const tab: TabKey = validViews.includes(view as TabKey) ? (view as TabKey) : 'overview';
 
@@ -84,6 +107,16 @@ export function EdoStatsPage() {
     }
     return p.toString();
   }, [from, to]);
+
+  // Modal uchun ISO sanalar
+  const fromIso = from ? new Date(from).toISOString() : undefined;
+  const toIso = (() => {
+    if (!to) return undefined;
+    const d = new Date(to);
+    d.setHours(23, 59, 59, 999);
+    return d.toISOString();
+  })();
+  const openDocs = (metric: string, title: string) => setOpenMetric({ metric, title });
 
   const overviewQ = useQuery({
     queryKey: ['stats-overview', params],
@@ -155,13 +188,13 @@ export function EdoStatsPage() {
                   {t('edo.stats.documents')}
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-                  <StatCard label={t('edo.stats.total')} value={overviewQ.data.documents.total} />
-                  <StatCard label={t('edo.stats.draft')} value={overviewQ.data.documents.draft} />
-                  <StatCard label={t('edo.stats.in_review')} value={overviewQ.data.documents.inReview} tone="amber" />
-                  <StatCard label={t('edo.stats.in_progress')} value={overviewQ.data.documents.inProgress} tone="sky" />
-                  <StatCard label={t('edo.stats.done')} value={overviewQ.data.documents.done} tone="emerald" />
-                  <StatCard label={t('edo.stats.rejected')} value={overviewQ.data.documents.rejected} tone="rose" />
-                  <StatCard label={t('edo.stats.overdue')} value={overviewQ.data.documents.overdue} tone="rose" />
+                  <StatCard label={t('edo.stats.total')} value={overviewQ.data.documents.total} onClick={() => openDocs('total', t('edo.stats.total'))} />
+                  <StatCard label={t('edo.stats.draft')} value={overviewQ.data.documents.draft} onClick={() => openDocs('draft', t('edo.stats.draft'))} />
+                  <StatCard label={t('edo.stats.in_review')} value={overviewQ.data.documents.inReview} tone="amber" onClick={() => openDocs('in_review', t('edo.stats.in_review'))} />
+                  <StatCard label={t('edo.stats.in_progress')} value={overviewQ.data.documents.inProgress} tone="sky" onClick={() => openDocs('in_progress', t('edo.stats.in_progress'))} />
+                  <StatCard label={t('edo.stats.done')} value={overviewQ.data.documents.done} tone="emerald" onClick={() => openDocs('done', t('edo.stats.done'))} />
+                  <StatCard label={t('edo.stats.rejected')} value={overviewQ.data.documents.rejected} tone="rose" onClick={() => openDocs('rejected', t('edo.stats.rejected'))} />
+                  <StatCard label={t('edo.stats.overdue')} value={overviewQ.data.documents.overdue} tone="rose" onClick={() => openDocs('overdue', t('edo.stats.overdue'))} />
                 </div>
               </section>
               <section>
@@ -310,6 +343,15 @@ export function EdoStatsPage() {
           </table>
         </TableWrap>
       )}
+
+      <StatDocListModal
+        open={!!openMetric}
+        onClose={() => setOpenMetric(null)}
+        metric={openMetric?.metric ?? null}
+        title={openMetric?.title ?? ''}
+        from={fromIso}
+        to={toIso}
+      />
     </div>
   );
 }

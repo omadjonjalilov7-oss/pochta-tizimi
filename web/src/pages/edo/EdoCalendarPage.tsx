@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '../../lib/api';
 import type { EdoDocument, DocumentStatus } from '../../lib/types';
 import { cn } from '../../lib/utils';
+import { StatDocListModal, type StatDocRow } from '../../components/edo/StatDocListModal';
 
 function ymd(d: Date) {
   const p = (n: number) => String(n).padStart(2, '0');
@@ -30,6 +31,7 @@ export function EdoCalendarPage() {
     const n = new Date();
     return new Date(n.getFullYear(), n.getMonth(), 1);
   });
+  const [dayModal, setDayModal] = useState<{ title: string; rows: StatDocRow[] } | null>(null);
 
   // Ko'rinayotgan oy oralig'i (dushanbadan boshlab to'ldirilgan to'r)
   const { gridStart, gridEnd, monthDays } = useMemo(() => {
@@ -158,7 +160,25 @@ export function EdoCalendarPage() {
                     );
                   })}
                   {dayDocs.length > 3 && (
-                    <span className="text-[11px] text-slate-400 px-1.5">+{dayDocs.length - 3}</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDayModal({
+                          title: `${day.getDate()} ${months[day.getMonth()]}`,
+                          rows: dayDocs.map((d) => ({
+                            id: d.id,
+                            number: d.number,
+                            docUid: d.docUid,
+                            subject: d.subject,
+                            status: d.status,
+                            createdAt: d.deadline ?? d.createdAt,
+                          })),
+                        })
+                      }
+                      className="text-[11px] text-asaka-600 hover:text-asaka-700 hover:underline px-1.5 text-left"
+                    >
+                      +{dayDocs.length - 3}
+                    </button>
                   )}
                 </div>
               </div>
@@ -166,6 +186,13 @@ export function EdoCalendarPage() {
           })}
         </div>
       </div>
+
+      <StatDocListModal
+        open={!!dayModal}
+        onClose={() => setDayModal(null)}
+        title={dayModal?.title ?? ''}
+        rows={dayModal?.rows ?? []}
+      />
     </div>
   );
 }

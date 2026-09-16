@@ -6,7 +6,8 @@ import { BookText, Plus, Pencil, Trash2, Save, X, Loader2, List, BarChart3, File
 import { api } from '../../lib/api';
 import type { Journal } from '../../lib/types';
 import { useAuth } from '../../context/AuthContext';
-import { trDyn } from '../../lib/utils';
+import { cn, trDyn } from '../../lib/utils';
+import { StatDocListModal } from '../../components/edo/StatDocListModal';
 
 const JOURNAL_KINDS = ['general', 'incoming', 'outgoing', 'internal'] as const;
 
@@ -27,6 +28,9 @@ export function EdoJurnalPage() {
   const queryClient = useQueryClient();
 
   const [tab, setTab] = useState<'edit' | 'stats'>('edit');
+  const [docsModal, setDocsModal] = useState<
+    { title: string; journalId?: string; journalKind?: string } | null
+  >(null);
   const [form, setForm] = useState<JournalForm>(EMPTY);
   const [editId, setEditId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -285,10 +289,18 @@ export function EdoJurnalPage() {
           {/* Umumiy xujjatlar soni */}
           <div className="bg-white border border-slate-200 rounded-2xl px-5 py-4 flex items-center justify-between">
             <span className="text-sm font-semibold text-slate-700">{t('edo.jurnal.stats_total')}</span>
-            <span className="inline-flex items-center gap-2 text-lg font-bold text-asaka-700">
+            <button
+              type="button"
+              disabled={totalDocs === 0}
+              onClick={() => setDocsModal({ title: t('edo.jurnal.stats_total') })}
+              className={cn(
+                'inline-flex items-center gap-2 text-lg font-bold text-asaka-700 rounded-lg px-2 py-0.5',
+                totalDocs > 0 ? 'hover:bg-asaka-50 cursor-pointer' : 'cursor-default',
+              )}
+            >
               <FileText size={18} />
               {totalDocs}
-            </span>
+            </button>
           </div>
 
           {isLoading ? (
@@ -302,9 +314,22 @@ export function EdoJurnalPage() {
                   <span className="text-sm font-semibold text-slate-700">
                     {t(`edo.jurnal.kind_${g.kind}`, g.kind)}
                   </span>
-                  <span className="text-xs font-semibold text-asaka-700 bg-asaka-50 rounded-full px-2.5 py-0.5">
+                  <button
+                    type="button"
+                    disabled={g.total === 0}
+                    onClick={() =>
+                      setDocsModal({
+                        title: t(`edo.jurnal.kind_${g.kind}`, g.kind),
+                        journalKind: g.kind,
+                      })
+                    }
+                    className={cn(
+                      'text-xs font-semibold text-asaka-700 bg-asaka-50 rounded-full px-2.5 py-0.5',
+                      g.total > 0 ? 'hover:bg-asaka-100 cursor-pointer' : 'cursor-default',
+                    )}
+                  >
                     {t('edo.jurnal.docs_count', { count: g.total })}
-                  </span>
+                  </button>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -321,7 +346,21 @@ export function EdoJurnalPage() {
                           <td className="px-4 py-2 font-medium text-slate-800">{trDyn(j.name)}</td>
                           <td className="px-4 py-2 font-mono text-xs text-slate-600">{j.prefix || '—'}</td>
                           <td className="px-4 py-2 text-right font-semibold text-slate-700">
-                            {j._count?.documents ?? 0}
+                            <button
+                              type="button"
+                              disabled={(j._count?.documents ?? 0) === 0}
+                              onClick={() =>
+                                setDocsModal({ title: trDyn(j.name), journalId: j.id })
+                              }
+                              className={cn(
+                                'font-semibold rounded px-1.5 py-0.5',
+                                (j._count?.documents ?? 0) > 0
+                                  ? 'text-asaka-700 hover:bg-asaka-50 cursor-pointer'
+                                  : 'text-slate-400 cursor-default',
+                              )}
+                            >
+                              {j._count?.documents ?? 0}
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -333,6 +372,15 @@ export function EdoJurnalPage() {
           )}
         </div>
       )}
+
+      <StatDocListModal
+        open={!!docsModal}
+        onClose={() => setDocsModal(null)}
+        title={docsModal?.title ?? ''}
+        metric="total"
+        journalId={docsModal?.journalId}
+        journalKind={docsModal?.journalKind}
+      />
     </div>
   );
 }
