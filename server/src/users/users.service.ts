@@ -222,6 +222,13 @@ export class UsersService {
       return { ok: true };
     } catch (e: any) {
       if (e.code === 'P2025') throw new NotFoundException('Foydalanuvchi topilmadi');
+      // Foreign key cheklovi — foydalanuvchida hujjat/xabar/imzo kabi bog'liq
+      // yozuvlar bor, shuning uchun butunlay o'chirib bo'lmaydi.
+      if (e.code === 'P2003') {
+        throw new ConflictException(
+          "Bu foydalanuvchida hujjatlar, xabarlar yoki imzolar bor — butunlay o'chirib bo'lmaydi. Uni ro'yxatda saqlab, \"bloklash\" orqali faolsizlantiring.",
+        );
+      }
       throw e;
     }
   }

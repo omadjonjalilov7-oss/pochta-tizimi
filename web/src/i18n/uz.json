@@ -438,6 +438,7 @@
     "reset_success": "Parol muvaffaqiyatli yangilandi. Foydalanuvchiga yangi parolni xabar bering:",
     "password_min_length": "Parol kamida 6 belgidan iborat bo'lsin",
     "delete_user_confirm": "Foydalanuvchini o'chirishni tasdiqlaysizmi?",
+    "delete_user_linked": "Bu foydalanuvchida hujjatlar, xabarlar yoki imzolar bor — butunlay o'chirib bo'lmaydi. Uni \"bloklash\" tugmasi orqali faolsizlantiring.",
     "position_rank": "{{name}} (rank {{rank}})",
     "form_rank_label": "Rank (tartib)",
     "delete_department_confirm": "Bo'limni o'chirishni tasdiqlaysizmi?",

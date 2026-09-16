@@ -34,7 +34,12 @@ export function AdminUsersPage() {
       await api.delete(`/users/${id}`);
       refresh();
     } catch (err: any) {
-      alert(err?.response?.data?.message || t('admin.error_delete'));
+      // 409 — foydalanuvchida bog'liq hujjat/xabar bor, o'chirib bo'lmaydi
+      if (err?.response?.status === 409) {
+        alert(t('admin.delete_user_linked'));
+      } else {
+        alert(err?.response?.data?.message || t('admin.error_delete'));
+      }
     }
   };
 
