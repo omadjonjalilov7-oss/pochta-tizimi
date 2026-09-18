@@ -24,7 +24,9 @@ export class OnlyOfficeService {
     private readonly jwt: JwtService,
     private readonly docs: DocumentsService,
   ) {
-    this.jwtSecret = this.config.get<string>('ONLYOFFICE_JWT_SECRET') || '';
+    // .env qiymatida ko'rinmas belgi (Windows'dan kelgan CRLF, bo'sh joy)
+    // bo'lsa — imzo mos kelmaydi. Shuning uchun kesib tashlaymiz.
+    this.jwtSecret = (this.config.get<string>('ONLYOFFICE_JWT_SECRET') || '').trim();
     this.backendUrl = (
       this.config.get<string>('ONLYOFFICE_BACKEND_URL') ||
       'https://edo.asaka-motors.uz'
