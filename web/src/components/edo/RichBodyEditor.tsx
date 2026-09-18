@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Bold, Italic, List, Type, AlignJustify, Baseline, Table } from 'lucide-react';
+import { TABLE_INSERT_HTML, attachTableResize } from './tableResize';
 
 // Hujjat matni uchun HTML muharrir — Word'dan kelgan jadval/formatlashni saqlaydi.
 // A4 ga moslash uchun: shrift turi, harflar hajmi va qatorlar oralig'i (interval)
@@ -92,6 +93,7 @@ export function RichBodyEditor({
   const [tableOpen, setTableOpen] = useState(false);
   const [tRows, setTRows] = useState(2);
   const [tCols, setTCols] = useState(2);
+  const emitRef = useRef<() => void>(() => {});
 
   // Tashqaridan value o'zgarsa (shablon qo'llanganda) — muharrirni yangilaymiz.
   useEffect(() => {
@@ -114,6 +116,14 @@ export function RichBodyEditor({
   const emit = () => {
     if (ref.current) onChange(wrap(ref.current.innerHTML, docStyle));
   };
+  emitRef.current = emit;
+
+  // Jadval ustunlarini sichqoncha bilan tortib kengaytirish (chegara ushlanadi).
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || disabled) return;
+    return attachTableResize(el, () => emitRef.current());
+  }, [disabled]);
 
   const exec = (cmd: string) => {
     if (disabled) return;
@@ -171,15 +181,8 @@ export function RichBodyEditor({
       sel.removeAllRanges();
       sel.addRange(savedRange.current);
     }
-    const cell =
-      '<td style="border:1px solid #333;padding:4px 6px;min-width:48px;">&nbsp;</td>';
-    const row = `<tr>${cell.repeat(cols)}</tr>`;
-    const table =
-      `<table class="tpl-table" style="border-collapse:collapse;width:100%;margin:6px 0;">${row.repeat(
-        rows,
-      )}</table><p><br/></p>`;
     document.execCommand('styleWithCSS', false, 'true');
-    document.execCommand('insertHTML', false, table);
+    document.execCommand('insertHTML', false, TABLE_INSERT_HTML(rows, cols));
     setTableOpen(false);
     emit();
   };
