@@ -81,11 +81,16 @@ export class OnlyOfficeService {
     );
     const base = `${this.backendUrl}/api/onlyoffice`;
 
+    // document.key har ochishда noyob bo'lsin — DS bir marta ko'rgan kalitni
+    // (hatto xato holatда) keshlaydi va faylni qayta o'qimaydi. Salt qo'shsak,
+    // DS har safar faylni toza yuklaб, joriy nusxani ko'rsatadi.
+    const rawKey = `${att.versionKey}-${Date.now().toString(36)}`;
+
     const config: any = {
       documentType: this.documentType(att.filename),
       document: {
         fileType: ext,
-        key: att.versionKey.replace(/[^0-9a-zA-Z_-]/g, '').slice(0, 128),
+        key: rawKey.replace(/[^0-9a-zA-Z_-]/g, '').slice(0, 128),
         title: att.filename,
         url: `${base}/file/${docId}/${attId}?token=${fileToken}`,
         permissions: {
