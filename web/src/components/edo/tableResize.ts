@@ -1,13 +1,16 @@
 // Hujjat matnidagi jadvallar uchun umumiy yordamchi (TemplateFillEditor va
 // RichBodyEditor'da ishlatiladi).
 //
-// 1) TABLE_INSERT_HTML — jadval `table-layout:fixed` bilan quriladi: ustunlar
-//    matn hajmiga qarab o'zi kengayib/torayib ketmaydi, barqaror turadi.
+// 1) TABLE_INSERT_HTML — jadval `table-layout:fixed` va teng foizli ustunlar
+//    bilan quriladi: matn hajmiga qarab ustunlar o'zi sakramaydi.
 // 2) attachTableResize — ustun chegarasini sichqoncha bilan tortib kenglikni
-//    o'zgartirish (col-resize). contenteditable ichida matn belgilanib
-//    ketmasligi uchun faqat chegara yaqinida ushlanadi.
+//    o'zgartirish. Kengliklar FOIZ (%) bilan boshqariladi — shuning uchun
+//    jadval har doim varaq ichida qoladi (ramkadan chiqmaydi). Qo'shni ustun
+//    teskari o'zgaradi, umumiy 100% saqlanadi. Eng o'ng chegara (varaq cheti)
+//    tortilmaydi.
 
 const EDGE = 6; // ustun o'ng chegarasidan necha px ichida "tortish" boshlanadi
+const MIN_PCT = 5; // ustunning eng kichik kengligi (%)
 
 export function TABLE_INSERT_HTML(rows: number, cols: number): string {
   const r = Math.max(1, Math.min(20, rows || 1));
@@ -26,7 +29,7 @@ export function TABLE_INSERT_HTML(rows: number, cols: number): string {
   );
 }
 
-// Jadvalda <colgroup> bo'lmasa — yaratamiz (eski qo'shilgan jadvallar uchun).
+// Jadvalda <colgroup> bo'lmasa yoki ustunlar soni mos kelmasa — qayta quramiz.
 function ensureCols(table: HTMLTableElement): HTMLTableColElement[] {
   const firstRow = table.rows[0];
   const n = firstRow ? firstRow.cells.length : 0;
@@ -48,7 +51,8 @@ export function attachTableResize(
     cols: HTMLTableColElement[];
     index: number;
     startX: number;
-    widths: number[];
+    tableW: number; // jadval ichki kengligi (px) — dx ni % ga aylantirish uchun
+    pcts: number[]; // boshlang'ich ustun kengliklari (%)
   } | null = null;
 
   const cellFromEvent = (e: MouseEvent): HTMLTableCellElement | null => {
@@ -57,36 +61,42 @@ export function attachTableResize(
     return cell && container.contains(cell) ? cell : null;
   };
 
+  // Ustunning o'ng chegarasiga yaqinmi va u oxirgi ustun EMASmi (oxirgisi = varaq
+  // cheti, tortilmaydi).
+  const isResizeEdge = (cell: HTMLTableCellElement, clientX: number): boolean => {
+    const row = cell.parentElement as HTMLTableRowElement | null;
+    if (!row) return false;
+    if (cell.cellIndex >= row.cells.length - 1) return false;
+    const r = cell.getBoundingClientRect();
+    return r.right - clientX <= EDGE && r.right - clientX >= -EDGE;
+  };
+
   const onHover = (e: MouseEvent) => {
     if (active) return;
     const cell = cellFromEvent(e);
-    if (cell) {
-      const r = cell.getBoundingClientRect();
-      container.style.cursor = r.right - e.clientX <= EDGE ? 'col-resize' : '';
-    } else if (container.style.cursor) {
-      container.style.cursor = '';
-    }
+    const want = cell && isResizeEdge(cell, e.clientX);
+    const next = want ? 'col-resize' : '';
+    if (container.style.cursor !== next) container.style.cursor = next;
   };
 
   const onDown = (e: MouseEvent) => {
     const cell = cellFromEvent(e);
-    if (!cell) return;
-    const r = cell.getBoundingClientRect();
-    if (r.right - e.clientX > EDGE) return; // chegara yaqinida emas
+    if (!cell || !isResizeEdge(cell, e.clientX)) return;
     const table = cell.closest('table') as HTMLTableElement | null;
-    if (!table) return;
+    const firstRow = table?.rows[0];
+    if (!table || !firstRow) return;
     table.style.tableLayout = 'fixed';
-    table.style.width = table.getBoundingClientRect().width + 'px';
     const cols = ensureCols(table);
-    const firstRow = table.rows[0];
-    // Hozirgi ustun kengliklarini px'da qotiramiz — tortish bashoratli bo'lsin.
-    const widths = Array.from(firstRow.cells).map(
+    const cellWidths = Array.from(firstRow.cells).map(
       (cc) => cc.getBoundingClientRect().width,
     );
+    const tableW = cellWidths.reduce((a, b) => a + b, 0) || 1;
+    const pcts = cellWidths.map((w) => (w / tableW) * 100);
+    // Foizlarni aniq qilib qotiramiz (keyingi tortish bashoratli bo'lsin).
     cols.forEach((col, k) => {
-      col.style.width = widths[k] + 'px';
+      col.style.width = pcts[k].toFixed(4) + '%';
     });
-    active = { cols, index: cell.cellIndex, startX: e.clientX, widths };
+    active = { cols, index: cell.cellIndex, startX: e.clientX, tableW, pcts };
     e.preventDefault();
     document.addEventListener('mousemove', onDrag, true);
     document.addEventListener('mouseup', onUp, true);
@@ -94,21 +104,16 @@ export function attachTableResize(
 
   const onDrag = (e: MouseEvent) => {
     if (!active) return;
-    const { cols, index, startX, widths } = active;
-    const min = 24;
-    const dx = e.clientX - startX;
-    let nw = widths[index] + dx;
+    const { cols, index, startX, tableW, pcts } = active;
+    const i = index;
     const j = index + 1;
-    if (j < widths.length) {
-      const pair = widths[index] + widths[j];
-      if (nw < min) nw = min;
-      if (nw > pair - min) nw = pair - min;
-      cols[index].style.width = nw + 'px';
-      cols[j].style.width = pair - nw + 'px';
-    } else {
-      if (nw < min) nw = min;
-      cols[index].style.width = nw + 'px';
-    }
+    const dPct = ((e.clientX - startX) / tableW) * 100;
+    const pair = pcts[i] + pcts[j];
+    let ni = pcts[i] + dPct;
+    if (ni < MIN_PCT) ni = MIN_PCT;
+    if (ni > pair - MIN_PCT) ni = pair - MIN_PCT;
+    cols[i].style.width = ni.toFixed(4) + '%';
+    cols[j].style.width = (pair - ni).toFixed(4) + '%';
     e.preventDefault();
   };
 
