@@ -303,10 +303,7 @@ export function RichBodyEditor({
             <Table size={15} />
           </button>
           {tableOpen && (
-            <div
-              className="absolute z-20 top-9 left-0 w-44 rounded-lg border border-slate-200 bg-white p-3 shadow-lg"
-              onMouseDown={(e) => e.preventDefault()}
-            >
+            <div className="absolute z-20 top-9 left-0 w-44 rounded-lg border border-slate-200 bg-white p-3 shadow-lg">
               <div className="flex items-center justify-between gap-2 mb-2">
                 <span className="text-xs text-slate-600">Qatorlar</span>
                 <input

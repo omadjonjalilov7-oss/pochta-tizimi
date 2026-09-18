@@ -642,6 +642,17 @@ export function EdoDocumentViewPage({
                   </button>
                 </div>
               )}
+              {isCreator && doc.status === 'draft' && (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/edo/compose?id=${doc.id}`)}
+                  className="inline-flex items-center gap-2 text-sm font-medium text-asaka-700 bg-asaka-50 hover:bg-asaka-100 px-4 py-2 rounded-lg transition-colors shrink-0"
+                  title={t('edo.view.edit')}
+                >
+                  <Pencil size={16} />
+                  {t('edo.view.edit')}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setBodyOpen((v) => !v)}
