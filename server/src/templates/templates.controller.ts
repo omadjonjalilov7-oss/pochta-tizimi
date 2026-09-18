@@ -16,6 +16,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { TemplatesService } from './templates.service';
 import { CreateTemplateDto, UpdateTemplateDto } from './dto/template.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AdminGuard } from '../auth/guards/admin.guard';
 import {
   CurrentUser,
   CurrentUserPayload,
@@ -40,6 +41,7 @@ export class TemplatesController {
   }
 
   @Post()
+  @UseGuards(AdminGuard)
   create(
     @CurrentUser() user: CurrentUserPayload,
     @Body() dto: CreateTemplateDto,
@@ -48,6 +50,7 @@ export class TemplatesController {
   }
 
   @Post('import-docx')
+  @UseGuards(AdminGuard)
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }),
   )
@@ -61,6 +64,7 @@ export class TemplatesController {
   }
 
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(
     @CurrentUser() user: CurrentUserPayload,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -70,6 +74,7 @@ export class TemplatesController {
   }
 
   @Delete(':id')
+  @UseGuards(AdminGuard)
   remove(
     @CurrentUser() user: CurrentUserPayload,
     @Param('id', new ParseUUIDPipe()) id: string,

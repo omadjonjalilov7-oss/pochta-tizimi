@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Navigate } from 'react-router-dom';
 import {
   FileText,
   Plus,
@@ -105,6 +106,9 @@ export function EdoTemplatesPage() {
 
   const canEdit = (tpl: EdoTemplate) =>
     !!user && (user.role === 'admin' || tpl.createdById === user.id);
+
+  // Shablonlar sahifasi faqat admin uchun — boshqa rollar bosh sahifaga
+  if (user && user.role !== 'admin') return <Navigate to="/edo" replace />;
 
   return (
     <div className="w-full px-6 py-6">
