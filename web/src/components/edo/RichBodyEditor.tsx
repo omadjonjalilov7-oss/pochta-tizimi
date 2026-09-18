@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bold, Italic, List, Type, AlignJustify, Baseline } from 'lucide-react';
+import { Bold, Italic, List, Type, AlignJustify, Baseline, Table } from 'lucide-react';
 
 // Hujjat matni uchun HTML muharrir — Word'dan kelgan jadval/formatlashni saqlaydi.
 // A4 ga moslash uchun: shrift turi, harflar hajmi va qatorlar oralig'i (interval)
@@ -89,6 +89,9 @@ export function RichBodyEditor({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [docStyle, setDocStyle] = useState<DocStyle>(DEFAULT_STYLE);
+  const [tableOpen, setTableOpen] = useState(false);
+  const [tRows, setTRows] = useState(2);
+  const [tCols, setTCols] = useState(2);
 
   // Tashqaridan value o'zgarsa (shablon qo'llanganda) — muharrirni yangilaymiz.
   useEffect(() => {
@@ -153,6 +156,32 @@ export function RichBodyEditor({
       el.style.lineHeight = next.lineHeight;
       onChange(wrap(el.innerHTML, next));
     }
+  };
+
+  // Jadval qo'shish: matn maydoniga HTML jadval joylanadi.
+  const insertTable = () => {
+    if (disabled) return;
+    const rows = Math.max(1, Math.min(20, tRows || 1));
+    const cols = Math.max(1, Math.min(10, tCols || 1));
+    const el = ref.current;
+    if (!el) return;
+    el.focus();
+    const sel = window.getSelection();
+    if (savedRange.current && sel && el.contains(savedRange.current.commonAncestorContainer)) {
+      sel.removeAllRanges();
+      sel.addRange(savedRange.current);
+    }
+    const cell =
+      '<td style="border:1px solid #333;padding:4px 6px;min-width:48px;">&nbsp;</td>';
+    const row = `<tr>${cell.repeat(cols)}</tr>`;
+    const table =
+      `<table class="tpl-table" style="border-collapse:collapse;width:100%;margin:6px 0;">${row.repeat(
+        rows,
+      )}</table><p><br/></p>`;
+    document.execCommand('styleWithCSS', false, 'true');
+    document.execCommand('insertHTML', false, table);
+    setTableOpen(false);
+    emit();
   };
 
   if (disabled) {
@@ -256,6 +285,60 @@ export function RichBodyEditor({
             className="absolute inset-0 opacity-0 cursor-pointer"
           />
         </label>
+
+        <span className="w-px h-5 bg-slate-200 mx-1" />
+
+        {/* Jadval qo'shish */}
+        <div className="relative">
+          <button
+            type="button"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              saveSelection();
+            }}
+            onClick={() => setTableOpen((v) => !v)}
+            className="p-1.5 rounded hover:bg-slate-200 text-slate-600"
+            title="Jadval qo'shish"
+          >
+            <Table size={15} />
+          </button>
+          {tableOpen && (
+            <div
+              className="absolute z-20 top-9 left-0 w-44 rounded-lg border border-slate-200 bg-white p-3 shadow-lg"
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-xs text-slate-600">Qatorlar</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={tRows}
+                  onChange={(e) => setTRows(Number(e.target.value))}
+                  className="w-14 h-7 text-xs border border-slate-200 rounded px-1.5 text-slate-700"
+                />
+              </div>
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <span className="text-xs text-slate-600">Ustunlar</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={tCols}
+                  onChange={(e) => setTCols(Number(e.target.value))}
+                  className="w-14 h-7 text-xs border border-slate-200 rounded px-1.5 text-slate-700"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={insertTable}
+                className="w-full h-8 rounded-md bg-asaka-600 text-white text-xs font-medium hover:bg-asaka-700"
+              >
+                Qo'shish
+              </button>
+            </div>
+          )}
+        </div>
       </div>
       <div
         ref={ref}
