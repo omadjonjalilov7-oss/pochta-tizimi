@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import * as crypto from 'crypto';
 import * as path from 'path';
 import { DocumentsService } from './documents.service';
 
@@ -27,6 +28,13 @@ export class OnlyOfficeService {
     // .env qiymatida ko'rinmas belgi (Windows'dan kelgan CRLF, bo'sh joy)
     // bo'lsa — imzo mos kelmaydi. Shuning uchun kesib tashlaymiz.
     this.jwtSecret = (this.config.get<string>('ONLYOFFICE_JWT_SECRET') || '').trim();
+    // Ishga tushishда sirning "barmoq izi"ni bir marta yozamiz — DS bilan bir
+    // xilligini tekshirish uchun (haqiqiy sirni ochib bermaydi). len=64 va
+    // sha256_12=ba9cf20dfd66 kutiladi.
+    const fp = this.jwtSecret
+      ? crypto.createHash('sha256').update(this.jwtSecret).digest('hex').slice(0, 12)
+      : '(bo\u2018sh)';
+    this.logger.log(`JWT secret yuklandi: len=${this.jwtSecret.length} sha256_12=${fp}`);
     this.backendUrl = (
       this.config.get<string>('ONLYOFFICE_BACKEND_URL') ||
       'https://edo.asaka-motors.uz'
