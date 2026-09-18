@@ -3,7 +3,9 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DocumentsController } from './documents.controller';
 import { PublicController } from './public.controller';
+import { OnlyOfficeController } from './onlyoffice.controller';
 import { DocumentsService } from './documents.service';
+import { OnlyOfficeService } from './onlyoffice.service';
 import { DocumentsCron } from './documents.cron';
 import { QrApprovalService } from './qr-approval.service';
 import { PdfGeneratorService } from './pdf-generator.service';
@@ -25,8 +27,8 @@ import { SettingsModule } from '../settings/settings.module';
     UsersModule,
     SettingsModule,
   ],
-  controllers: [DocumentsController, PublicController],
-  providers: [DocumentsService, DocumentsCron, QrApprovalService, PdfGeneratorService, ReportService],
+  controllers: [DocumentsController, PublicController, OnlyOfficeController],
+  providers: [DocumentsService, OnlyOfficeService, DocumentsCron, QrApprovalService, PdfGeneratorService, ReportService],
   exports: [DocumentsService, QrApprovalService, PdfGeneratorService, ReportService],
 })
 export class DocumentsModule {}

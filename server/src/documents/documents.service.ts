@@ -3247,6 +3247,84 @@ export class DocumentsService {
     } catch {}
   }
 
+  // ── OnlyOffice integratsiyasi uchun yordamchilar ────────────────────────
+  // Biriktirmani tahrirlash uchun yechadi: ruxsat + Word-moslik tekshiruvi.
+  // versionKey fayl har o'zgarganda o'zgaradi — OnlyOffice shu "document.key"
+  // orqali yangi versiyani qayta yuklaydi.
+  async resolveAttachmentForOnlyOffice(
+    userId: string,
+    docId: string,
+    attId: string,
+  ) {
+    const att = await this.prisma.documentAttachment.findUnique({
+      where: { id: attId },
+      include: {
+        document: { select: { id: true, createdById: true, status: true } },
+      },
+    });
+    if (!att || !att.document || att.documentId !== docId) {
+      throw new NotFoundException('Fayl topilmadi');
+    }
+    await this.requireAccess(userId, att.document);
+    if (!this.isWordEditableExt(att.filename)) {
+      throw new BadRequestException('Bu fayl turini tahrirlab bo‘lmaydi');
+    }
+    const fullPath = path.join(this.attDir, att.storedPath);
+    let versionKey = att.id;
+    try {
+      const st = await fs.stat(fullPath);
+      versionKey = `${att.id}_${Math.round(st.mtimeMs)}_${st.size}`;
+    } catch {}
+    return {
+      fullPath,
+      filename: att.filename,
+      mimeType: att.mimeType,
+      editable: this.isDocEditableStatus(att.document.status),
+      versionKey,
+    };
+  }
+
+  // Token bilan himoyalangan ochiq endpoint uchun (Document Server faylni
+  // yuklab oladi): foydalanuvchi tekshiruvisiz faqat fayl yo'lini beradi —
+  // ruxsatni imzolangan token kafolatlaydi.
+  async resolveAttachmentPath(docId: string, attId: string) {
+    const att = await this.prisma.documentAttachment.findUnique({
+      where: { id: attId },
+      select: {
+        documentId: true,
+        storedPath: true,
+        filename: true,
+        mimeType: true,
+      },
+    });
+    if (!att || att.documentId !== docId) {
+      throw new NotFoundException('Fayl topilmadi');
+    }
+    return {
+      fullPath: path.join(this.attDir, att.storedPath),
+      filename: att.filename,
+      mimeType: att.mimeType,
+    };
+  }
+
+  // OnlyOffice callback'idan kelgan tahrirlangan faylni saqlaydi.
+  async saveOnlyOfficeEdit(docId: string, attId: string, buffer: Buffer) {
+    const att = await this.prisma.documentAttachment.findUnique({
+      where: { id: attId },
+      select: {
+        documentId: true,
+        document: { select: { status: true } },
+      },
+    });
+    if (!att || att.documentId !== docId) {
+      throw new NotFoundException('Fayl topilmadi');
+    }
+    if (att.document && !this.isDocEditableStatus(att.document.status)) {
+      throw new BadRequestException('Hujjat holati tahrirlashga ruxsat bermaydi');
+    }
+    await this.overwriteAttachmentFromBuffer(attId, buffer);
+  }
+
   async downloadAttachment(userId: string, docId: string, attId: string) {
     const att = await this.prisma.documentAttachment.findUnique({
       where: { id: attId },

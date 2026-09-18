@@ -34,11 +34,13 @@ import {
   Loader2,
   Eye,
   EyeOff,
+  AppWindow,
 } from 'lucide-react';
 import { EimzoSignModal } from '../../components/edo/EimzoSignModal';
 import { ControlAssignmentModal } from '../../components/edo/ControlAssignmentModal';
 import { PresentToLeaderModal } from '../../components/edo/PresentToLeaderModal';
 import WordEditorModal from '../../components/edo/WordEditorModal';
+import OnlyOfficeEditorModal from '../../components/edo/OnlyOfficeEditorModal';
 import AttachmentViewerModal from '../../components/edo/AttachmentViewerModal';
 import InlineAttachmentPreview from '../../components/edo/InlineAttachmentPreview';
 import { api } from '../../lib/api';
@@ -104,6 +106,7 @@ function AttachmentCard({
   editable,
   onDownload,
   onEdit,
+  onEditOnline,
   onExpandFull,
 }: {
   documentId: string;
@@ -111,6 +114,7 @@ function AttachmentCard({
   editable: boolean;
   onDownload: () => void;
   onEdit: () => void;
+  onEditOnline: () => void;
   onExpandFull: () => void;
 }) {
   const { t } = useTranslation();
@@ -160,6 +164,16 @@ function AttachmentCard({
           >
             <Download size={18} />
           </button>
+          {editable && (
+            <button
+              type="button"
+              onClick={onEditOnline}
+              className="p-2 rounded-lg text-orange-600 hover:bg-orange-100 transition-colors"
+              title="Onlayn tahrirlash (OnlyOffice)"
+            >
+              <AppWindow size={18} />
+            </button>
+          )}
           {editable && (
             <button
               type="button"
@@ -370,6 +384,7 @@ export function EdoDocumentViewPage({
   const [bodyOpen, setBodyOpen] = useState(false);
   // O'z brauzer ichi Word muharririmizда ochilgan biriktirma.
   const [editAtt, setEditAtt] = useState<{ id: string; filename: string } | null>(null);
+  const [ooAtt, setOoAtt] = useState<{ id: string; filename: string } | null>(null);
 
   // Online ko'rish (yuklab olmasdan) uchun ochilgan biriktirma.
   const [viewAtt, setViewAtt] = useState<{ id: string; filename: string } | null>(null);
@@ -756,6 +771,9 @@ export function EdoDocumentViewPage({
                         onEdit={() =>
                           setEditAtt({ id: a.id, filename: a.filename })
                         }
+                        onEditOnline={() =>
+                          setOoAtt({ id: a.id, filename: a.filename })
+                        }
                         onExpandFull={() =>
                           setViewAtt({ id: a.id, filename: a.filename })
                         }
@@ -975,6 +993,22 @@ export function EdoDocumentViewPage({
           attId={editAtt.id}
           filename={editAtt.filename}
           onClose={() => setEditAtt(null)}
+          onSaved={() =>
+            queryClient.invalidateQueries({ queryKey: ['edo-doc', doc.id] })
+          }
+        />
+      )}
+
+      {/* OnlyOffice online muharrir (biriktirma) */}
+      {ooAtt && (
+        <OnlyOfficeEditorModal
+          documentId={doc.id}
+          attId={ooAtt.id}
+          filename={ooAtt.filename}
+          onClose={() => {
+            setOoAtt(null);
+            queryClient.invalidateQueries({ queryKey: ['edo-doc', doc.id] });
+          }}
           onSaved={() =>
             queryClient.invalidateQueries({ queryKey: ['edo-doc', doc.id] })
           }
