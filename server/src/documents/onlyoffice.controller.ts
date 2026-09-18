@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   Post,
   Query,
@@ -58,7 +59,10 @@ export class OnlyOfficeController {
   }
 
   // DS tahrir tugagach yangilangan faylni shu yerga POST qiladi.
+  // DS faqat HTTP 200'ni qabul qiladi (201 = xato deb hisoblaydi), shuning
+  // uchun status kodini majburan 200 qilamiz.
   @Post('callback/:id/:attId')
+  @HttpCode(200)
   async callback(
     @Param('id') id: string,
     @Param('attId') attId: string,
