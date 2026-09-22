@@ -37,6 +37,9 @@ export interface User {
   canSeeProtected?: boolean;
   role: 'admin' | 'chancellery' | 'user';
   notifyEdo?: boolean;
+  notifyTelegram?: boolean;
+  notifySms?: boolean;
+  telegramLinked?: boolean;
   hasApprovalPin?: boolean;
   lastLoginAt?: string | null;
   createdAt: string;

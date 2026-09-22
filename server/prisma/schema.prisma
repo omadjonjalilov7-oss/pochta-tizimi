@@ -104,6 +104,14 @@ model User {
   // EDO tasdiqlash PIN-kodi (4 xona) — faqat hujjatni tasdiqlash/rad etish/yuborish payti so'raladi
   approvalPinHash         String?   @map("approval_pin_hash") @db.VarChar(255)
 
+  // Telegram bot integratsiyasi: chat_id ulangach botdan xabar keladi.
+  // telegramLinkCode — bir martalik ulash kodi (deep-link: t.me/bot?start=CODE).
+  telegramChatId          String?   @map("telegram_chat_id") @db.VarChar(32)
+  telegramLinkCode        String?   @map("telegram_link_code") @db.VarChar(24)
+  // Kanal bo'yicha bildirishnoma yoqilganmi (notifyEdo — Pochta ichidagi xabar)
+  notifyTelegram          Boolean   @default(true) @map("notify_telegram")
+  notifySms               Boolean   @default(true) @map("notify_sms")
+
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 

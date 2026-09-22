@@ -19,6 +19,7 @@ import { MessagesService } from '../messages/messages.service';
 import { MessagesGateway } from '../messages/messages.gateway';
 import { UsersService } from '../users/users.service';
 import { SettingsService } from '../settings/settings.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { SendDocumentDto } from './dto/send-document.dto';
@@ -202,6 +203,7 @@ export class DocumentsService {
     @Inject(forwardRef(() => QrApprovalService))
     private readonly qrApproval: QrApprovalService,
     private readonly jwt: JwtService,
+    private readonly notifications: NotificationsService,
   ) {
     this.attDir =
       this.config.get<string>('ATTACHMENTS_DIR') || 'C:\\D\\pochta\\storage\\attachments';
@@ -3694,25 +3696,16 @@ export class DocumentsService {
       });
       this.gateway.notifyNewMessage([approverId], result);
 
-      // Tashqi email'ga xam jo'natish
-      const approver = await this.prisma.user.findUnique({
-        where: { id: approverId },
-        select: { email: true, fullName: true },
+      // Tashqi kanallar: Telegram bot + SMS (ulangan/yoqilgan bo'lsa)
+      const serverUrl = this.config.get<string>('SERVER_URL') || 'https://edo.asaka-motors.uz';
+      const fullLink = `${serverUrl}${link}`;
+      await this.notifications.notifyUser(approverId, {
+        telegram:
+          `\ud83d\udcc4 <b>Yangi hujjat — tasdiqlash</b>\n\n` +
+          `Mavzu: ${subject}\nRaqam: ${number}\n\n` +
+          `<a href="${fullLink}">Hujjatni ochish</a>`,
+        sms: `EDO: yangi hujjat tasdiqlash uchun keldi. Raqam ${number}. ${serverUrl}`,
       });
-
-      if (approver?.email) {
-        try {
-          const serverUrl = this.config.get<string>('SERVER_URL') || 'http://192.168.100.252';
-          const fullLink = `${serverUrl}/edo/documents/${docId}`;
-          const emailBody = `Salom ${approver.fullName},\n\nSizga tasdiqlash uchun yangi hujjat keldi:\n\nMavzu: ${subject}\nRaqam: ${number}\n\nHujjatni ko'rish: ${fullLink}\n\nSog'Likat,\nPochta Tizimi`;
-
-          // TODO: SMTP orqali email jo'natish (smtp-send.service.ts'ni ishlatish)
-          // Hozircha console'ga yozamiz
-          console.log(`[EMAIL] ${approver.email}'ga email jo'natilishi kerak:\n${emailBody}`);
-        } catch (emailErr) {
-          console.warn('[EDO] external email failed:', emailErr);
-        }
-      }
     } catch (e) {
       // Pochta yuborilmasa ham hujjat oqimi davom etadi
       // eslint-disable-next-line no-console

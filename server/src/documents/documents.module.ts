@@ -13,6 +13,7 @@ import { ReportService } from './report.service';
 import { MessagesModule } from '../messages/messages.module';
 import { UsersModule } from '../users/users.module';
 import { SettingsModule } from '../settings/settings.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { SettingsModule } from '../settings/settings.module';
     forwardRef(() => MessagesModule),
     UsersModule,
     SettingsModule,
+    NotificationsModule,
   ],
   controllers: [DocumentsController, PublicController, OnlyOfficeController],
   providers: [DocumentsService, OnlyOfficeService, DocumentsCron, QrApprovalService, PdfGeneratorService, ReportService],

@@ -16,14 +16,30 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { SetApprovalPinDto } from './dto/approval-pin.dto';
-import { IsArray, IsBoolean, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { CurrentUser, CurrentUserPayload } from '../auth/decorators/current-user.decorator';
+import { TelegramService } from '../notifications/telegram.service';
 
 class UpdatePreferencesDto {
+  @IsOptional()
   @IsBoolean()
-  notifyEdo: boolean;
+  notifyEdo?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  notifyTelegram?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  notifySms?: boolean;
+
+  // Telefon raqami (SMS bildirishnomalari uchun). Bo'sh string — o'chirish.
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  phone?: string;
 }
 
 class SetProtectedLoginsDto {
@@ -44,7 +60,10 @@ class ChangePasswordDto {
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
-  constructor(private readonly users: UsersService) {}
+  constructor(
+    private readonly users: UsersService,
+    private readonly telegram: TelegramService,
+  ) {}
 
   // hamma autentifikatsiya qilingan foydalanuvchilar ko'ra oladi (kontaktlar uchun)
   // Maxfiy loginlar faqat admin / ruxsat berilganlar uchun ko'rinadi
@@ -87,7 +106,25 @@ export class UsersController {
     @CurrentUser() user: CurrentUserPayload,
     @Body() dto: UpdatePreferencesDto,
   ) {
-    return this.users.update(user.id, { notifyEdo: dto.notifyEdo });
+    // Faqat kelgan maydonlarni yangilaymiz (undefined tegmaydi).
+    const data: Record<string, unknown> = {};
+    if (dto.notifyEdo !== undefined) data.notifyEdo = dto.notifyEdo;
+    if (dto.notifyTelegram !== undefined) data.notifyTelegram = dto.notifyTelegram;
+    if (dto.notifySms !== undefined) data.notifySms = dto.notifySms;
+    if (dto.phone !== undefined) data.phone = dto.phone.trim() || null;
+    return this.users.update(user.id, data as any);
+  }
+
+  // Telegram ulash holati + deep-link (ulanmagan bo'lsa)
+  @Get('me/telegram')
+  myTelegram(@CurrentUser() user: CurrentUserPayload) {
+    return this.telegram.getLinkInfo(user.id);
+  }
+
+  // Telegramni uzish
+  @Post('me/telegram/unlink')
+  unlinkMyTelegram(@CurrentUser() user: CurrentUserPayload) {
+    return this.telegram.unlink(user.id);
   }
 
   // Parolni yangilash — foydalanuvchining o'zi (joriy parol tekshiriladi)

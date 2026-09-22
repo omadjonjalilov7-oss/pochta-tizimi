@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Camera, Trash2, Mail, CheckCircle2, AlertCircle, Loader2, LinkIcon, Unlink, RefreshCw, Stethoscope, X, Bell, ShieldCheck, Lock, KeyRound } from 'lucide-react';
+import { Camera, Trash2, Mail, CheckCircle2, AlertCircle, Loader2, LinkIcon, Unlink, RefreshCw, Stethoscope, X, Bell, ShieldCheck, Lock, KeyRound, Phone, Send } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { Avatar } from '../components/Avatar';
@@ -251,17 +251,37 @@ function PreferencesSection() {
   const { user, setUser } = useAuth();
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [phone, setPhone] = useState(user?.phone ?? '');
+  const [phoneSaving, setPhoneSaving] = useState(false);
+  const [phoneMsg, setPhoneMsg] = useState<string | null>(null);
+  // Telegram ulash holati
+  const [tg, setTg] = useState<{ linked: boolean; enabled: boolean; url: string | null } | null>(null);
+  const [tgLoading, setTgLoading] = useState(false);
+
+  useEffect(() => {
+    let cancel = false;
+    api
+      .get<{ linked: boolean; enabled: boolean; url: string | null }>('/users/me/telegram')
+      .then((r) => {
+        if (!cancel) setTg(r.data);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancel = true;
+    };
+  }, []);
+
   if (!user) return null;
 
   const notifyEdo = user.notifyEdo ?? true;
+  const notifyTelegram = user.notifyTelegram ?? true;
+  const notifySms = user.notifySms ?? true;
 
-  const toggle = async () => {
+  const patchPref = async (body: Record<string, unknown>) => {
     setSaving(true);
     setErr(null);
     try {
-      const { data } = await api.patch<User>('/users/me/preferences', {
-        notifyEdo: !notifyEdo,
-      });
+      const { data } = await api.patch<User>('/users/me/preferences', body);
       setUser(data);
     } catch (e: any) {
       setErr(e.response?.data?.message || t('profile.prefs_save_error'));
@@ -269,6 +289,66 @@ function PreferencesSection() {
       setSaving(false);
     }
   };
+
+  const savePhone = async () => {
+    setPhoneSaving(true);
+    setPhoneMsg(null);
+    setErr(null);
+    try {
+      const { data } = await api.patch<User>('/users/me/preferences', { phone });
+      setUser(data);
+      setPhoneMsg(t('profile.saved'));
+    } catch (e: any) {
+      setErr(e.response?.data?.message || t('profile.prefs_save_error'));
+    } finally {
+      setPhoneSaving(false);
+    }
+  };
+
+  const refreshTg = async () => {
+    try {
+      const { data } = await api.get<{ linked: boolean; enabled: boolean; url: string | null }>(
+        '/users/me/telegram',
+      );
+      setTg(data);
+    } catch {}
+  };
+
+  const unlinkTg = async () => {
+    setTgLoading(true);
+    try {
+      await api.post('/users/me/telegram/unlink');
+      await refreshTg();
+    } finally {
+      setTgLoading(false);
+    }
+  };
+
+  const Toggle = ({
+    checked,
+    onChange,
+    title,
+    hint,
+  }: {
+    checked: boolean;
+    onChange: () => void;
+    title: string;
+    hint: string;
+  }) => (
+    <label className="flex items-start gap-3 cursor-pointer select-none">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        disabled={saving}
+        className="mt-1 h-4 w-4 accent-brand-600"
+      />
+      <div className="flex-1">
+        <div className="text-sm font-medium text-slate-900">{title}</div>
+        <div className="text-xs text-slate-500 mt-0.5">{hint}</div>
+      </div>
+    </label>
+  );
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -281,21 +361,104 @@ function PreferencesSection() {
           <p className="text-xs text-slate-500">{t('profile.prefs_subtitle')}</p>
         </div>
       </div>
-      <div className="p-8 space-y-4">
-        <label className="flex items-start gap-3 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={notifyEdo}
-            onChange={toggle}
-            disabled={saving}
-            className="mt-1 h-4 w-4 accent-brand-600"
-          />
-          <div className="flex-1">
-            <div className="text-sm font-medium text-slate-900">{t('profile.prefs_notify_edo')}</div>
-            <div className="text-xs text-slate-500 mt-0.5">{t('profile.prefs_notify_edo_hint')}</div>
+      <div className="p-8 space-y-5">
+        {/* Telefon raqami (SMS uchun) */}
+        <div>
+          <label className="flex items-center gap-2 text-sm font-medium text-slate-900 mb-1.5">
+            <Phone size={15} className="text-slate-400" /> {t('profile.phone_label')}
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+998 90 123 45 67"
+              className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
+            />
+            <button
+              type="button"
+              onClick={savePhone}
+              disabled={phoneSaving || phone === (user.phone ?? '')}
+              className="px-4 py-2 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 disabled:opacity-50"
+            >
+              {phoneSaving ? <Loader2 size={15} className="animate-spin" /> : t('common.save')}
+            </button>
           </div>
+          <div className="text-xs text-slate-500 mt-1">{t('profile.phone_hint')}</div>
+          {phoneMsg && <div className="text-xs text-emerald-600 mt-1">{phoneMsg}</div>}
+        </div>
+
+        <div className="border-t border-slate-100" />
+
+        {/* Telegram ulash */}
+        <div>
+          <div className="flex items-center gap-2 text-sm font-medium text-slate-900 mb-1.5">
+            <Send size={15} className="text-sky-500" /> {t('profile.telegram_label')}
+          </div>
+          {tg?.enabled === false ? (
+            <div className="text-xs text-slate-500">{t('profile.telegram_disabled')}</div>
+          ) : tg?.linked ? (
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2 py-1">
+                <CheckCircle2 size={13} /> {t('profile.telegram_connected')}
+              </span>
+              <button
+                type="button"
+                onClick={unlinkTg}
+                disabled={tgLoading}
+                className="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-700 disabled:opacity-50"
+              >
+                <Unlink size={13} /> {t('profile.telegram_unlink')}
+              </button>
+            </div>
+          ) : tg?.url ? (
+            <div>
+              <a
+                href={tg.url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-sky-500 text-white text-sm font-medium hover:bg-sky-600"
+              >
+                <Send size={15} /> {t('profile.telegram_connect')}
+              </a>
+              <div className="text-xs text-slate-500 mt-1.5">{t('profile.telegram_hint')}</div>
+              <button
+                type="button"
+                onClick={refreshTg}
+                className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 mt-1"
+              >
+                <RefreshCw size={12} /> {t('profile.telegram_refresh')}
+              </button>
+            </div>
+          ) : (
+            <div className="text-xs text-slate-400">…</div>
+          )}
+        </div>
+
+        <div className="border-t border-slate-100" />
+
+        {/* Bildirishnoma kanallari */}
+        <div className="space-y-4">
+          <Toggle
+            checked={notifyEdo}
+            onChange={() => patchPref({ notifyEdo: !notifyEdo })}
+            title={t('profile.prefs_notify_edo')}
+            hint={t('profile.prefs_notify_edo_hint')}
+          />
+          <Toggle
+            checked={notifyTelegram}
+            onChange={() => patchPref({ notifyTelegram: !notifyTelegram })}
+            title={t('profile.prefs_notify_telegram')}
+            hint={t('profile.prefs_notify_telegram_hint')}
+          />
+          <Toggle
+            checked={notifySms}
+            onChange={() => patchPref({ notifySms: !notifySms })}
+            title={t('profile.prefs_notify_sms')}
+            hint={t('profile.prefs_notify_sms_hint')}
+          />
           {saving && <Loader2 size={14} className="animate-spin text-slate-400" />}
-        </label>
+        </div>
         {err && <div className="text-xs text-red-600">{err}</div>}
       </div>
     </div>

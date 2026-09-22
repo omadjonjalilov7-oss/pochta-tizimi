@@ -413,8 +413,14 @@ export class UsersService {
       lockedUntil,
       approvalPinHash,
       externalMailPasswordEnc,
+      telegramChatId,
+      telegramLinkCode,
       ...safe
     } = user;
-    return { ...safe, hasApprovalPin: !!approvalPinHash };
+    return {
+      ...safe,
+      hasApprovalPin: !!approvalPinHash,
+      telegramLinked: !!telegramChatId,
+    };
   }
 }

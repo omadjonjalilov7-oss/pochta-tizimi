@@ -4,6 +4,7 @@ import { DocumentStatus, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MessagesService } from '../messages/messages.service';
 import { MessagesGateway } from '../messages/messages.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const REMINDER_WINDOW_HOURS = 24; // muddat tugashidan 24 soat oldin eslatma
 const REMINDER_KEY_PREFIX = 'reminded_';
@@ -30,6 +31,7 @@ export class DocumentsCron {
     private readonly prisma: PrismaService,
     private readonly messages: MessagesService,
     private readonly gateway: MessagesGateway,
+    private readonly notifications: NotificationsService,
   ) {}
 
   @Cron(CronExpression.EVERY_10_MINUTES)
@@ -132,6 +134,17 @@ export class DocumentsCron {
       if (d.currentHolderId && d.currentHolderId !== d.createdById) {
         await this.broadcast([d.currentHolderId], d.createdById, subject, body, 'normal');
         await this.broadcast([d.createdById], d.currentHolderId, subject, body, 'normal');
+      }
+
+      // Tashqi kanallar: hujjat egasiga (harakat kutilayotgan xodim) eslatma
+      if (d.currentHolderId) {
+        await this.notifications.notifyUser(d.currentHolderId, {
+          telegram:
+            `\u23f0 <b>Muddat yaqinlashmoqda</b>\n\n` +
+            `Mavzu: ${d.subject}\nRaqam: ${d.number}\nMuddat: ${deadlineStr}\n\n` +
+            `Iltimos, hujjatni ko\u2018rib chiqing.`,
+          sms: `EDO: hujjat muddati yaqinlashmoqda. Raqam ${d.number}, muddat ${deadlineStr}.`,
+        });
       }
 
       await this.prisma.documentAuditLog.create({

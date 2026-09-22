@@ -23,6 +23,7 @@ import { SettingsModule } from './settings/settings.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { JournalsModule } from './journals/journals.module';
 import { TranslateModule } from './translate/translate.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 // Avatar papkasi. AVATARS_DIR ko'rsatilmagan bo'lsa — ishlab turgan
 // ATTACHMENTS_DIR yonidagi "avatars" papkasidan foydalanamiz (Linux/Windows
@@ -80,6 +81,7 @@ const staticImports = [
     OrganizationsModule,
     JournalsModule,
     TranslateModule,
+    NotificationsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
