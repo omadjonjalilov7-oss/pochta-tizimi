@@ -347,11 +347,12 @@ export function renderIchkiYangi(
   input: IchkiYangiInput,
 ): string {
   const slots = input.maxSlots ?? 10;
-  // Tasdiqlagan paytdagi QR kod (hujjatni ko'rsatuvchi). Imzo katakchasiga
-  // sig'ishi uchun kichik. QR bo'lmasa — bo'sh (matn qoldirilmaydi).
+  // Tasdiqlagan paytdagi QR kod (hujjatni ko'rsatuvchi). QR xodim ismi/sanasi bilan
+  // BIR QATORDA (yonida) turishi uchun inline-block + vertical-align. Blok/markaz
+  // emas — aks holda QR pastga tushib ketardi. QR bo'lmasa — bo'sh.
   const qrTag = input.qrDataUrl
     ? `<img src="${input.qrDataUrl}" alt="QR" title="Hujjatni skanerlab ko'rish" ` +
-      `style="width:50px;height:50px;max-width:96%;display:block;margin:3px auto;" />`
+      `style="width:44px;height:44px;display:inline-block;vertical-align:middle;margin:0 0 0 6px;" />`
     : '';
 
   // Faqat TASDIQLAGAN xodimlar, tasdiqlagan vaqti bo'yicha ketma-ket. Shu tariqa
