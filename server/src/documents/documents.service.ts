@@ -2714,10 +2714,13 @@ export class DocumentsService {
   html, body { margin: 0; padding: 0; width: 100%; }
   body { font-family: "Calibri","Arial",sans-serif; color: #0f172a; font-size: 12px; line-height: 1.5; }
   .doc-body { width: 100%; }
-  table { border-collapse: collapse; max-width: 100%; }
-  table[width], td[width], th[width] { max-width: 100%; }
-  img { max-width: 100%; height: auto; }
-  p, div, td, th { word-wrap: break-word; overflow-wrap: break-word; }
+  /* Ekrandagi ko'rinish (.edo-doc-body) bilan bir xil: jadval listни to'liq
+     egallaydi va chegara chiziqlari QORA/aниq ko'rinadi (bosma uchun). */
+  .doc-body table { border-collapse: collapse; width: 100% !important; max-width: 100% !important; table-layout: fixed; margin: 0 !important; float: none !important; }
+  .doc-body table td, .doc-body table th { border: 1px solid #1f2937; padding: 4px 8px; vertical-align: top; word-break: normal; overflow-wrap: break-word; }
+  .doc-body figure, .doc-body figure.table, .doc-body .table { width: 100% !important; max-width: 100% !important; margin: 0 !important; float: none !important; text-align: left !important; }
+  .doc-body img { max-width: 100%; height: auto; }
+  .doc-body p { margin: 0.4em 0; }
 </style></head><body><div class="doc-body">${bodyInner}</div></body></html>`;
   }
 

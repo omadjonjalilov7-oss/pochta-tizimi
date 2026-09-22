@@ -128,11 +128,11 @@ function AttachmentCard({
   const dateStr = formatFileDate(att.createdAt);
   return (
     <div className="rounded-xl border border-orange-100 bg-orange-50/40 overflow-hidden">
-      <div className="flex items-center gap-3 p-3">
+      <div className="flex items-center gap-2.5 p-2.5">
         {/* Kichik fayl-turi belgisi */}
         <div
           className={cn(
-            'w-11 h-11 rounded-lg flex items-center justify-center text-white text-[9px] font-bold shrink-0',
+            'w-9 h-9 rounded-lg flex items-center justify-center text-white text-[9px] font-bold shrink-0',
             badge.cls,
           )}
         >
@@ -367,9 +367,10 @@ export function EdoDocumentViewPage({
   const [extendDeadlineValue, setExtendDeadlineValue] = useState('');
   const [extendReasonValue, setExtendReasonValue] = useState('');
   const [sendApproverIds, setSendApproverIds] = useState<string[]>([]);
-  // Qoralamani yuborish usuli: 'normal' — odatdagi tasdiqlash zanjiri;
-  // 'separate' — topshiriq (poruchenie) orqali alohida yuborish.
-  const [sendMode, setSendMode] = useState<'normal' | 'separate'>('normal');
+  // Qoralamani yuborish usuli: hozircha faqat 'separate' (alohida-alohida) —
+  // har bir tanlangan xodimga hujjat mustaqil boradi. "Odatiy" (zanjir) usuli
+  // vaqtincha olib tashlandi, foydalanuvchi usulni qo'lda tanlamaydi.
+  const [sendMode] = useState<'normal' | 'separate'>('separate');
   const [showChainModal, setShowChainModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showControlModal, setShowControlModal] = useState(false);
@@ -621,14 +622,14 @@ export function EdoDocumentViewPage({
       <div className="grid grid-cols-1 gap-4">
         {/* Asosiy ustun */}
         <div className="space-y-4 min-w-0">
-          <section className="bg-white border border-slate-200 rounded-2xl p-4 md:p-6">
+          <section className="bg-white border border-slate-200 rounded-2xl p-3 md:p-4 max-w-4xl">
             {/* Hujjat matni — karta ko'rinishida (biriktirilgan fayllardek). */}
             <div className="rounded-xl border border-slate-200 overflow-hidden">
-            <div className="flex items-center gap-3 p-4">
+            <div className="flex items-center gap-2.5 p-2.5">
               {/* Fayl kartasidek: chapda ikonka, o'rtada sarlavha, o'ngda Ochish.
                   Tepadagi hujjat matni — KO'K (biriktirilgan fayllar past, olov rang). */}
-              <div className="w-12 h-12 rounded-lg bg-asaka-50 text-asaka-600 flex items-center justify-center shrink-0">
-                <FileText size={22} />
+              <div className="w-9 h-9 rounded-lg bg-asaka-50 text-asaka-600 flex items-center justify-center shrink-0">
+                <FileText size={18} />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold text-slate-800">
@@ -676,7 +677,7 @@ export function EdoDocumentViewPage({
               <button
                 type="button"
                 onClick={() => setBodyOpen((v) => !v)}
-                className="inline-flex items-center gap-2 text-sm font-medium text-white bg-asaka-600 hover:bg-asaka-700 px-4 py-2 rounded-lg transition-colors shrink-0"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-white bg-asaka-600 hover:bg-asaka-700 px-3 py-1.5 rounded-lg transition-colors shrink-0"
                 title={bodyOpen ? t('common.close') : t('common.open')}
               >
                 {bodyOpen ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -805,24 +806,8 @@ export function EdoDocumentViewPage({
           {/* Amallar */}
           {isCreator && doc.status === 'draft' && (
             <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-4">
-              {/* Yuborish usuli combobox — chiquvchi hujjatlarda ko'rsatilmaydi.
-                  Chiquvchi hujjatlar doim "alohida-alohida" (parallel) yuboriladi. */}
-              {doc.type !== 'outgoing' && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    {t('edo.view.send_mode_label')}
-                  </label>
-                  <select
-                    value={sendMode}
-                    onChange={(e) => setSendMode(e.target.value as 'normal' | 'separate')}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-asaka-500"
-                  >
-                    <option value="normal">{t('edo.view.send_mode_normal')}</option>
-                    <option value="separate">{t('edo.view.send_mode_separate')}</option>
-                  </select>
-                </div>
-              )}
-
+              {/* Yuborish usuli har doim "alohida-alohida" (parallel) — tanlov
+                  combobox'i vaqtincha olib tashlandi. */}
               <ApproverChainPicker
                 users={allUsers}
                 value={sendApproverIds}
