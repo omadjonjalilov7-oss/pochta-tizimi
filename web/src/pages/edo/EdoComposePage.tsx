@@ -93,8 +93,7 @@ export function EdoComposePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Biriktirilgan faylni oynada ko'rish (kompoz sahifasida)
   const [viewAtt, setViewAtt] = useState<{ id: string; filename: string } | null>(null);
-  // Chiquvchi hujjat raqami: bayroqcha yoniq — avtomat; olib tashlansa — qo'lda kiritish
-  const [autoNumber, setAutoNumber] = useState(true);
+  // Hujjat tartib raqami — qo'lda kiritiladi; bo'sh qoldirilsa avtomat beriladi.
   const [manualNumber, setManualNumber] = useState('');
 
   // Reference dizaynidagi qo'shimcha maydonlar (hozircha UI holati)
@@ -225,13 +224,11 @@ export function EdoComposePage() {
     setReplyRequired(!!doc.replyRequired);
     setFormApproversAfterSign(!!doc.formApproversAfterSign);
     setPickedTemplateId(doc.templateId ?? null);
-    // Chiquvchi qoralamada raqam qo'lda berilgan bo'lsa (DRAFT- bilan
-    // boshlanmaydi) — bayroqchani olib qo'yamiz va raqamni ko'rsatamiz.
-    if (doc.type === 'outgoing' && doc.number && !doc.number.startsWith('DRAFT-')) {
-      setAutoNumber(false);
+    // Qoralamada raqam qo'lda berilgan bo'lsa (DRAFT- bilan boshlanmaydi) —
+    // uni maydonga ko'rsatamiz; aks holda bo'sh (avtomat) qoladi.
+    if (doc.number && !doc.number.startsWith('DRAFT-')) {
       setManualNumber(doc.number);
     } else {
-      setAutoNumber(true);
       setManualNumber('');
     }
   }, [doc]);
@@ -329,10 +326,9 @@ export function EdoComposePage() {
         qrLess,
         deliverAsAppeal: type === 'outgoing' ? asAppeal : undefined,
         replyRequired: type === 'outgoing' ? replyRequired : undefined,
-        // Chiquvchi raqam: bayroqcha olib tashlangan bo'lsa — qo'lda kiritilgan
-        // raqam; yoniq bo'lsa bo'sh ('') yuboramiz (backend avtomatga qaytaradi).
-        manualNumber:
-          type === 'outgoing' ? (autoNumber ? '' : manualNumber.trim()) : undefined,
+        // Tartib raqami (barcha turlar): qo'lda kiritilgan bo'lsa — o'sha raqam;
+        // bo'sh bo'lsa '' yuboramiz (backend avtomat raqamga qaytaradi).
+        manualNumber: manualNumber.trim(),
         formApproversAfterSign: type === 'internal' ? formApproversAfterSign : undefined,
       };
       if (currentDocId) {
@@ -1113,37 +1109,18 @@ export function EdoComposePage() {
                 </p>
               </div>
               <div>
-                <div className="flex items-center justify-between">
-                  <label className={labelCls}>{t('edo.compose.label_doc_number')}</label>
-                  <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={autoNumber}
-                      disabled={!isDraft}
-                      onChange={(e) => setAutoNumber(e.target.checked)}
-                      className="h-3.5 w-3.5 rounded border-slate-300 text-asaka-600 focus:ring-asaka-500"
-                    />
-                    {t('edo.compose.auto_number')}
-                  </label>
-                </div>
-                {autoNumber ? (
-                  <input
-                    type="text"
-                    readOnly
-                    value={numberPreview ?? ''}
-                    placeholder={t('edo.compose.ph_doc_number')}
-                    className={`${fieldCls} bg-slate-50 font-mono text-asaka-700`}
-                  />
-                ) : (
-                  <input
-                    type="text"
-                    value={manualNumber}
-                    onChange={(e) => setManualNumber(e.target.value)}
-                    disabled={!isDraft}
-                    placeholder={t('edo.compose.ph_manual_number')}
-                    className={`${fieldCls} font-mono`}
-                  />
-                )}
+                <label className={labelCls}>{t('edo.compose.label_doc_number')}</label>
+                <input
+                  type="text"
+                  value={manualNumber}
+                  onChange={(e) => setManualNumber(e.target.value)}
+                  disabled={!isDraft}
+                  placeholder={numberPreview ?? t('edo.compose.ph_manual_number')}
+                  className={`${fieldCls} font-mono`}
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  {t('edo.compose.manual_number_hint')}
+                </p>
               </div>
               <div>
                 <label className={labelCls}>{t('edo.compose.label_issue_group')}</label>
@@ -1211,11 +1188,15 @@ export function EdoComposePage() {
                 <label className={labelCls}>{t('edo.compose.label_doc_number')}</label>
                 <input
                   type="text"
-                  readOnly
-                  value={numberPreview ?? ''}
-                  placeholder={t('edo.compose.ph_doc_number')}
-                  className={`${fieldCls} bg-slate-50 font-mono text-asaka-700`}
+                  value={manualNumber}
+                  onChange={(e) => setManualNumber(e.target.value)}
+                  disabled={!isDraft}
+                  placeholder={numberPreview ?? t('edo.compose.ph_manual_number')}
+                  className={`${fieldCls} font-mono`}
                 />
+                <p className="mt-1 text-xs text-slate-500">
+                  {t('edo.compose.manual_number_hint')}
+                </p>
               </div>
             </div>
           )}

@@ -36,6 +36,22 @@ export class ApproveDocumentDto {
   addApproverIds?: string[];
 }
 
+// Admin/kanselyariya hujjat tasdiqlash zanjiriga qo'shimcha xodim(lar) qo'shadi.
+// Bu tasdiqlash EMAS — faqat zanjirga yangi tasdiqlovchi kiritish, shu sababli
+// PIN talab qilinmaydi. Hujjat hali yakunlanmagan (in_review/in_progress/overdue)
+// bo'lishi kerak.
+export class AddApproversDto {
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsUUID('all', { each: true })
+  approverIds!: string[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+}
+
 export class CommentDto {
   @IsString()
   @MinLength(1)

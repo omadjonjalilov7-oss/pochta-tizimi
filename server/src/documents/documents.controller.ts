@@ -23,7 +23,7 @@ import { ReportService } from './report.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { SendDocumentDto } from './dto/send-document.dto';
-import { ApproveDocumentDto, ApproveOverdueDocumentDto, CommentDto, ExtendDeadlineDto, ForwardDto, PresentToLeaderDto, RejectDto } from './dto/document-action.dto';
+import { AddApproversDto, ApproveDocumentDto, ApproveOverdueDocumentDto, CommentDto, ExtendDeadlineDto, ForwardDto, PresentToLeaderDto, RejectDto } from './dto/document-action.dto';
 import {
   CompleteTargetDto,
   CreateResolutionDto,
@@ -361,6 +361,15 @@ export class DocumentsController {
     @Body() dto: ApproveDocumentDto,
   ) {
     return this.docs.approve(user.id, id, dto);
+  }
+
+  @Post(':id/add-approvers')
+  addApprovers(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: AddApproversDto,
+  ) {
+    return this.docs.addApprovers(user.id, id, dto);
   }
 
   @Post(':id/reject')

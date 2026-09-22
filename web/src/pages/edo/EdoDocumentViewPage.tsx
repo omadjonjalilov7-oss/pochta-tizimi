@@ -622,7 +622,7 @@ export function EdoDocumentViewPage({
       <div className="grid grid-cols-1 gap-4">
         {/* Asosiy ustun */}
         <div className="space-y-4 min-w-0">
-          <section className="bg-white border border-slate-200 rounded-2xl p-3 md:p-4 max-w-4xl">
+          <section className="bg-white border border-slate-200 rounded-2xl p-3 md:p-4 max-w-2xl">
             {/* Hujjat matni — karta ko'rinishida (biriktirilgan fayllardek). */}
             <div className="rounded-xl border border-slate-200 overflow-hidden">
             <div className="flex items-center gap-2.5 p-2.5">
@@ -2046,17 +2046,106 @@ function ParticipantsPanel({
   currentUserId?: string;
 }) {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const sorted = useMemo(
     () => [...doc.participants].sort((a, b) => a.order - b.order),
     [doc.participants],
   );
 
+  // Admin/kanselyariya hali yakunlanmagan hujjat zanjiriga xodim qo'sha oladi
+  const isStaff = user?.role === 'admin' || user?.role === 'chancellery';
+  const canAddApprovers =
+    isStaff && ['in_review', 'in_progress', 'overdue'].includes(doc.status);
+
+  const [addOpen, setAddOpen] = useState(false);
+  const [addIds, setAddIds] = useState<string[]>([]);
+
+  const { data: users = [] } = useQuery({
+    queryKey: ['users-short'],
+    queryFn: async () => (await api.get<User[]>('/users')).data,
+    enabled: addOpen,
+    staleTime: 60_000,
+  });
+
+  // Zanjirda allaqachon bor ishtirokchilarni takror tanlashning oldini olamiz
+  const excludeUserIds = useMemo(
+    () => doc.participants.map((p) => p.userId),
+    [doc.participants],
+  );
+
+  const addApprovers = useMutation({
+    mutationFn: async () =>
+      (await api.post(`/documents/${doc.id}/add-approvers`, { approverIds: addIds }))
+        .data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['edo-doc', doc.id] });
+      setAddOpen(false);
+      setAddIds([]);
+    },
+  });
+
   return (
     <section className="bg-white border border-slate-200 rounded-2xl p-4">
-      <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3 flex items-center gap-2">
-        <ShieldCheck size={14} />
-        {t('edo.view.chain')}
-      </h2>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-2">
+          <ShieldCheck size={14} />
+          {t('edo.view.chain')}
+        </h2>
+        {canAddApprovers && !addOpen && (
+          <button
+            type="button"
+            onClick={() => setAddOpen(true)}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-asaka-700 hover:bg-asaka-50 rounded-lg px-2.5 py-1.5"
+          >
+            <UserPlus size={14} />
+            {t('edo.view.add_approvers')}
+          </button>
+        )}
+      </div>
+
+      {canAddApprovers && addOpen && (
+        <div className="mb-3 rounded-xl border border-asaka-200 bg-asaka-50/40 p-3 space-y-2">
+          <ApproverChainPicker
+            users={users}
+            value={addIds}
+            onChange={setAddIds}
+            excludeUserIds={excludeUserIds}
+            label={t('edo.view.add_approvers')}
+            hint={t('edo.view.add_approvers_hint')}
+          />
+          {addApprovers.isError && (
+            <p className="text-xs text-red-600">{extractError(addApprovers.error)}</p>
+          )}
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setAddOpen(false);
+                setAddIds([]);
+                addApprovers.reset();
+              }}
+              className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              type="button"
+              disabled={addIds.length === 0 || addApprovers.isPending}
+              onClick={() => addApprovers.mutate()}
+              className="inline-flex items-center gap-1.5 bg-asaka-600 hover:bg-asaka-700 text-white text-xs font-semibold px-4 py-1.5 rounded-lg disabled:opacity-50"
+            >
+              {addApprovers.isPending ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <UserPlus size={14} />
+              )}
+              {t('edo.view.add_approvers_confirm')}
+            </button>
+          </div>
+        </div>
+      )}
+
       <ol className="space-y-2">
         {sorted.map((p) => {
           const isMe = p.userId === currentUserId;
@@ -2124,6 +2213,7 @@ const AUDIT_STYLE: Record<
   approved: { icon: CheckCircle2, bg: 'bg-emerald-100', ring: 'ring-emerald-200', text: 'text-emerald-700' },
   rejected: { icon: XCircle, bg: 'bg-red-100', ring: 'ring-red-200', text: 'text-red-700' },
   forwarded: { icon: Forward, bg: 'bg-violet-100', ring: 'ring-violet-200', text: 'text-violet-700' },
+  approvers_added: { icon: UserPlus, bg: 'bg-sky-100', ring: 'ring-sky-200', text: 'text-sky-700' },
   commented: { icon: MessageSquare, bg: 'bg-slate-100', ring: 'ring-slate-200', text: 'text-slate-600' },
   completed: { icon: ShieldCheck, bg: 'bg-emerald-100', ring: 'ring-emerald-200', text: 'text-emerald-700' },
   signed: { icon: KeyRound, bg: 'bg-indigo-100', ring: 'ring-indigo-200', text: 'text-indigo-700' },
@@ -2221,6 +2311,20 @@ function AuditPayload({
     return (
       <div className="mt-1 text-[11px] text-slate-500 font-mono">
         {payload.number}
+      </div>
+    );
+  }
+  if (action === 'approvers_added' && Array.isArray(payload.addApproverIds)) {
+    const names = payload.addApproverIds
+      .map((uid: string) => {
+        const p = participants.find((p) => p.userId === uid);
+        return cyrName(p?.user.fullName) || uid;
+      })
+      .join(', ');
+    return (
+      <div className="mt-1 text-xs text-slate-600">
+        + <span className="font-medium text-slate-800">{names}</span>
+        {payload.note && <span className="ml-1 italic">“{payload.note}”</span>}
       </div>
     );
   }

@@ -36,6 +36,7 @@ import { randomBytes } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import * as QRCode from 'qrcode';
 import {
+  AddApproversDto,
   ApproveDocumentDto,
   ApproveOverdueDocumentDto,
   CommentDto,
@@ -239,13 +240,13 @@ export class DocumentsService {
     // Ijro muddati faqat xodim qo'lda kiritganda o'rnatiladi (avtomatik 3/5/7 kun yo'q).
     const deadline: Date | null = dto.deadline ? new Date(dto.deadline) : null;
 
-    // Chiquvchi hujjatda foydalanuvchi raqamni qo'lda kiritgan bo'lsa — uni
-    // to'g'ridan-to'g'ri ishlatamiz (finalizeNumber DRAFT- bilan boshlanmagan
-    // raqamni saqlab qoladi). Aks holda vaqtinchalik draft raqami beriladi.
-    const initialNumber =
-      dto.type === 'outgoing' && dto.manualNumber?.trim()
-        ? dto.manualNumber.trim()
-        : draftNumber;
+    // Foydalanuvchi hujjat raqamini qo'lda kiritgan bo'lsa (har qanday turdagi
+    // hujjat uchun) — uni to'g'ridan-to'g'ri ishlatamiz (finalizeNumber DRAFT-
+    // bilan boshlanmagan raqamni saqlab qoladi). Aks holda vaqtinchalik draft
+    // raqami beriladi va yuborilganda/tasdiqlanganda avtomat raqam olinadi.
+    const manualNum = dto.manualNumber?.trim();
+    if (manualNum) await this.assertNumberAvailable(manualNum);
+    const initialNumber = manualNum || draftNumber;
 
     const doc = await this.prisma.$transaction(async (tx) => {
       const docUid = await this.allocateDocUid(tx);
@@ -378,11 +379,13 @@ export class DocumentsService {
     if (dto.qrLess !== undefined) data.qrLess = dto.qrLess;
     // Faqat mos tur uchun saqlaymiz
     const effType = dto.type ?? doc.type;
-    // Chiquvchi hujjat raqamini qo'lda kiritish/avtomatga qaytarish.
-    if (effType === 'outgoing' && dto.manualNumber !== undefined) {
+    // Hujjat raqamini qo'lda kiritish/avtomatga qaytarish (barcha turlar uchun).
+    if (dto.manualNumber !== undefined) {
       const mn = dto.manualNumber.trim();
       if (mn) {
-        // Qo'lda raqam berildi — uni saqlaymiz (finalize DRAFT- bo'lmagan raqamni saqlab qoladi).
+        // Qo'lda raqam berildi — bandligini tekshirib, saqlaymiz
+        // (finalize DRAFT- bo'lmagan raqamni saqlab qoladi).
+        if (mn !== doc.number) await this.assertNumberAvailable(mn);
         data.number = mn;
       } else if (!doc.number.startsWith('DRAFT-')) {
         // Bayroqcha qayta qo'yildi (avtomat) — vaqtinchalik draft raqamini tiklaymiz.
@@ -627,8 +630,10 @@ export class DocumentsService {
     //  - kiruvchi (incoming) → eski shart: yuborishdayoq raqam beriladi;
     //  - ichki/chiquvchi → raqam faqat tasdiqlanib bo'lganda (done) beriladi,
     //    tasdiqlash bosqichida qoralama raqam saqlanib turadi.
+    // Kiruvchi hujjatga yuborishda avtomat raqam beriladi — ammo foydalanuvchi
+    // qo'lda raqam kiritgan bo'lsa (DRAFT- bilan boshlanmaydi), uni saqlab qolamiz.
     const number =
-      doc.type === 'incoming'
+      doc.type === 'incoming' && doc.number.startsWith('DRAFT-')
         ? await this.allocateNumber(doc.numberDept.code)
         : doc.number;
 
@@ -912,6 +917,89 @@ export class DocumentsService {
       if (isServiceLetter && (await this.isIchkiDoc(doc))) {
         await this.notifyChancelleryForResolution(userId, id, doc.number, doc.subject);
       }
+    }
+
+    return this.findOne(userId, id);
+  }
+
+  // Admin/kanselyariya hujjat tasdiqlash zanjiriga qo'shimcha xodim(lar) qo'shadi.
+  // Hujjat hali yakunlanmagan (avazbek tasdiqlamagan) bo'lishi kerak. Qo'shilgan
+  // xodimlar joriy faol tasdiqlovchilar bilan bir xil tartibda (parallel) yoki
+  // zanjir oxiriga (ketma-ket) qo'shiladi va ularga xabar yuboriladi.
+  async addApprovers(userId: string, id: string, dto: AddApproversDto) {
+    if (!(await this.canSeeAllDocs(userId))) {
+      throw new ForbiddenException(
+        "Zanjirga tasdiqlovchi qo'shishga faqat admin va kanselyariya haqli",
+      );
+    }
+    const doc = await this.prisma.document.findUnique({ where: { id } });
+    if (!doc) throw new NotFoundException('Hujjat topilmadi');
+    if (!['in_review', 'in_progress', 'overdue'].includes(doc.status)) {
+      throw new BadRequestException(
+        "Faqat tasdiqlash bosqichidagi (yakunlanmagan) hujjatga tasdiqlovchi qo'shiladi",
+      );
+    }
+
+    const addIds = await this.validateAdditionalApprovers(id, dto.approverIds, userId);
+    if (addIds.length === 0) {
+      throw new BadRequestException("Kamida bitta xodim tanlang");
+    }
+
+    const approvers = await this.prisma.documentParticipant.findMany({
+      where: { documentId: id, role: ParticipantRole.approver },
+      select: { order: true, status: true },
+    });
+    const pendingOrders = approvers
+      .filter((p) => p.status === ParticipantStatus.pending)
+      .map((p) => p.order);
+    const maxOrder = approvers.reduce((m, p) => Math.max(m, p.order), 0);
+    // Kutayotgan tasdiqlovchilar bitta tartibda bo'lsa — parallel: yangilarni ham
+    // shu tartibga qo'shamiz (darhol tasdiqlay olsin). Aks holda zanjir oxiriga.
+    const uniquePending = Array.from(new Set(pendingOrders));
+    const targetOrder =
+      uniquePending.length === 1 ? uniquePending[0] : maxOrder + 1;
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const uid of addIds) {
+        await tx.documentParticipant.upsert({
+          where: {
+            documentId_userId_role: {
+              documentId: id,
+              userId: uid,
+              role: ParticipantRole.approver,
+            },
+          },
+          create: {
+            documentId: id,
+            userId: uid,
+            role: ParticipantRole.approver,
+            order: targetOrder,
+            status: ParticipantStatus.pending,
+          },
+          update: {
+            order: targetOrder,
+            status: ParticipantStatus.pending,
+            actedAt: null,
+            rejectReason: null,
+          },
+        });
+      }
+      await tx.documentAuditLog.create({
+        data: {
+          documentId: id,
+          actorId: userId,
+          action: 'approvers_added',
+          payload: {
+            addApproverIds: addIds,
+            ...(dto.note ? { note: dto.note } : {}),
+          } as any,
+        },
+      });
+    });
+
+    // Qo'shilgan xodimlarga tasdiqlash uchun xabar yuboramiz
+    for (const uid of addIds) {
+      await this.notifyApprover(uid, userId, id, doc.number, doc.subject);
     }
 
     return this.findOne(userId, id);
@@ -2782,6 +2870,20 @@ export class DocumentsService {
       currentId = u.managerId;
     }
     return chain;
+  }
+
+  // Qo'lda kiritilgan hujjat raqami bandligini tekshiradi. Band bo'lsa —
+  // tushunarli xato beradi (number maydoni @unique bo'lgani uchun).
+  private async assertNumberAvailable(number: string): Promise<void> {
+    const existing = await this.prisma.document.findUnique({
+      where: { number },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new BadRequestException(
+        `"${number}" raqamli hujjat allaqachon mavjud. Boshqa tartib raqami kiriting.`,
+      );
+    }
   }
 
   private async allocateNumber(
