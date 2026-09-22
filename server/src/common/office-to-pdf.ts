@@ -9,6 +9,13 @@ import * as path from 'path';
 // Kerak bo'lsa .env orqali LIBREOFFICE_BIN bilan almashtiriladi.
 const LO_BIN = process.env.LIBREOFFICE_BIN || 'libreoffice';
 
+// wkhtmltopdf ijro fayli. HTML→PDF uchun LibreOffice'dan ancha ishonchli:
+// A4 hajmi va chetlarni CLI bayroqlari orqali aniq beradi, CSS'ni WebKit orqali
+// render qiladi (matn to'liq kenglikni egallaydi, uzun matn avtomatik varaqlanadi).
+// Ubuntu'da: `sudo apt install wkhtmltopdf`. .env orqali WKHTMLTOPDF_BIN bilan
+// almashtirsa bo'ladi.
+const WK_BIN = process.env.WKHTMLTOPDF_BIN || 'wkhtmltopdf';
+
 // Bir vaqtda ko'p konvertatsiya bo'lganда navbat (LibreOffice bir vaqtda
 // ko'p ishga tushmasligi uchun oddiy ketma-ket navbat).
 let queue: Promise<unknown> = Promise.resolve();
@@ -55,6 +62,51 @@ function runLibreOffice(
           return;
         }
         resolve(out);
+      },
+    );
+  });
+}
+
+// HTML faylni wkhtmltopdf orqali A4 PDF ga aylantiradi. Muvaffaqiyatли bo'lsa
+// `true` qaytaradi. wkhtmltopdf o'rnatilmagan (ENOENT) yoki xato bo'lsa `false`
+// qaytaradi — chaqiruvchi shundа LibreOffice'ga qaytadi.
+// A4 hajmi va chetlar CSS'ga emas, CLI bayroqlariga bog'liq — shu tufayli
+// natija barqaror. `--enable-local-file-access` externalize qilingan rasmlarни
+// (QR) o'qishга ruxsat beradi.
+function runWkhtmltopdf(srcPath: string, outPath: string): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    const args = [
+      '--quiet',
+      '--enable-local-file-access',
+      '--encoding',
+      'utf-8',
+      '--page-size',
+      'A4',
+      '--margin-top',
+      '18mm',
+      '--margin-bottom',
+      '18mm',
+      '--margin-left',
+      '16mm',
+      '--margin-right',
+      '16mm',
+      '--dpi',
+      '96',
+      '--image-quality',
+      '100',
+      srcPath,
+      outPath,
+    ];
+    execFile(
+      WK_BIN,
+      args,
+      { timeout: 120_000, maxBuffer: 64 * 1024 * 1024 },
+      (err) => {
+        if (err) {
+          resolve(false);
+          return;
+        }
+        resolve(fs.existsSync(outPath));
       },
     );
   });
@@ -149,9 +201,15 @@ export function convertHtmlToPdf(
         ? externalized
         : `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>${externalized}</body></html>`;
       await fsp.writeFile(tmpSrc, full, 'utf8');
-      const tmpPdf = await runLibreOffice(tmpSrc, workDir, 'pdf', 'pdf');
+      // Avval wkhtmltopdf (A4'ni to'liq egallaydi, barqaror). O'rnatilmagan yoki
+      // xato bo'lsa — LibreOffice'ga qaytamiz (eski xatti-harakat, regressiyasiz).
+      const wkOut = path.join(workDir, 'out.pdf');
+      const wkOk = await runWkhtmltopdf(tmpSrc, wkOut);
+      const producedPdf = wkOk
+        ? wkOut
+        : await runLibreOffice(tmpSrc, workDir, 'pdf', 'pdf');
       await fsp.mkdir(path.dirname(destPath), { recursive: true });
-      await fsp.copyFile(tmpPdf, destPath);
+      await fsp.copyFile(producedPdf, destPath);
       return destPath;
     } finally {
       await fsp.rm(workDir, { recursive: true, force: true }).catch(() => {});
