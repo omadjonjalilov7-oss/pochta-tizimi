@@ -622,7 +622,14 @@ export function EdoDocumentViewPage({
       <div className="grid grid-cols-1 gap-4">
         {/* Asosiy ustun */}
         <div className="space-y-4 min-w-0">
-          <section className="bg-white border border-slate-200 rounded-2xl p-3 md:p-4 max-w-2xl">
+          <section
+            className={cn(
+              'bg-white border border-slate-200 rounded-2xl p-3 md:p-4',
+              // Yopiq turganda ixcham (chapga, tor); ochilganda hujjat ekranga
+              // to'liq sig'ishi uchun butun kenglikda ochiladi.
+              bodyOpen ? '' : 'max-w-2xl',
+            )}
+          >
             {/* Hujjat matni — karta ko'rinishida (biriktirilgan fayllardek). */}
             <div className="rounded-xl border border-slate-200 overflow-hidden">
             <div className="flex items-center gap-2.5 p-2.5">
