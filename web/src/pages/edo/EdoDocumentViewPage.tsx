@@ -52,6 +52,11 @@ import { SecretInput } from '../../components/SecretInput';
 import { ApproverChainPicker } from '../../components/edo/ApproverChainPicker';
 import { exportApproverChainWord } from '../../lib/exportChainWord';
 
+// OnlyOffice onlayn tahrirlash vaqtinchalik o'chirilgan (server tomonda hali
+// to'liq ishlamadi). Kod butunligicha qoldirilgan — yaxshi ishlagach shu
+// bayroqni `true` qilsak, 🪟 tugma va muharrir qayta paydo bo'ladi.
+const ONLYOFFICE_ENABLED = false;
+
 // Fayl kengaytmasi → rangli yorliq (DOCX ko'k, PDF qizil, XLS yashil, ...).
 function fileBadge(filename: string): { label: string; cls: string } {
   const ext = (filename.split('.').pop() || '').toLowerCase();
@@ -164,7 +169,7 @@ function AttachmentCard({
           >
             <Download size={18} />
           </button>
-          {editable && (
+          {editable && ONLYOFFICE_ENABLED && (
             <button
               type="button"
               onClick={onEditOnline}
