@@ -2701,17 +2701,24 @@ export class DocumentsService {
       : `<div style="white-space:pre-wrap;font-size:12px;line-height:1.5">${esc(
           content,
         )}</div>`;
+    // MUHIM: LibreOffice HTML→PDF importi `width:210mm` kabi qat'iy o'lchamlarni
+    // to'g'ri qo'llamaydi — natijada matn tor ustunday chiqadi. Buning o'rniga
+    // sahifa geometriyasini `@page { size; margin }` orqali beramiz (LibreOffice
+    // buni HTML importda hurmat qiladi). Tarkib esa 100% kenglikда A4 matn
+    // maydonini to'liq egallaydi va uzun bo'lsa avtomatik 2,3,4-varaqqa oqadi.
     return `<!DOCTYPE html><html lang="uz"><head><meta charset="UTF-8">
 <title>${esc(doc.number ?? '')}</title>
 <style>
+  @page { size: A4; margin: 18mm 16mm; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
-  body { font-family: "Calibri","Arial",sans-serif; color: #0f172a; }
-  .sheet { width: 210mm; min-height: 297mm; padding: 18mm 16mm; background: #fff; font-size: 12px; line-height: 1.5; }
-  table { border-collapse: collapse; }
+  html, body { margin: 0; padding: 0; width: 100%; }
+  body { font-family: "Calibri","Arial",sans-serif; color: #0f172a; font-size: 12px; line-height: 1.5; }
+  .doc-body { width: 100%; }
+  table { border-collapse: collapse; max-width: 100%; }
+  table[width], td[width], th[width] { max-width: 100%; }
   img { max-width: 100%; height: auto; }
-  @page { size: A4; margin: 0; }
-</style></head><body><div class="sheet"><div class="doc-body">${bodyInner}</div></div></body></html>`;
+  p, div, td, th { word-wrap: break-word; overflow-wrap: break-word; }
+</style></head><body><div class="doc-body">${bodyInner}</div></body></html>`;
   }
 
   // Shablon tanlanmagan (tashqi/kiruvchi yoki oddiy) hujjat uchun sodda karta:
@@ -2728,26 +2735,30 @@ export class DocumentsService {
       ? new Date(this.effectiveDocDate(doc) as any).toLocaleDateString('ru-RU')
       : '';
     const sender = doc.senderOrg?.name ?? doc.externalRecipient ?? '';
+    // Sahifa geometriyasi @page orqali (LibreOffice buni hurmat qiladi); tarkib
+    // A4 matn maydonini to'liq egallaydi va uzun bo'lsa avtomatik varaqlanadi.
     return `<!DOCTYPE html><html lang="uz"><head><meta charset="UTF-8">
 <title>${esc(doc.number ?? '')}</title>
 <style>
+  @page { size: A4; margin: 18mm 16mm; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
-  body { font-family: "Calibri","Arial",sans-serif; color: #0f172a; }
-  .sheet { width: 210mm; min-height: 297mm; padding: 18mm 16mm; background: #fff; font-size: 13px; line-height: 1.5; }
+  html, body { margin: 0; padding: 0; width: 100%; }
+  body { font-family: "Calibri","Arial",sans-serif; color: #0f172a; font-size: 13px; line-height: 1.5; }
   .hdr { display: flex; justify-content: space-between; font-size: 12px; color: #333; margin-bottom: 14px; }
   h1 { font-size: 16px; text-align: center; margin: 8px 0 16px; }
   .meta { font-size: 12px; color: #444; margin-bottom: 12px; }
+  .doc-body { width: 100%; }
+  table { border-collapse: collapse; max-width: 100%; }
   img { max-width: 100%; height: auto; }
-  @page { size: A4; margin: 0; }
-</style></head><body><div class="sheet">
+  p, div, td, th { word-wrap: break-word; overflow-wrap: break-word; }
+</style></head><body>
   <div class="hdr"><span>№ ${esc(doc.number ?? '')}</span><span>${esc(
     dateStr,
   )}</span></div>
   ${sender ? `<div class="meta">${esc(sender)}</div>` : ''}
   <h1>${esc(doc.subject ?? '')}</h1>
   <div class="doc-body">${bodyInner}</div>
-</div></body></html>`;
+</body></html>`;
   }
 
   // ── YORDAMCHILAR ──────────────────────────────────────────────────────
