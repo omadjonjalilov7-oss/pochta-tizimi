@@ -220,7 +220,15 @@ export function DocListItem({
 }) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
+  // Joriy foydalanuvchining shu hujjatdagi shaxsiy tasdiqlash holati. Asosiy
+  // (umumiy) status o'zgarmaydi — bu faqat "Siz tasdiqladingiz" belgisi uchun.
+  const myPart = user
+    ? d.participants?.find(
+        (p) => p.userId === user.id && p.role === 'approver',
+      )
+    : undefined;
   const cardClass = cn(
     'flex-1 min-w-0 flex items-start gap-2.5 bg-white border border-slate-200 hover:border-asaka-300 hover:shadow-sm rounded-xl px-3 py-2.5 md:px-4 md:py-3 transition text-left',
     ageAccentClass(d.createdAt, d.status),
@@ -244,6 +252,21 @@ export function DocListItem({
               </span>
             )}
             <StatusPill status={d.status} />
+            {myPart?.status === 'approved' && (
+              <span className="inline-flex items-center gap-0.5 text-xs font-medium px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <ShieldCheck size={12} /> {t('edo.list.you_approved')}
+              </span>
+            )}
+            {myPart?.status === 'rejected' && (
+              <span className="inline-flex items-center gap-0.5 text-xs font-medium px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-200">
+                {t('edo.list.you_rejected')}
+              </span>
+            )}
+            {myPart?.status === 'pending' && (
+              <span className="inline-flex items-center gap-0.5 text-xs font-medium px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                {t('edo.list.you_pending')}
+              </span>
+            )}
             <span className="text-[11px] text-slate-400">{t(`edo.doc_type.${d.type}`)}</span>
           </div>
           <div className="text-sm font-medium text-slate-900 truncate">{d.subject}</div>

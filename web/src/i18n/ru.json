@@ -1157,7 +1157,10 @@
       "control_legend": "Контроль",
       "control_green": "Срок в запасе",
       "control_yellow": "Срок приближается",
-      "control_red": "Срок истёк"
+      "control_red": "Срок истёк",
+      "you_approved": "Вы согласовали",
+      "you_rejected": "Вы отклонили",
+      "you_pending": "Ожидается ваше согласование"
     },
     "calendar": {
       "title": "Календарь",

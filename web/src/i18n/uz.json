@@ -1158,7 +1158,10 @@
       "control_legend": "Nazorat",
       "control_green": "Muddat yetarli",
       "control_yellow": "Muddat yaqinlashdi",
-      "control_red": "Muddat o'tgan"
+      "control_red": "Muddat o'tgan",
+      "you_approved": "Siz tasdiqladingiz",
+      "you_rejected": "Siz rad etdingiz",
+      "you_pending": "Sizni tasdiqlashingiz kutilmoqda"
     },
     "calendar": {
       "title": "Taqvim",
