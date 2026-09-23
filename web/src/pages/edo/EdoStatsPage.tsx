@@ -202,12 +202,12 @@ export function EdoStatsPage() {
                   {t('edo.stats.tasks')}
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                  <StatCard label={t('edo.stats.total')} value={overviewQ.data.tasks.total} />
-                  <StatCard label={t('edo.stats.pending')} value={overviewQ.data.tasks.pending} />
-                  <StatCard label={t('edo.stats.in_progress')} value={overviewQ.data.tasks.inProgress} tone="sky" />
-                  <StatCard label={t('edo.stats.done')} value={overviewQ.data.tasks.done} tone="emerald" />
-                  <StatCard label={t('edo.stats.done_late')} value={overviewQ.data.tasks.doneLate} tone="amber" />
-                  <StatCard label={t('edo.stats.overdue')} value={overviewQ.data.tasks.overdue} tone="rose" />
+                  <StatCard label={t('edo.stats.total')} value={overviewQ.data.tasks.total} onClick={() => openDocs('task_total', `${t('edo.stats.tasks')}: ${t('edo.stats.total')}`)} />
+                  <StatCard label={t('edo.stats.pending')} value={overviewQ.data.tasks.pending} onClick={() => openDocs('task_pending', `${t('edo.stats.tasks')}: ${t('edo.stats.pending')}`)} />
+                  <StatCard label={t('edo.stats.in_progress')} value={overviewQ.data.tasks.inProgress} tone="sky" onClick={() => openDocs('task_in_progress', `${t('edo.stats.tasks')}: ${t('edo.stats.in_progress')}`)} />
+                  <StatCard label={t('edo.stats.done')} value={overviewQ.data.tasks.done} tone="emerald" onClick={() => openDocs('task_done', `${t('edo.stats.tasks')}: ${t('edo.stats.done')}`)} />
+                  <StatCard label={t('edo.stats.done_late')} value={overviewQ.data.tasks.doneLate} tone="amber" onClick={() => openDocs('task_done_late', `${t('edo.stats.tasks')}: ${t('edo.stats.done_late')}`)} />
+                  <StatCard label={t('edo.stats.overdue')} value={overviewQ.data.tasks.overdue} tone="rose" onClick={() => openDocs('task_overdue', `${t('edo.stats.tasks')}: ${t('edo.stats.overdue')}`)} />
                 </div>
               </section>
               <section>
@@ -215,10 +215,10 @@ export function EdoStatsPage() {
                   {t('edo.stats.other')}
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <StatCard label={t('edo.stats.signatures')} value={overviewQ.data.signatures} tone="indigo" />
-                  <StatCard label={t('edo.stats.appr_pending')} value={overviewQ.data.approvals.pending} tone="amber" />
-                  <StatCard label={t('edo.stats.appr_approved')} value={overviewQ.data.approvals.approved} tone="emerald" />
-                  <StatCard label={t('edo.stats.appr_rejected')} value={overviewQ.data.approvals.rejected} tone="rose" />
+                  <StatCard label={t('edo.stats.signatures')} value={overviewQ.data.signatures} tone="indigo" onClick={() => openDocs('signatures', t('edo.stats.signatures'))} />
+                  <StatCard label={t('edo.stats.appr_pending')} value={overviewQ.data.approvals.pending} tone="amber" onClick={() => openDocs('appr_pending', t('edo.stats.appr_pending'))} />
+                  <StatCard label={t('edo.stats.appr_approved')} value={overviewQ.data.approvals.approved} tone="emerald" onClick={() => openDocs('appr_approved', t('edo.stats.appr_approved'))} />
+                  <StatCard label={t('edo.stats.appr_rejected')} value={overviewQ.data.approvals.rejected} tone="rose" onClick={() => openDocs('appr_rejected', t('edo.stats.appr_rejected'))} />
                 </div>
               </section>
             </>

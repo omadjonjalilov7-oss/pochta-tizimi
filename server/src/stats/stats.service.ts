@@ -14,6 +14,18 @@ type TaskRow = {
   };
 };
 
+// Ro'yxatda ko'rsatiladigan hujjat maydonlari (StatDocListModal shu shaklni kutadi)
+const DOC_SELECT = {
+  id: true,
+  number: true,
+  docUid: true,
+  subject: true,
+  status: true,
+  type: true,
+  createdAt: true,
+  createdBy: { select: { fullName: true } },
+} as const;
+
 function emptyBucket() {
   return {
     total: 0,
@@ -180,6 +192,86 @@ export class StatsService {
       overdue: 'overdue',
     };
 
+    // Topshiriq (poruchenie) ko'rsatkichlari — resolution target'lardan hujjatlarga
+    const taskMetrics = [
+      'task_total',
+      'task_pending',
+      'task_in_progress',
+      'task_done',
+      'task_done_late',
+      'task_overdue',
+    ];
+    if (metric && taskMetrics.includes(metric)) {
+      const targets = await this.prisma.resolutionTarget.findMany({
+        where: range ? { resolution: { createdAt: range } } : {},
+        select: {
+          status: true,
+          deadline: true,
+          doneAt: true,
+          resolution: { select: { documentId: true } },
+        },
+      });
+      const ids = new Set<string>();
+      for (const tr of targets) {
+        let ok = false;
+        switch (metric) {
+          case 'task_total':
+            ok = true;
+            break;
+          case 'task_pending':
+            ok = tr.status === 'pending';
+            break;
+          case 'task_in_progress':
+            ok = tr.status === 'in_progress';
+            break;
+          case 'task_overdue':
+            ok = tr.status === 'overdue';
+            break;
+          case 'task_done':
+            ok = tr.status === 'done';
+            break;
+          case 'task_done_late':
+            ok =
+              tr.status === 'done' &&
+              !!tr.doneAt &&
+              !!tr.deadline &&
+              tr.doneAt.getTime() > tr.deadline.getTime();
+            break;
+        }
+        if (ok) ids.add(tr.resolution.documentId);
+      }
+      return this.docsByIds([...ids], journalId, journalKind);
+    }
+
+    // Tasdiqlash (kelishuv) ko'rsatkichlari — approver participant'lardan hujjatlarga
+    const apprStatus: Record<string, string[]> = {
+      appr_pending: ['pending'],
+      appr_approved: ['approved', 'done'],
+      appr_rejected: ['rejected'],
+    };
+    if (metric && metric in apprStatus) {
+      const parts = await this.prisma.documentParticipant.findMany({
+        where: {
+          role: 'approver',
+          status: { in: apprStatus[metric] as never },
+          ...(range ? { document: { createdAt: range } } : {}),
+        },
+        select: { documentId: true },
+      });
+      const ids = [...new Set(parts.map((p) => p.documentId))];
+      return this.docsByIds(ids, journalId, journalKind);
+    }
+
+    // Imzolar — imzolangan hujjatlar
+    if (metric === 'signatures') {
+      const sigs = await this.prisma.documentSignature.findMany({
+        where: range ? { signedAt: range } : {},
+        select: { documentId: true },
+      });
+      const ids = [...new Set(sigs.map((s) => s.documentId))];
+      return this.docsByIds(ids, journalId, journalKind);
+    }
+
     if (metric && metric in statusByMetric) {
       const st = statusByMetric[metric];
       if (st) where.status = st;
@@ -191,18 +283,23 @@ export class StatsService {
       where,
       orderBy: { createdAt: 'desc' },
       take: 500,
-      select: {
-        id: true,
-        number: true,
-        docUid: true,
-        subject: true,
-        status: true,
-        type: true,
-        createdAt: true,
-        createdBy: { select: { fullName: true } },
-      },
+      select: DOC_SELECT,
     });
     return docs;
+  }
+
+  // Hujjat id'lari bo'yicha ro'yxat (jurnal filtri bilan)
+  private async docsByIds(ids: string[], journalId?: string, journalKind?: string) {
+    if (ids.length === 0) return [];
+    const where: Record<string, unknown> = { id: { in: ids } };
+    if (journalId) where.journalId = journalId;
+    if (journalKind) where.journal = { kind: journalKind };
+    return this.prisma.document.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+      select: DOC_SELECT,
+    });
   }
 
   // Bo'limlar bo'yicha statistika — hujjatlar (bo'lim yaratgan) va topshiriqlar
