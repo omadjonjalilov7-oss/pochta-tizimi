@@ -22,6 +22,7 @@ const STATUS_CLS: Record<string, string> = {
   draft: 'bg-slate-100 text-slate-600',
   in_review: 'bg-amber-100 text-amber-700',
   in_progress: 'bg-sky-100 text-sky-700',
+  podpisana: 'bg-indigo-100 text-indigo-700',
   done: 'bg-emerald-100 text-emerald-700',
   rejected: 'bg-rose-100 text-rose-700',
   overdue: 'bg-rose-100 text-rose-700',

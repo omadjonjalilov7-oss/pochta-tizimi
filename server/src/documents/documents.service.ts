@@ -1006,6 +1006,84 @@ export class DocumentsService {
     return this.findOne(userId, id);
   }
 
+  // "Podpisat" — kiruvchi/chiquvchi hujjatni imzolash uchun bosh direktorga
+  // (avazbek) yuboradi: uni tasdiqlovchi qilib qo'shadi, hujjat egasi qiladi,
+  // status "podpisana" bo'ladi (kanselyariya/bo'lim oynasida maxsus bo'lim) va
+  // avazbekka xabar boradi. Imzolashni avazbek approve/E-IMZO orqali yakunlaydi.
+  async sendToSign(userId: string, id: string) {
+    const doc = await this.prisma.document.findUnique({ where: { id } });
+    if (!doc) throw new NotFoundException('Hujjat topilmadi');
+    if (doc.type !== 'incoming' && doc.type !== 'outgoing') {
+      throw new BadRequestException(
+        "Imzoga yuborish faqat kiruvchi va chiquvchi hujjatlarda mavjud",
+      );
+    }
+    const seeAll = await this.canSeeAllDocs(userId);
+    if (!seeAll && doc.createdById !== userId && doc.currentHolderId !== userId) {
+      throw new ForbiddenException("Hujjatni imzoga yuborishga haqingiz yo'q");
+    }
+    if (['draft', 'done', 'rejected'].includes(doc.status)) {
+      throw new BadRequestException(
+        "Yuborilmagan yoki yakunlangan hujjatni imzoga yuborib bo'lmaydi",
+      );
+    }
+
+    const signer = await this.prisma.user.findFirst({
+      where: { login: 'avazbek' },
+      select: { id: true },
+    });
+    if (!signer) {
+      throw new BadRequestException("Imzolovchi (avazbek) foydalanuvchisi topilmadi");
+    }
+    if (signer.id === doc.createdById) {
+      // avazbekning o'zi yaratgan bo'lsa ham imzoga yuborishда ma'no yo'q emas —
+      // baribir tasdiqlovchi navbatiga tushadi.
+    }
+
+    const approvers = await this.prisma.documentParticipant.findMany({
+      where: { documentId: id, role: ParticipantRole.approver },
+      select: { order: true },
+    });
+    const maxOrder = approvers.reduce((m, p) => Math.max(m, p.order), 0);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.documentParticipant.upsert({
+        where: {
+          documentId_userId_role: {
+            documentId: id,
+            userId: signer.id,
+            role: ParticipantRole.approver,
+          },
+        },
+        create: {
+          documentId: id,
+          userId: signer.id,
+          role: ParticipantRole.approver,
+          order: maxOrder + 1,
+          status: ParticipantStatus.pending,
+        },
+        update: {
+          status: ParticipantStatus.pending,
+          actedAt: null,
+          rejectReason: null,
+        },
+      });
+      await tx.document.update({
+        where: { id },
+        data: {
+          status: DocumentStatus.podpisana,
+          currentHolderId: signer.id,
+        },
+      });
+      await tx.documentAuditLog.create({
+        data: { documentId: id, actorId: userId, action: 'sign_requested' },
+      });
+    });
+
+    await this.notifyApprover(signer.id, userId, id, doc.number, doc.subject);
+    return this.findOne(userId, id);
+  }
+
   async reject(userId: string, id: string, dto: RejectDto) {
     await this.users.verifyApprovalPin(userId, dto.pin);
     const doc = await this.requireActiveApprover(userId, id);
@@ -2294,7 +2372,7 @@ export class DocumentsService {
     const seeAll = await this.canSeeAllDocs(userId);
     const docs = await this.prisma.document.findMany({
       where: {
-        status: { in: ['in_review', 'in_progress', 'overdue'] },
+        status: { in: ['in_review', 'in_progress', 'overdue', 'podpisana'] },
         ...(seeAll ? {} : { createdById: userId }),
       },
       include: FULL_INCLUDE,
@@ -3733,7 +3811,10 @@ export class DocumentsService {
     //  - "in_progress" — kanselyariya topshiriq kiritib Ijroga o'tkazgan, lekin
     //    tasdiqlovchilar hali kutayotgan bo'lishi mumkin — ular tasdiqlay olsin;
     //  - "overdue"     — muddati o'tган, lekin zanjir hali faol.
-    if (!['in_review', 'in_progress', 'overdue'].includes(doc.status)) {
+    //  - "podpisana"   — bosh direktorga imzoga yuborilgan, u imzolaydi.
+    if (
+      !['in_review', 'in_progress', 'overdue', 'podpisana'].includes(doc.status)
+    ) {
       throw new BadRequestException("Hujjat tasdiqlash bosqichida emas");
     }
     if (doc.currentHolderId === userId) return doc;

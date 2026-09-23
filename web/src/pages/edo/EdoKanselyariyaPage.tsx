@@ -18,11 +18,18 @@ import InlineAttachmentPreview from '../../components/edo/InlineAttachmentPrevie
 
 // "Sektor fishka" — kiruvchi hujjatlarni rezolyutsiya (poruchenie) holatiga
 // qarab guruhlaydi. Har bir submenu bitta holatni ko'rsatadi.
-export type ResState = 'exists' | 'none' | 'rejected' | 'signed' | 'no_leader';
+export type ResState =
+  | 'exists'
+  | 'none'
+  | 'podpisana'
+  | 'rejected'
+  | 'signed'
+  | 'no_leader';
 
 export const RES_STATES: ResState[] = [
   'exists',
   'none',
+  'podpisana',
   'rejected',
   'signed',
   'no_leader',
@@ -30,6 +37,7 @@ export const RES_STATES: ResState[] = [
 
 // Kiruvchi hujjatning rezolyutsiya holatini aniqlaydi (o'zaro istisno).
 export function resState(d: EdoDocument): ResState {
+  if (d.status === 'podpisana') return 'podpisana';
   if (d.status === 'rejected') return 'rejected';
   if (d.status === 'done') return 'signed';
   // Rahbar tanlanganmi? — present-to-leader rahbarni "approver" sifatida qo'shadi.
@@ -87,6 +95,7 @@ export function EdoKanselyariyaPage() {
     const c: Record<ResState, number> = {
       exists: 0,
       none: 0,
+      podpisana: 0,
       rejected: 0,
       signed: 0,
       no_leader: 0,

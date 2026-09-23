@@ -17,6 +17,7 @@ const STATUS_DOT: Record<DocumentStatus, string> = {
   draft: 'bg-slate-400',
   in_review: 'bg-amber-500',
   in_progress: 'bg-sky-500',
+  podpisana: 'bg-indigo-500',
   done: 'bg-emerald-500',
   rejected: 'bg-red-500',
   overdue: 'bg-rose-600',

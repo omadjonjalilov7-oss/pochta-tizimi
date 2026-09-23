@@ -444,6 +444,15 @@ export class DocumentsController {
     return this.docs.sign(user.id, id, dto);
   }
 
+  // "Podpisat" — hujjatni imzolash uchun bosh direktorga (avazbek) yuborish.
+  @Post(':id/send-to-sign')
+  sendToSign(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.docs.sendToSign(user.id, id);
+  }
+
   @Post(':id/attachments')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 100 * 1024 * 1024 } }))
   uploadAttachment(

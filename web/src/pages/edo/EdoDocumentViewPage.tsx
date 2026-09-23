@@ -274,6 +274,11 @@ export function EdoDocumentViewPage({
       (await api.post<EdoDocument>(`/documents/${id}/comment`, { text })).data,
     onSuccess: invalidate,
   });
+  const sendToSign = useMutation({
+    mutationFn: async () =>
+      (await api.post<EdoDocument>(`/documents/${id}/send-to-sign`, {})).data,
+    onSuccess: invalidate,
+  });
   const reject = useMutation({
     mutationFn: async (vars: { reason: string; pin: string }) =>
       (await api.post<EdoDocument>(`/documents/${id}/reject`, vars)).data,
@@ -453,7 +458,7 @@ export function EdoDocumentViewPage({
   //    holatiga o'tkazsa ham — bu tasdiqlash uchun ahamiyatsiz, tugma yoniq qoladi;
   //  - muddati o'tsa (overdue) ham tugma yo'qolmaydi.
   // Tugma faqat foydalanuvchi tasdiqlagach (pending emas) yoki hujjat yopilgach so'nadi.
-  const APPROVABLE_STATUSES = ['in_review', 'in_progress', 'overdue'];
+  const APPROVABLE_STATUSES = ['in_review', 'in_progress', 'overdue', 'podpisana'];
   const isCurrentApprover =
     APPROVABLE_STATUSES.includes(doc.status) &&
     (doc.currentHolderId === user?.id || isPendingApprover);
@@ -484,6 +489,14 @@ export function EdoDocumentViewPage({
   // "Imzo uchun yuborish" — chiquvchi hujjatni bosh direktor (avazbek login) imzosiga
   // yuboradi. Login topilmasa tugma o'chiq bo'ladi.
   const signatoryUser = allUsers.find((u) => u.login === 'avazbek');
+  // "Podpisat" — kiruvchi/chiquvchi hujjatni bosh direktor (avazbek) imzosiga
+  // yuborish. Yuborilgach status "podpisana" bo'ladi (kanselyariya/bo'lim
+  // oynasida maxsus bo'lim). Yakunlangan/qoralama/allaqachon yuborilgan bo'lsa
+  // tugma ko'rinmaydi. Faqat kanselyariya/admin/yaratuvchi/joriy egasi yuboradi.
+  const canSendToSign =
+    (doc.type === 'incoming' || doc.type === 'outgoing') &&
+    !['draft', 'done', 'rejected', 'podpisana'].includes(doc.status) &&
+    (isStaff || isCreator || isLeaderHolder);
   const canAssignControl =
     isStaff &&
     (doc.status === 'in_review' ||
@@ -924,6 +937,45 @@ export function EdoDocumentViewPage({
                 <Clock size={16} />
                 {t('edo.view.extend_deadline') || 'Muddatini o\'zgartirish'}
               </button>
+            </div>
+          )}
+
+          {/* "Podpisat" — hujjatni bosh direktor (avazbek) imzosiga yuborish */}
+          {canSendToSign && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-2 text-sm font-semibold text-slate-700">
+                <ShieldCheck size={18} className="text-indigo-600" />
+                {t('edo.view.send_to_sign_title')}
+              </div>
+              <p className="text-xs text-slate-500 mb-3">
+                {t('edo.view.send_to_sign_hint')}
+              </p>
+              {sendToSign.isError && (
+                <p className="text-xs text-red-600 mb-2">
+                  {extractError(sendToSign.error)}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => sendToSign.mutate()}
+                disabled={sendToSign.isPending}
+                className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-lg disabled:opacity-50"
+              >
+                <Send size={16} />
+                {sendToSign.isPending
+                  ? t('common.saving')
+                  : t('edo.view.send_to_sign')}
+              </button>
+            </div>
+          )}
+
+          {/* Imzoga yuborilgan — kutilmoqda holati */}
+          {doc.status === 'podpisana' && (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex items-center gap-3">
+              <ShieldCheck size={20} className="text-indigo-600 shrink-0" />
+              <p className="text-sm text-indigo-800">
+                {t('edo.view.sign_pending')}
+              </p>
             </div>
           )}
 
@@ -1419,6 +1471,7 @@ function StatusBadge({ status }: { status: DocumentStatus }) {
     draft: 'bg-slate-100 text-slate-700',
     in_review: 'bg-amber-100 text-amber-800',
     in_progress: 'bg-sky-100 text-sky-800',
+    podpisana: 'bg-indigo-100 text-indigo-800',
     done: 'bg-emerald-100 text-emerald-800',
     rejected: 'bg-red-100 text-red-700',
     overdue: 'bg-rose-100 text-rose-700',
@@ -2244,6 +2297,7 @@ const AUDIT_STYLE: Record<
   commented: { icon: MessageSquare, bg: 'bg-slate-100', ring: 'ring-slate-200', text: 'text-slate-600' },
   completed: { icon: ShieldCheck, bg: 'bg-emerald-100', ring: 'ring-emerald-200', text: 'text-emerald-700' },
   signed: { icon: KeyRound, bg: 'bg-indigo-100', ring: 'ring-indigo-200', text: 'text-indigo-700' },
+  sign_requested: { icon: ShieldCheck, bg: 'bg-indigo-100', ring: 'ring-indigo-200', text: 'text-indigo-700' },
   overdue: { icon: AlertTriangle, bg: 'bg-rose-100', ring: 'ring-rose-200', text: 'text-rose-700' },
   resolution_added: { icon: ClipboardList, bg: 'bg-amber-100', ring: 'ring-amber-200', text: 'text-amber-700' },
   task_completed: { icon: CheckCircle2, bg: 'bg-emerald-100', ring: 'ring-emerald-200', text: 'text-emerald-700' },
