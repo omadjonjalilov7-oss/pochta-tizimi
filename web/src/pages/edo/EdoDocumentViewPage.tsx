@@ -113,6 +113,7 @@ function AttachmentCard({
   onEdit,
   onEditOnline,
   onExpandFull,
+  onToggleOpen,
 }: {
   documentId: string;
   att: EdoAttachment;
@@ -121,6 +122,7 @@ function AttachmentCard({
   onEdit: () => void;
   onEditOnline: () => void;
   onExpandFull: () => void;
+  onToggleOpen?: (open: boolean) => void;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -155,7 +157,12 @@ function AttachmentCard({
         <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
-            onClick={() => setOpen((v) => !v)}
+            onClick={() =>
+              setOpen((v) => {
+                onToggleOpen?.(!v);
+                return !v;
+              })
+            }
             className="p-2 rounded-lg text-orange-600 hover:bg-orange-100 transition-colors"
             title={open ? t('common.close') : t('common.open')}
           >
@@ -388,6 +395,10 @@ export function EdoDocumentViewPage({
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Hujjat matni (body) yopiq holatда turadi; ko'z tugmasi bilan ochiladi.
   const [bodyOpen, setBodyOpen] = useState(false);
+  // Ochiq (inline ko'rilayotgan) biriktirmalar id'lari — biror fayl ochilsa,
+  // karta to'liq kenglikda ochilib, A4 ko'rinishi ekranga sig'adi.
+  const [openAttIds, setOpenAttIds] = useState<Set<string>>(new Set());
+  const anyAttOpen = openAttIds.size > 0;
   // O'z brauzer ichi Word muharririmizда ochilgan biriktirma.
   const [editAtt, setEditAtt] = useState<{ id: string; filename: string } | null>(null);
   const [ooAtt, setOoAtt] = useState<{ id: string; filename: string } | null>(null);
@@ -625,9 +636,10 @@ export function EdoDocumentViewPage({
           <section
             className={cn(
               'bg-white border border-slate-200 rounded-2xl p-3 md:p-4',
-              // Yopiq turganda ixcham (chapga, tor); ochilganda hujjat ekranga
-              // to'liq sig'ishi uchun butun kenglikda ochiladi.
-              bodyOpen ? '' : 'max-w-2xl',
+              // Yopiq turganda ixcham (chapga, tor); hujjat matni yoki biror
+              // biriktirma ochilganda A4 ekranga to'liq sig'ishi uchun butun
+              // kenglikda ochiladi.
+              bodyOpen || anyAttOpen ? '' : 'max-w-2xl',
             )}
           >
             {/* Hujjat matni — karta ko'rinishida (biriktirilgan fayllardek). */}
@@ -789,6 +801,14 @@ export function EdoDocumentViewPage({
                         }
                         onExpandFull={() =>
                           setViewAtt({ id: a.id, filename: a.filename })
+                        }
+                        onToggleOpen={(isOpen) =>
+                          setOpenAttIds((prev) => {
+                            const next = new Set(prev);
+                            if (isOpen) next.add(a.id);
+                            else next.delete(a.id);
+                            return next;
+                          })
                         }
                       />
                     ))}
