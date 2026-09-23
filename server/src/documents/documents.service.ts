@@ -54,6 +54,7 @@ import {
   buildIchkiTokens,
   renderIchki,
   renderIchkiYangi,
+  renderInternalDefault,
   internalKindLabel,
   fillCustomPlaceholders,
   stripTaskTypePrefix,
@@ -2004,6 +2005,42 @@ export class DocumentsService {
     const rendered = await this.renderTemplateHtml(doc);
     if (rendered != null) {
       doc.renderedBody = rendered;
+      return;
+    }
+    // Shablon TANLANMAGAN ichki hujjat: standart Word-ko'rinishli render.
+    // Mavzu + matn to'ldirilgan bo'lsa, hujjat zanjiri (tasdiqlaganlar + QR)
+    // bitta faylga jamlanadi — kiruvchi/chiquvchi hujjatlardagidek.
+    if (doc.type === 'internal' && !doc.templateId && (doc.body || doc.subject)) {
+      let qrDataUrl: string | undefined;
+      try {
+        const token = await this.ensurePublicToken(doc.id, doc.publicToken);
+        qrDataUrl = await QRCode.toDataURL(this.buildScanUrl(token), {
+          errorCorrectionLevel: 'M',
+          margin: 1,
+          width: 160,
+        });
+      } catch {
+        qrDataUrl = undefined;
+      }
+      const defApprovers = (doc.participants ?? [])
+        .filter((p: any) => p.role === ParticipantRole.approver && p.user)
+        .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
+        .map((p: any) => ({
+          fullName: p.user.fullName ?? '',
+          actedAt: p.actedAt ?? null,
+          approved: p.status === ParticipantStatus.approved,
+        }));
+      const firstRes = (doc.resolutions ?? [])[0];
+      const firstTarget = firstRes?.targets?.[0];
+      doc.renderedBody = renderInternalDefault({
+        ichkiNom: internalKindLabel(doc.internalKind, doc.docName),
+        mavzu: doc.subject ?? '',
+        body: doc.body ?? '',
+        approvers: defApprovers,
+        qrDataUrl,
+        fioFinal: firstTarget?.user?.fullName ?? '',
+        sanaFinal: firstRes?.createdAt ?? doc.closedAt ?? null,
+      });
       return;
     }
     // Shablon yo'q — matn ichida embedded {{xujjat_n}} / {{sana_soat}} / kiruvchi

@@ -396,6 +396,73 @@ export function renderIchkiYangi(
   return html;
 }
 
+// Shablon TANLANMAGAN ichki hujjat uchun standart Word-ko'rinishli render.
+// Shablon HTML kerak emas — o'zi to'liq A4 HTML quradi: sarlavha (tur nomi),
+// mavzu, hujjat matni va pastida tasdiqlash zanjiri (tasdiqlaganlar + QR).
+// Kiruvchi/chiquvchi hujjatlardagidek yagona Word faylga jamlanadi.
+export function renderInternalDefault(input: IchkiYangiInput): string {
+  const qrTag = input.qrDataUrl
+    ? `<img src="${input.qrDataUrl}" alt="QR" title="Hujjatni skanerlab ko'rish" ` +
+      `style="width:44px;height:44px;display:inline-block;vertical-align:middle;margin:0 0 0 8px;" />`
+    : '';
+
+  // Faqat TASDIQLAGAN xodimlar, tasdiqlash vaqti bo'yicha ketma-ket.
+  const approved = input.approvers
+    .filter((a) => a.approved)
+    .sort(
+      (a, b) =>
+        (a.actedAt ? new Date(a.actedAt).getTime() : 0) -
+        (b.actedAt ? new Date(b.actedAt).getTime() : 0),
+    );
+
+  const nom = escapeHtml(input.ichkiNom);
+  const body = input.body ?? '';
+
+  // Tasdiqlash zanjiri: har bir tasdiqlagan xodim — ismi, sanasi va QR yonida.
+  const chainRows = approved
+    .map((a) => {
+      const fio = escapeHtml(toCyrillic(a.fullName));
+      const sana = escapeHtml(fmtDate(a.actedAt));
+      return (
+        `<div style="margin:6px 0;line-height:1.4;">` +
+        `<span style="font-weight:600;">${fio}</span>` +
+        (sana ? ` <span style="color:#475569;">${sana}</span>` : '') +
+        qrTag +
+        `</div>`
+      );
+    })
+    .join('');
+
+  const chainBlock = chainRows
+    ? `<div style="margin-top:28px;padding-top:14px;border-top:1px solid #cbd5e1;">` +
+      `<div style="font-weight:700;margin-bottom:8px;">Тасдиқлаганлар:</div>` +
+      chainRows +
+      `</div>`
+    : '';
+
+  // "Для исполнения" — ijrochi va sana (topshiriq bo'lsa).
+  const fioFinal = escapeHtml(toCyrillic(input.fioFinal ?? ''));
+  const sanaFinal = escapeHtml(fmtDate(input.sanaFinal ?? null));
+  const resBlock = fioFinal
+    ? `<div style="margin-top:16px;">` +
+      `Для исполнения: <span style="font-weight:600;">${fioFinal}</span>` +
+      (sanaFinal ? ` | Дата: ${sanaFinal}` : '') +
+      `</div>`
+    : '';
+
+  const html =
+    `<div class="edo-ichki-doc" style="font-family:'Times New Roman',serif;font-size:14pt;color:#0f172a;">` +
+    (nom
+      ? `<div style="text-align:center;font-weight:700;font-size:16pt;margin-bottom:18px;">${nom}</div>`
+      : '') +
+    `<div style="line-height:1.5;">${body}</div>` +
+    resBlock +
+    chainBlock +
+    `</div>`;
+
+  return html;
+}
+
 // Ham `{{_asaka_1}}`, ham yalang'och `_asaka_1` ko'rinishini almashtiradi.
 // `\d+` ochko'z bo'lgani uchun `_asaka_12` to'liq mos keladi (`_asaka_1` bilan
 // qisman to'qnashmaydi).
