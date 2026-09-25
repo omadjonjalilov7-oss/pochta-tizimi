@@ -42,6 +42,30 @@ export class ImapPollService implements OnModuleInit {
     if (this.intervalHandle) clearInterval(this.intervalHandle);
   }
 
+  /**
+   * ImapFlow klientini yaratadi va MAJBURIY 'error' listener biriktiradi.
+   *
+   * MUHIM: ImapFlow — EventEmitter. Socket timeout (ETIMEOUT) kabi asinxron
+   * xatolar 'error' hodisasi bilan chiqadi. Agar listener bo'lmasa, Node.js
+   * butun jarayonni qulatadi (backend o'chib qoladi). Shu sababli har bir
+   * klient uchun error handler qo'yamiz — xato faqat log qilinadi, jarayon
+   * yashab qoladi (keyingi tick qayta urinadi).
+   */
+  private makeClient(login: string, password: string): ImapFlow {
+    const client = new ImapFlow({
+      host: process.env.EXTERNAL_MAIL_IMAP_HOST || 'mail.asaka-motors.uz',
+      port: Number(process.env.EXTERNAL_MAIL_IMAP_PORT || 993),
+      secure: true,
+      auth: { user: login, pass: password },
+      logger: false,
+      tls: { rejectUnauthorized: false },
+    });
+    client.on('error', (err: any) => {
+      this.logger.warn(`IMAP klient xatosi (${login}): ${err?.message || err}`);
+    });
+    return client;
+  }
+
   private async tick() {
     if (this.shuttingDown) return;
     try {
@@ -98,14 +122,7 @@ export class ImapPollService implements OnModuleInit {
       return;
     }
 
-    const client = new ImapFlow({
-      host: process.env.EXTERNAL_MAIL_IMAP_HOST || 'mail.asaka-motors.uz',
-      port: Number(process.env.EXTERNAL_MAIL_IMAP_PORT || 993),
-      secure: true,
-      auth: { user: u.externalMailLogin, pass: password },
-      logger: false,
-      tls: { rejectUnauthorized: false },
-    });
+    const client = this.makeClient(u.externalMailLogin, password);
 
     try {
       await client.connect();
@@ -515,14 +532,7 @@ export class ImapPollService implements OnModuleInit {
       throw new Error('Tashqi pochta ulanmagan');
     }
     const password = decryptSecret(u.externalMailPasswordEnc);
-    const client = new ImapFlow({
-      host: process.env.EXTERNAL_MAIL_IMAP_HOST || 'mail.asaka-motors.uz',
-      port: Number(process.env.EXTERNAL_MAIL_IMAP_PORT || 993),
-      secure: true,
-      auth: { user: u.externalMailLogin, pass: password },
-      logger: false,
-      tls: { rejectUnauthorized: false },
-    });
+    const client = this.makeClient(u.externalMailLogin, password);
 
     const folders: { path: string; specialUse?: string; exists?: number; uidNext?: number }[] = [];
     const recentByFolder: Record<
@@ -627,14 +637,7 @@ export class ImapPollService implements OnModuleInit {
       return;
     }
 
-    const client = new ImapFlow({
-      host: process.env.EXTERNAL_MAIL_IMAP_HOST || 'mail.asaka-motors.uz',
-      port: Number(process.env.EXTERNAL_MAIL_IMAP_PORT || 993),
-      secure: true,
-      auth: { user: u.externalMailLogin, pass: password },
-      logger: false,
-      tls: { rejectUnauthorized: false },
-    });
+    const client = this.makeClient(u.externalMailLogin, password);
 
     try {
       await client.connect();

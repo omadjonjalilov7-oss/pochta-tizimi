@@ -32,6 +32,11 @@ export class ExternalMailService {
       // tls sertifikati o'z-o'zidan imzolangan bo'lsa ham qabul qilamiz (LAN ichida)
       tls: { rejectUnauthorized: false },
     });
+    // ImapFlow EventEmitter: ushlanmagan 'error' hodisasi jarayonni qulatadi.
+    // Sinov klientida ham error handler bo'lishi shart.
+    client.on('error', (err: any) => {
+      this.logger.warn(`IMAP test klient xatosi (${email}): ${err?.message || err}`);
+    });
     try {
       await client.connect();
       await client.logout();
