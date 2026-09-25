@@ -532,6 +532,12 @@ export class DocumentsService {
     // aynan tanlangan xodimlar ishlatiladi.
     const isParallel = dto?.parallel === true;
 
+    // RANK bo'yicha bosqichma-bosqich zanjir: foydalanuvchi qo'lda tasdiqlovchilar
+    // tanlaganda (parallel emas) — ular lavozim RANKiga qarab guruhlanadi. Bir xil
+    // rankdagilar bitta guruhda (parallel), guruh to'liq tasdiqlagach keyingi
+    // (kattaroq vakolatli) guruhga o'tiladi, oxirida rahbar (avazbek).
+    const useRankChain = !isParallel && selectedApprovers.length > 0;
+
     let chain: string[];
     if (isParallel) {
       if (selectedApprovers.length === 0) {
@@ -638,16 +644,39 @@ export class DocumentsService {
         ? await this.allocateNumber(doc.numberDept.code)
         : doc.number;
 
-    // Birinchi tasdiqlovchi — to'g'ridan-to'g'ri rahbar
-    const firstApproverId = chain[0];
+    // RANK zanjiri: avazbekni (rahbar) zanjir oxiriga qo'shamiz (agar hali yo'q
+    // bo'lsa) va tasdiqlovchilarni rank bo'yicha guruhlab tartib (order) beramiz.
+    let rankOrders: Map<string, number> | null = null;
+    let firstGroupIds: string[] = [];
+    if (useRankChain) {
+      const leader = await this.prisma.user.findUnique({
+        where: { login: 'avazbek' },
+        select: { id: true, isActive: true },
+      });
+      if (leader?.isActive && leader.id !== userId && !chain.includes(leader.id)) {
+        chain.push(leader.id);
+      }
+      const built = await this.buildRankOrders(chain);
+      rankOrders = built.orderByUser;
+      firstGroupIds = built.firstGroupIds;
+    }
+
+    // Birinchi tasdiqlovchi — rank zanjirida birinchi guruhning birinchi a'zosi,
+    // aks holda zanjirning birinchisi.
+    const firstApproverId = useRankChain
+      ? firstGroupIds[0] ?? chain[0]
+      : chain[0];
 
     await this.prisma.$transaction(async (tx) => {
       // Avvalgi (creator) ishtirokchini saqlaymiz, yangilarini qo'shamiz
       let order = 1;
       for (const uid of chain) {
-        // Parallel yuborishda barcha tasdiqlovchilar bir xil tartib (1) oladi —
-        // shunda ular navbat kutmasdan mustaqil tasdiqlay oladi.
-        const currentOrder = isParallel ? 1 : order++;
+        // Parallel — hammasi tartib 1; rank zanjiri — guruh tartibi; oddiy — ketma-ket.
+        const currentOrder = isParallel
+          ? 1
+          : rankOrders
+            ? rankOrders.get(uid) ?? 1
+            : order++;
         await tx.documentParticipant.upsert({
           where: {
             documentId_userId_role: {
@@ -709,6 +738,20 @@ export class DocumentsService {
       // Parallel — tanlangan barcha xodimlarga bir vaqtda xabar yuboramiz.
       for (const uid of chain) {
         await this.notifyApprover(uid, userId, id, number, doc.subject);
+      }
+    } else if (useRankChain) {
+      // RANK zanjiri — faqat BIRINCHI guruhning barcha a'zolariga xabar. Ular
+      // hammasi tasdiqlagach keyingi guruhga o'tiladi (approve ichida).
+      for (const uid of firstGroupIds) {
+        await this.notifyApprover(uid, userId, id, number, doc.subject);
+      }
+      // 2-punkt: birinchi guruhning o'zi rahbar (avazbek) guruhi bo'lsa —
+      // kanselyariyaga darrov ogohlantirish yuboramiz.
+      if (
+        (doc.type === 'internal' || doc.type === 'outgoing') &&
+        (await this.groupHasLeader(firstGroupIds))
+      ) {
+        await this.notifyChancelleryReadyForLeader(userId, id, number, doc.subject);
       }
     } else {
       // Birinchi rahbarga Pochta orqali xabar yuboramiz
@@ -824,14 +867,17 @@ export class DocumentsService {
       });
     });
 
-    // Keyingi tasdiqlovchini qidiramiz
-    const next = await this.prisma.documentParticipant.findFirst({
+    // Qolgan (pending) tasdiqlovchilar — tartib (order) bo'yicha. Bir xil tartibli
+    // tasdiqlovchilar bitta RANK guruhi. Guruh to'liq tasdiqlaguncha keyingi
+    // guruhga o'tilmaydi.
+    const pendingApprovers = await this.prisma.documentParticipant.findMany({
       where: {
         documentId: id,
         role: ParticipantRole.approver,
         status: ParticipantStatus.pending,
       },
       orderBy: { order: 'asc' },
+      select: { userId: true, order: true },
     });
 
     // Bosh direktor (avazbek) tasdiqlasa — ichki/chiquvchi hujjat DARHOL yakunlanadi
@@ -845,24 +891,40 @@ export class DocumentsService {
       approverUser?.login === 'avazbek' &&
       (doc.type === 'internal' || doc.type === 'outgoing');
 
-    if (next && !finalizeNow) {
+    if (pendingApprovers.length > 0 && !finalizeNow) {
+      const minOrder = pendingApprovers[0].order;
+      const activeGroup = pendingApprovers.filter((p) => p.order === minOrder);
+      // Men tasdiqlaganimda eng kichik pending tartib mening tartibimdan oshgan
+      // bo'lsa — YANGI guruhga o'tildi. Aks holda (minOrder === me.order) mening
+      // guruhimda hali kutayotganlar bor; ularga oldin xabar ketgan — qayta emas.
+      const advancedToNewGroup = minOrder > me.order;
       await this.prisma.document.update({
         where: { id },
         data: {
-          currentHolderId: next.userId,
-          signatureChainPosition: { increment: 1 },
+          currentHolderId: activeGroup[0].userId,
+          ...(advancedToNewGroup
+            ? { signatureChainPosition: { increment: 1 } }
+            : {}),
         },
       });
-      // Navbat egasi o'zgarmagan bo'lsa (majburiy tasdiqlovchi navbatdan tashqari
-      // tasdiqlagan holat) — qayta xabar yubormaymiz.
-      if (next.userId !== doc.currentHolderId) {
-        await this.notifyApprover(
-          next.userId,
-          userId,
-          id,
-          doc.number,
-          doc.subject,
-        );
+      if (advancedToNewGroup) {
+        // Yangi faol guruhning barcha a'zolariga xabar yuboramiz (parallel).
+        for (const p of activeGroup) {
+          await this.notifyApprover(p.userId, userId, id, doc.number, doc.subject);
+        }
+        // 2-punkt: yangi faol guruh RAHBAR (avazbek) guruhi bo'lsa —
+        // kanselyariyaga "tasdiqlandi, raxbariyatga yuboring" ogohlantirishi.
+        if (
+          (doc.type === 'internal' || doc.type === 'outgoing') &&
+          (await this.groupHasLeader(activeGroup.map((p) => p.userId)))
+        ) {
+          await this.notifyChancelleryReadyForLeader(
+            userId,
+            id,
+            doc.number,
+            doc.subject,
+          );
+        }
       }
     } else if (
       doc.type === 'incoming' &&
@@ -4010,6 +4072,99 @@ export class DocumentsService {
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error('[EDO] chancellery notify failed:', e);
+    }
+  }
+
+  /**
+   * RANK zanjiri uchun tartib (order) hisoblaydi. Tasdiqlovchilar lavozim
+   * rankiga qarab guruhlanadi: KATTA rank soni (kichik vakolat) — birinchi guruh
+   * (order 1), keyin kamayib boradi. Bir xil rankdagilar bitta guruhda (parallel).
+   * Rahbar (avazbek) — doim eng oxirgi ALOHIDA guruh. Ranki belgilanmagan
+   * xodimlar 100 deb qaraladi.
+   */
+  private async buildRankOrders(chain: string[]): Promise<{
+    orderByUser: Map<string, number>;
+    firstGroupIds: string[];
+    leaderId: string | null;
+  }> {
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: chain } },
+      select: { id: true, login: true, position: { select: { rank: true } } },
+    });
+    const rankById = new Map<string, number>();
+    let leaderId: string | null = null;
+    for (const u of users) {
+      if (u.login === 'avazbek') leaderId = u.id;
+      rankById.set(u.id, u.position?.rank ?? 100);
+    }
+    // Rahbar (avazbek) — boshqalardan ajratamiz, oxirgi guruhга qo'yamiz.
+    const others = chain.filter((id) => id !== leaderId);
+    // Rank bo'yicha kamayuvchi tartib: katta son (kichik vakolat) birinchi.
+    const distinctRanks = [
+      ...new Set(others.map((id) => rankById.get(id) ?? 100)),
+    ].sort((a, b) => b - a);
+
+    const orderByUser = new Map<string, number>();
+    distinctRanks.forEach((rank, idx) => {
+      const ord = idx + 1;
+      for (const id of others) {
+        if ((rankById.get(id) ?? 100) === rank) orderByUser.set(id, ord);
+      }
+    });
+    if (leaderId) {
+      orderByUser.set(leaderId, distinctRanks.length + 1); // eng oxirgi guruh
+    }
+
+    const minOrder =
+      orderByUser.size > 0 ? Math.min(...orderByUser.values()) : 1;
+    const firstGroupIds = [...orderByUser.entries()]
+      .filter(([, o]) => o === minOrder)
+      .map(([id]) => id);
+    return { orderByUser, firstGroupIds, leaderId };
+  }
+
+  // Berilgan foydalanuvchilar guruhida rahbar (avazbek) bormi?
+  private async groupHasLeader(userIds: string[]): Promise<boolean> {
+    if (userIds.length === 0) return false;
+    const leader = await this.prisma.user.findFirst({
+      where: { id: { in: userIds }, login: 'avazbek' },
+      select: { id: true },
+    });
+    return !!leader;
+  }
+
+  /**
+   * 2-punkt (zaxira): barcha oddiy tasdiqlovchilar tasdiqlab, navbat RAHBARGA
+   * (avazbek) yetganda — kanselyariya xodimlarini "hujjat tasdiqlandi,
+   * raxbariyatga yuboring" deb hujjat linki bilan ogohlantiradi.
+   */
+  private async notifyChancelleryReadyForLeader(
+    actorId: string,
+    docId: string,
+    number: string,
+    subject: string,
+  ) {
+    try {
+      const staff = await this.prisma.user.findMany({
+        where: { role: 'chancellery', isActive: true },
+        select: { id: true },
+      });
+      const recipientIds = staff.map((u) => u.id).filter((rid) => rid !== actorId);
+      if (recipientIds.length === 0) return;
+      const link = `/edo/documents/${docId}`;
+      const result = await this.messages.send(actorId, {
+        recipientIds,
+        subject: `[EDO ${number}] Tasdiqlandi — raxbariyatga yuboring: ${subject}`,
+        body:
+          `Barcha tasdiqlovchilar hujjatni tasdiqladi. Endi raxbariyatga (imzoga) yuborilishi kerak.\n\n` +
+          `Mavzu: ${subject}\nRaqam: ${number}\n\n` +
+          `Hujjat sahifasi: ${link}`,
+        importance: 'important',
+      });
+      this.gateway.notifyNewMessage(recipientIds, result);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('[EDO] chancellery ready-for-leader notify failed:', e);
     }
   }
 

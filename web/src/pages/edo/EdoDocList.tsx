@@ -431,7 +431,25 @@ function ControlLegend() {
 }
 
 // ── "Mening hujjatlarim" — kategoriya tablari + qidiruv/filtr paneli ──
-type MyDocTab = 'all' | 'outgoing' | 'reply' | 'internal' | 'other';
+type MyDocTab = 'all' | 'outgoing' | 'reply' | 'internal' | 'other' | 'to_leader';
+
+// "Raxbarga yuborilishi kutilayotgan" hujjat: barcha oldingi (past vakolatli)
+// tasdiqlovchilar tasdiqlagan, faqat oxirgi (rahbar) guruh hali kutmoqda.
+// Frontendda faqat participant tartibi (order) va holati orqali aniqlanadi.
+export function isAwaitingLeader(d: EdoDocument): boolean {
+  if (d.status !== 'in_review') return false;
+  const approvers = (d.participants ?? []).filter((p) => p.role === 'approver');
+  if (approvers.length === 0) return false;
+  const maxOrder = Math.max(...approvers.map((p) => p.order));
+  const earlier = approvers.filter((p) => p.order < maxOrder);
+  const finalGroup = approvers.filter((p) => p.order === maxOrder);
+  // Oldida kamida bitta guruh bo'lsin va ular barchasi tasdiqlagan bo'lsin,
+  // oxirgi (rahbar) guruh esa hali kutayotgan bo'lsin.
+  if (earlier.length === 0) return false;
+  const earlierAllApproved = earlier.every((p) => p.status === 'approved');
+  const finalPending = finalGroup.some((p) => p.status === 'pending');
+  return earlierAllApproved && finalPending;
+}
 
 function matchTab(d: EdoDocument, tab: MyDocTab): boolean {
   switch (tab) {
@@ -445,6 +463,8 @@ function matchTab(d: EdoDocument, tab: MyDocTab): boolean {
       return d.type === 'internal';
     case 'other':
       return d.type === 'incoming' || (d.type !== 'outgoing' && d.type !== 'internal');
+    case 'to_leader':
+      return isAwaitingLeader(d);
   }
 }
 
@@ -496,9 +516,9 @@ export function EdoMyDocsPage() {
   };
 
   const tabCounts = useMemo(() => {
-    const c: Record<MyDocTab, number> = { all: 0, outgoing: 0, reply: 0, internal: 0, other: 0 };
+    const c: Record<MyDocTab, number> = { all: 0, outgoing: 0, reply: 0, internal: 0, other: 0, to_leader: 0 };
     for (const d of docs) {
-      (['all', 'outgoing', 'reply', 'internal', 'other'] as MyDocTab[]).forEach((tb) => {
+      (['all', 'outgoing', 'reply', 'internal', 'other', 'to_leader'] as MyDocTab[]).forEach((tb) => {
         if (matchTab(d, tb)) c[tb] += 1;
       });
     }
@@ -530,7 +550,7 @@ export function EdoMyDocsPage() {
     setDateTo('');
   };
 
-  const tabs: MyDocTab[] = ['all', 'outgoing', 'reply', 'internal', 'other'];
+  const tabs: MyDocTab[] = ['all', 'outgoing', 'reply', 'internal', 'other', 'to_leader'];
   const statuses: DocumentStatus[] = ['draft', 'in_review', 'in_progress', 'done', 'rejected', 'overdue'];
 
   return (
