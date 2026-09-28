@@ -431,7 +431,17 @@ function ControlLegend() {
 }
 
 // ── "Mening hujjatlarim" — kategoriya tablari + qidiruv/filtr paneli ──
-type MyDocTab = 'all' | 'outgoing' | 'reply' | 'internal' | 'other' | 'to_leader';
+type MyDocTab = 'all' | 'outgoing' | 'reply' | 'internal' | 'other' | 'to_leader' | 'unapproved' | 'approved';
+
+// Hujjat shu foydalanuvchi tomonidan tasdiqlanganmi?
+// - Agar foydalanuvchi tasdiqlovchi (approver) bo'lsa: uning participant.status === 'approved'.
+// - Aks holda (masalan, muallif): hujjat butunlay tugagan bo'lsa (done) tasdiqlangan hisoblanadi.
+export function isDocApprovedByMe(d: EdoDocument, userId?: string): boolean {
+  if (!userId) return d.status === 'done';
+  const myPart = (d.participants ?? []).find((p) => p.userId === userId && p.role === 'approver');
+  if (myPart) return myPart.status === 'approved';
+  return d.status === 'done';
+}
 
 // "Raxbarga yuborilishi kutilayotgan" hujjat: barcha oldingi (past vakolatli)
 // tasdiqlovchilar tasdiqlagan, faqat oxirgi (rahbar) guruh hali kutmoqda.
@@ -451,7 +461,7 @@ export function isAwaitingLeader(d: EdoDocument): boolean {
   return earlierAllApproved && finalPending;
 }
 
-function matchTab(d: EdoDocument, tab: MyDocTab): boolean {
+function matchTab(d: EdoDocument, tab: MyDocTab, userId?: string): boolean {
   switch (tab) {
     case 'all':
       return true;
@@ -465,6 +475,10 @@ function matchTab(d: EdoDocument, tab: MyDocTab): boolean {
       return d.type === 'incoming' || (d.type !== 'outgoing' && d.type !== 'internal');
     case 'to_leader':
       return isAwaitingLeader(d);
+    case 'unapproved':
+      return !isDocApprovedByMe(d, userId);
+    case 'approved':
+      return isDocApprovedByMe(d, userId);
   }
 }
 
@@ -516,21 +530,23 @@ export function EdoMyDocsPage() {
   };
 
   const tabCounts = useMemo(() => {
-    const c: Record<MyDocTab, number> = { all: 0, outgoing: 0, reply: 0, internal: 0, other: 0, to_leader: 0 };
+    const c: Record<MyDocTab, number> = {
+      all: 0, outgoing: 0, reply: 0, internal: 0, other: 0, to_leader: 0, unapproved: 0, approved: 0,
+    };
     for (const d of docs) {
-      (['all', 'outgoing', 'reply', 'internal', 'other', 'to_leader'] as MyDocTab[]).forEach((tb) => {
-        if (matchTab(d, tb)) c[tb] += 1;
+      (['all', 'outgoing', 'reply', 'internal', 'other', 'to_leader', 'unapproved', 'approved'] as MyDocTab[]).forEach((tb) => {
+        if (matchTab(d, tb, user?.id)) c[tb] += 1;
       });
     }
     return c;
-  }, [docs]);
+  }, [docs, user?.id]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const fromTs = dateFrom ? new Date(dateFrom).getTime() : null;
     const toTs = dateTo ? new Date(dateTo).getTime() + 24 * 60 * 60 * 1000 : null;
-    return docs.filter((d) => {
-      if (!matchTab(d, tab)) return false;
+    const list = docs.filter((d) => {
+      if (!matchTab(d, tab, user?.id)) return false;
       if (statusFilter !== 'all' && d.status !== statusFilter) return false;
       if (fromTs && new Date(d.createdAt).getTime() < fromTs) return false;
       if (toTs && new Date(d.createdAt).getTime() > toTs) return false;
@@ -540,7 +556,15 @@ export function EdoMyDocsPage() {
       }
       return true;
     });
-  }, [docs, tab, statusFilter, dateFrom, dateTo, search]);
+    // Tartiblash: avval tasdiqlanmagan hujjatlar (eng avval kelgani tepada),
+    // so'ng shu foydalanuvchi tasdiqlagan hujjatlar (ular ham eng avval kelgani birinchi).
+    return list.sort((a, b) => {
+      const aApproved = isDocApprovedByMe(a, user?.id) ? 1 : 0;
+      const bApproved = isDocApprovedByMe(b, user?.id) ? 1 : 0;
+      if (aApproved !== bApproved) return aApproved - bApproved;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+  }, [docs, tab, statusFilter, dateFrom, dateTo, search, user?.id]);
 
   const hasFilters = !!search || statusFilter !== 'all' || !!dateFrom || !!dateTo;
   const clearFilters = () => {
@@ -550,7 +574,7 @@ export function EdoMyDocsPage() {
     setDateTo('');
   };
 
-  const tabs: MyDocTab[] = ['all', 'outgoing', 'reply', 'internal', 'other', 'to_leader'];
+  const tabs: MyDocTab[] = ['all', 'unapproved', 'approved', 'outgoing', 'reply', 'internal', 'other', 'to_leader'];
   const statuses: DocumentStatus[] = ['draft', 'in_review', 'in_progress', 'done', 'rejected', 'overdue'];
 
   return (
