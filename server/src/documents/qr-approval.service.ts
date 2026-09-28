@@ -71,31 +71,47 @@ export class QrApprovalService {
     };
   }
 
+  /** Foydalanuvchi admin yoki kanselyariyami? */
+  private async isStaff(userId: string): Promise<boolean> {
+    const u = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    return u?.role === 'admin' || u?.role === 'chancellery';
+  }
+
   /**
-   * Foydalanuvchining barcha approval stats'ini olish
+   * Foydalanuvchi ko'ra oladigan, tasdiqlovchisi bor hujjat ID'lari.
+   * Staff (admin/kanselyariya) — barcha hujjatlar; boshqalar — faqat o'zi
+   * tasdiqlovchi bo'lgan hujjatlar.
+   */
+  private async approvalDocIds(userId: string): Promise<string[]> {
+    const staff = await this.isStaff(userId);
+    const parts = await this.prisma.documentParticipant.findMany({
+      where: staff ? { role: 'approver' } : { userId, role: 'approver' },
+      select: { documentId: true },
+      distinct: ['documentId'],
+    });
+    return parts.map((p) => p.documentId);
+  }
+
+  /**
+   * Foydalanuvchining barcha approval stats'ini olish.
+   * Staff uchun — tizimdagi barcha hujjatlar holati.
    */
   async getAggregateApprovalStats(userId: string) {
-    // Foydalanuvchi ishtirok etayotgan barcha hujjatlarni olish
-    const userDocuments = await this.prisma.documentParticipant.findMany({
-      where: {
-        userId,
-        role: 'approver',
-      },
-      include: {
-        document: true,
-      },
-    });
+    const docIds = await this.approvalDocIds(userId);
 
-    // Har bir hujjat uchun status'ni hisoblash
     const stats = {
       total: 0,
       approved: 0,
       rejected: 0,
       pending: 0,
+      partially_approved: 0,
     };
 
-    for (const docPart of userDocuments) {
-      const approvalStatus = await this.getApprovalStatus(docPart.documentId);
+    for (const id of docIds) {
+      const approvalStatus = await this.getApprovalStatus(id);
       stats.total += 1;
 
       if (approvalStatus.status === 'approved') {
@@ -104,6 +120,8 @@ export class QrApprovalService {
         stats.rejected += 1;
       } else if (approvalStatus.status === 'pending') {
         stats.pending += 1;
+      } else if (approvalStatus.status === 'partially_approved') {
+        stats.partially_approved += 1;
       }
     }
 
@@ -119,22 +137,15 @@ export class QrApprovalService {
     limit: number = 50,
     offset: number = 0,
   ) {
-    // Foydalanuvchi ishtirok etayotgan hujjatlarni olish
-    const userDocuments = await this.prisma.documentParticipant.findMany({
-      where: {
-        userId,
-        role: 'approver',
-      },
-      select: { documentId: true },
-    });
-
-    const docIds = userDocuments.map((d) => d.documentId);
+    // Ko'rish mumkin bo'lgan hujjatlar (staff — barchasi)
+    const docIds = await this.approvalDocIds(userId);
 
     if (docIds.length === 0) {
       return { data: [], total: 0 };
     }
 
-    // Har bir hujjat uchun approval status tekshirish
+    // BARCHA mos hujjatlarni olamiz (paginate qilmaymiz — status filtri
+    // xotirada bo'lgani uchun, avval filtrlab keyin bo'laklaymiz).
     const documents = await this.prisma.document.findMany({
       where: { id: { in: docIds } },
       include: {
@@ -161,19 +172,18 @@ export class QrApprovalService {
         },
       },
       orderBy: { createdAt: 'desc' },
-      take: limit,
-      skip: offset,
     });
 
-    // Filter by status
-    const filtered = await Promise.all(
+    // Har bir hujjat uchun umumiy tasdiqlash holatini hisoblaymiz
+    const withStatus = await Promise.all(
       documents.map(async (doc) => {
         const approvalStatus = await this.getApprovalStatus(doc.id);
         return { doc, approvalStatus };
       }),
     );
 
-    const result = filtered
+    // Avval status bo'yicha filtr, keyin bo'laklash (pagination)
+    const matched = withStatus
       .filter((x) => x.approvalStatus.status === status)
       .map((x) => ({
         ...x.doc,
@@ -185,9 +195,11 @@ export class QrApprovalService {
         },
       }));
 
+    const paged = matched.slice(offset, offset + limit);
+
     return {
-      data: result,
-      total: result.length,
+      data: paged,
+      total: matched.length,
     };
   }
 

@@ -20,14 +20,14 @@ export function EdoApprovalPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Fetch approval stats (all statuses)
-  const { data: allStats = { total: 0, approved: 0, rejected: 0, pending: 0 } } = useQuery({
+  const { data: allStats = { total: 0, approved: 0, rejected: 0, pending: 0, partially_approved: 0 } } = useQuery({
     queryKey: ['approval-stats-all'],
     queryFn: async () => {
       try {
         const res = await api.get<ApprovalStats>('/documents/approval-status');
         return res.data;
       } catch {
-        return { total: 0, approved: 0, rejected: 0, pending: 0 };
+        return { total: 0, approved: 0, rejected: 0, pending: 0, partially_approved: 0 };
       }
     },
   });

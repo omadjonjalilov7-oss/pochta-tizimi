@@ -7,6 +7,7 @@ export interface ApprovalStats {
   approved: number;
   rejected: number;
   pending: number;
+  partially_approved?: number;
 }
 
 export interface ApprovalStatusTabsProps {
@@ -37,7 +38,7 @@ export function ApprovalStatusTabs({
       id: 'partially_approved' as const,
       label: t('edo.approval_tabs.partially'),
       icon: BarChart3,
-      count: stats.approved > 0 && stats.pending > 0 ? stats.approved : 0,
+      count: stats.partially_approved ?? 0,
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
       borderColor: 'border-blue-200',
