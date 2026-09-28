@@ -400,13 +400,14 @@ enum DocumentType {
 }
 
 enum DocumentStatus {
-  draft        // loyiha — yaratuvchi hali yubormagan
-  in_review    // rahbarlar imzo/tasdiqlash zanjirida
-  in_progress  // rezolyutsiya yozildi, ijroda
-  podpisana    // imzolash uchun bosh direktorga (avazbek) yuborildi
-  done         // bajarildi va yopildi
-  rejected     // rad etildi
-  overdue      // muddati o'tib ketdi (avtomatik holat)
+  draft            // loyiha — yaratuvchi hali yubormagan
+  in_review        // rahbarlar imzo/tasdiqlash zanjirida
+  in_progress      // rezolyutsiya yozildi, ijroda
+  podpisana        // imzolash uchun bosh direktorga (avazbek) yuborildi
+  awaiting_leader  // barcha tasdiqlovchilar tasdiqladi — raxbarga (avazbek) yuborilsin
+  done             // bajarildi va yopildi
+  rejected         // rad etildi
+  overdue          // muddati o'tib ketdi (avtomatik holat)
 }
 
 enum ParticipantRole {

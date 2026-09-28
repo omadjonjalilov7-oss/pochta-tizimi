@@ -103,6 +103,7 @@ export type DocumentStatus =
   | 'in_review'
   | 'in_progress'
   | 'podpisana'
+  | 'awaiting_leader'
   | 'done'
   | 'rejected'
   | 'overdue';

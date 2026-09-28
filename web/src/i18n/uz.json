@@ -800,6 +800,7 @@
       "in_review": "Tasdiqlashda",
       "in_progress": "Ijroda",
       "podpisana": "Imzoda",
+      "awaiting_leader": "Raxbarga yuborilsin",
       "done": "Bajarildi",
       "rejected": "Rad etildi",
       "overdue": "Muddati o'tgan"

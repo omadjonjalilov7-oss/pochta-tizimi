@@ -946,6 +946,37 @@ export class DocumentsService {
         });
       });
       await this.notifyDeferredExecutors(userId, id, doc.number, doc.subject);
+    } else if (
+      (doc.type === 'internal' || doc.type === 'outgoing') &&
+      approverUser?.login !== 'avazbek' &&
+      (await this.prisma.documentParticipant.count({
+        where: {
+          documentId: id,
+          role: ParticipantRole.approver,
+          status: ParticipantStatus.approved,
+          user: { login: 'avazbek' },
+        },
+      })) === 0
+    ) {
+      // Buyurtmachi talabi: barcha tasdiqlovchilar tasdiqladi, LEKIN bosh direktor
+      // (avazbek) hali tasdiqlamagan. Hujjat "Bajarildi" BO'LMAYDI — u "Raxbarga
+      // yuborilsin" (awaiting_leader) holatida turadi. Faqat avazbek tasdiqlagach
+      // "done" bo'ladi. Kanselyariya/admin "Raxbarga yuborish" tugmasi orqali yuboradi.
+      await this.prisma.$transaction(async (tx) => {
+        await tx.document.update({
+          where: { id },
+          data: {
+            status: DocumentStatus.awaiting_leader,
+            currentHolderId: null,
+            closedAt: null,
+          },
+        });
+        await tx.documentAuditLog.create({
+          data: { documentId: id, actorId: userId, action: 'awaiting_leader' },
+        });
+      });
+      // Kanselyariyaga "tasdiqlandi, raxbariyatga yuboring" ogohlantirishi.
+      await this.notifyChancelleryReadyForLeader(userId, id, doc.number, doc.subject);
     } else {
       // Zanjir tugadi — bajarildi va chop bo'lish uchun tayyorlanadi
       let finalNumber = doc.number;
