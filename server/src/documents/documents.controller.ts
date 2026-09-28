@@ -453,6 +453,16 @@ export class DocumentsController {
     return this.docs.sendToSign(user.id, id);
   }
 
+  // "Raxbarga yuborish" — tasdiqlash zanjiri tugagach hujjatni bosh direktorga
+  // (avazbek) tasdiq uchun yuborish. Ichki hujjatlar uchun ham ishlaydi.
+  @Post(':id/send-to-leader')
+  sendToLeader(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.docs.sendToLeader(user.id, id);
+  }
+
   @Post(':id/attachments')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 100 * 1024 * 1024 } }))
   uploadAttachment(

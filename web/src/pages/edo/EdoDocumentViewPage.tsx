@@ -2138,6 +2138,28 @@ function ParticipantsPanel({
   const canAddApprovers =
     isStaff && ['in_review', 'in_progress', 'overdue'].includes(doc.status);
 
+  // "Raxbarga yuborish" — zanjirda rahbar (avazbek) hali bo'lmasa, uni oxirgi
+  // tasdiqlovchi qilib qo'shish. Yaratuvchi, joriy egasi yoki admin/kanselyariya
+  // yuborishi mumkin. Qoralama/rad etilgan hujjatда ko'rinmaydi.
+  const leaderInChain = doc.participants.some(
+    (p) => p.role === 'approver' && p.user?.login === 'avazbek',
+  );
+  const isCreatorOrHolder =
+    !!user && (user.id === doc.createdById || user.id === doc.currentHolderId);
+  const canSendToLeader =
+    !leaderInChain &&
+    !['draft', 'rejected'].includes(doc.status) &&
+    (isStaff || isCreatorOrHolder);
+
+  const sendToLeader = useMutation({
+    mutationFn: async () =>
+      (await api.post(`/documents/${doc.id}/send-to-leader`, {})).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['edo-doc', doc.id] });
+      queryClient.invalidateQueries({ queryKey: ['edo-mine'] });
+    },
+  });
+
   const [addOpen, setAddOpen] = useState(false);
   const [addIds, setAddIds] = useState<string[]>([]);
 
@@ -2183,6 +2205,29 @@ function ParticipantsPanel({
           </button>
         )}
       </div>
+
+      {/* "Raxbarga yuborish" — zanjirga rahbar (avazbek) hali qo'shilmagan bo'lsa */}
+      {canSendToLeader && (
+        <div className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50/50 p-3">
+          <p className="text-xs text-slate-600 mb-2">{t('edo.view.send_to_leader_hint')}</p>
+          {sendToLeader.isError && (
+            <p className="text-xs text-red-600 mb-2">{extractError(sendToLeader.error)}</p>
+          )}
+          <button
+            type="button"
+            disabled={sendToLeader.isPending}
+            onClick={() => sendToLeader.mutate()}
+            className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-1.5 rounded-lg disabled:opacity-50"
+          >
+            {sendToLeader.isPending ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Send size={14} />
+            )}
+            {t('edo.view.send_to_leader')}
+          </button>
+        </div>
+      )}
 
       {canAddApprovers && addOpen && (
         <div className="mb-3 rounded-xl border border-asaka-200 bg-asaka-50/40 p-3 space-y-2">

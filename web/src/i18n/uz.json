@@ -1082,6 +1082,8 @@
       "add_approvers": "Xodim qo'shish",
       "add_approvers_hint": "Zanjirga qo'shimcha tasdiqlovchi xodim(lar) tanlang.",
       "add_approvers_confirm": "Zanjirga qo'shish",
+      "send_to_leader": "Raxbarga yuborish",
+      "send_to_leader_hint": "Tasdiqlash zanjiri tugadi. Hujjatni bosh direktor (raxbar) tasdig'iga yuborasizmi?",
       "send_to_sign": "Imzolashga yuborish",
       "send_to_sign_title": "Imzolash (Podpisat)",
       "send_to_sign_hint": "Hujjatni bosh direktorga imzolash uchun yuboradi. Hujjat holati «Imzoda» bo'lib, kanselyariya va bo'lim oynasida maxsus bo'limga o'tadi.",

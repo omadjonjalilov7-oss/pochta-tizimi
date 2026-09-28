@@ -1146,6 +1146,86 @@ export class DocumentsService {
     return this.findOne(userId, id);
   }
 
+  // "Raxbarga yuborish" — tasdiqlash zanjiri tugagach (yoki istalgan paytda)
+  // hujjatni bosh direktor (avazbek) tasdig'iga yuboradi: avazbekni zanjir oxiriga
+  // qo'shadi, hujjat egasi qiladi, statusni tasdiqlash bosqichiga qaytaradi va
+  // avazbekka xabar yuboradi. Yakunlangan (done) hujjat ham qayta jonlantiriladi.
+  // Ichki hujjatlar uchun ham ishlaydi (sendToSign faqat kiruvchi/chiquvchi uchun).
+  async sendToLeader(userId: string, id: string) {
+    const doc = await this.prisma.document.findUnique({ where: { id } });
+    if (!doc) throw new NotFoundException('Hujjat topilmadi');
+
+    const seeAll = await this.canSeeAllDocs(userId);
+    if (!seeAll && doc.createdById !== userId && doc.currentHolderId !== userId) {
+      throw new ForbiddenException("Hujjatni rahbarga yuborishga haqingiz yo'q");
+    }
+    if (['draft', 'rejected'].includes(doc.status)) {
+      throw new BadRequestException(
+        "Qoralama yoki rad etilgan hujjatni rahbarga yuborib bo'lmaydi",
+      );
+    }
+
+    const leader = await this.prisma.user.findFirst({
+      where: { login: 'avazbek' },
+      select: { id: true },
+    });
+    if (!leader) {
+      throw new BadRequestException("Rahbar (avazbek) foydalanuvchisi topilmadi");
+    }
+    if (leader.id === userId) {
+      throw new BadRequestException("O'zingizni rahbar sifatida qo'shib bo'lmaydi");
+    }
+
+    const approvers = await this.prisma.documentParticipant.findMany({
+      where: { documentId: id, role: ParticipantRole.approver },
+      select: { userId: true, order: true, status: true },
+    });
+    const leaderPart = approvers.find((p) => p.userId === leader.id);
+    if (leaderPart && leaderPart.status !== ParticipantStatus.rejected) {
+      throw new BadRequestException('Rahbar allaqachon tasdiqlash zanjirida mavjud');
+    }
+    const maxOrder = approvers.reduce((m, p) => Math.max(m, p.order), 0);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.documentParticipant.upsert({
+        where: {
+          documentId_userId_role: {
+            documentId: id,
+            userId: leader.id,
+            role: ParticipantRole.approver,
+          },
+        },
+        create: {
+          documentId: id,
+          userId: leader.id,
+          role: ParticipantRole.approver,
+          order: maxOrder + 1,
+          status: ParticipantStatus.pending,
+        },
+        update: {
+          order: maxOrder + 1,
+          status: ParticipantStatus.pending,
+          actedAt: null,
+          rejectReason: null,
+        },
+      });
+      await tx.document.update({
+        where: { id },
+        data: {
+          status: DocumentStatus.in_review,
+          currentHolderId: leader.id,
+          closedAt: null,
+        },
+      });
+      await tx.documentAuditLog.create({
+        data: { documentId: id, actorId: userId, action: 'leader_requested' },
+      });
+    });
+
+    await this.notifyApprover(leader.id, userId, id, doc.number, doc.subject);
+    return this.findOne(userId, id);
+  }
+
   async reject(userId: string, id: string, dto: RejectDto) {
     await this.users.verifyApprovalPin(userId, dto.pin);
     const doc = await this.requireActiveApprover(userId, id);
