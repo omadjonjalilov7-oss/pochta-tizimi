@@ -299,6 +299,29 @@ export class DocumentsController {
     return this.docs.deleteResolution(user.id, id, user.role);
   }
 
+  // MUHIM: quyidagi ikki route ':id' (findOne) dan OLDIN turishi shart, aks holda
+  // '/documents/approval-status' so'rovi ':id' route'iga tushib, UUID validatsiya
+  // xatosi (400) beradi va sahifa doim bo'sh ko'rinadi.
+  @Get('approval-status')
+  getApprovalStats(@CurrentUser() user: CurrentUserPayload) {
+    return this.qrApproval.getAggregateApprovalStats(user.id);
+  }
+
+  @Get('approval-status/filter')
+  filterByApprovalStatus(
+    @CurrentUser() user: CurrentUserPayload,
+    @Query('status') status: 'approved' | 'pending' | 'rejected' | 'partially_approved' = 'pending',
+    @Query('limit') limit: string = '50',
+    @Query('offset') offset: string = '0',
+  ) {
+    return this.qrApproval.filterDocumentsByApprovalStatus(
+      user.id,
+      status,
+      parseInt(limit),
+      parseInt(offset),
+    );
+  }
+
   @Get(':id')
   findOne(
     @CurrentUser() user: CurrentUserPayload,
@@ -585,26 +608,9 @@ export class DocumentsController {
   }
 
   // ── QR TASDIQQA VA APPROVAL STATUS ──────────────────────────────
-
-  @Get('approval-status')
-  getApprovalStats(@CurrentUser() user: CurrentUserPayload) {
-    return this.qrApproval.getAggregateApprovalStats(user.id);
-  }
-
-  @Get('approval-status/filter')
-  filterByApprovalStatus(
-    @CurrentUser() user: CurrentUserPayload,
-    @Query('status') status: 'approved' | 'pending' | 'rejected' | 'partially_approved' = 'pending',
-    @Query('limit') limit: string = '50',
-    @Query('offset') offset: string = '0',
-  ) {
-    return this.qrApproval.filterDocumentsByApprovalStatus(
-      user.id,
-      status,
-      parseInt(limit),
-      parseInt(offset),
-    );
-  }
+  // DIQQAT: 'approval-status' va 'approval-status/filter' route'lari @Get(':id')
+  // dan YUQORIDA (findOne'dan oldin) e'lon qilingan — aks holda NestJS ularni
+  // ':id' deb qabul qilib, ParseUUIDPipe 400 xato beradi.
 
   @Get(':id/approval-status')
   getApprovalStatus(
