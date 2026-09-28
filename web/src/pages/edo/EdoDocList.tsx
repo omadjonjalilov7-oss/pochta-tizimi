@@ -19,6 +19,9 @@ export interface DocListProps {
   // inline=true — eski to'liq kenglikdagi ro'yxat (EdoTasksPage ichida ishlatiladi,
   // u yerda ikkita ro'yxat ustma-ust va statistika bilan turadi).
   inline?: boolean;
+  // clientFilter — serverdan kelgan ro'yxatni brauzerda qo'shimcha filtrlash uchun
+  // (masalan "Imzolanadigan hujjatlar" = shaxsan men tasdiqlagan hujjatlar).
+  clientFilter?: (d: EdoDocument, userId?: string) => boolean;
 }
 
 function StatusPill({ status }: { status: DocumentStatus }) {
@@ -39,15 +42,20 @@ function StatusPill({ status }: { status: DocumentStatus }) {
   );
 }
 
-export function DocList({ queryKey, endpoint, titleKey, emptyKey, showHolder, inline }: DocListProps) {
+export function DocList({ queryKey, endpoint, titleKey, emptyKey, showHolder, inline, clientFilter }: DocListProps) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   const qc = useQueryClient();
-  const { data: docs = [], isLoading } = useQuery({
+  const { data: allDocs = [], isLoading } = useQuery({
     queryKey: [queryKey],
     queryFn: async () => (await api.get<EdoDocument[]>(endpoint)).data,
   });
+  // clientFilter berilgan bo'lsa — ro'yxatni brauzerda qo'shimcha filtrlaymiz.
+  const docs = useMemo(
+    () => (clientFilter ? allDocs.filter((d) => clientFilter(d, user?.id)) : allDocs),
+    [allDocs, clientFilter, user?.id],
+  );
 
   // Master-detail: chapda ro'yxat, o'ngda tanlangan hujjat. To'liq ekran (fullscreen)
   // rejimida faqat hujjatning o'zi ko'rinadi.
@@ -852,13 +860,18 @@ export function EdoArchivePage() {
   );
 }
 
+// "Imzolanadigan hujjatlar" — buyurtmachi talabi: bu menyu "Mening hujjatlarim"dagi
+// "Tasdiqlanganlar" toifasi bilan bir xil hujjatlarni ko'rsatadi (shaxsan men
+// tasdiqlagan hujjatlar). Shu bois /documents/mine dan olib, isDocApprovedByMe
+// bo'yicha filtrlanadi (edo-mine cache'i qayta ishlatiladi).
 export function EdoToSignPage() {
   return (
     <DocList
-      queryKey="edo-to-sign"
-      endpoint="/documents/to-sign"
+      queryKey="edo-mine"
+      endpoint="/documents/mine"
       titleKey="edo.nav.to_sign"
       emptyKey="edo.list.empty_to_sign"
+      clientFilter={isDocApprovedByMe}
     />
   );
 }
