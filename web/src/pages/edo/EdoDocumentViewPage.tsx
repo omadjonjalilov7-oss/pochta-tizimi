@@ -279,6 +279,12 @@ export function EdoDocumentViewPage({
       (await api.post<EdoDocument>(`/documents/${id}/send-to-sign`, {})).data,
     onSuccess: invalidate,
   });
+  // "Raxbarga yuborish" — sarlavhadagi tugma uchun (ParticipantsPanel'dagi bilan bir xil endpoint).
+  const sendToLeaderMut = useMutation({
+    mutationFn: async () =>
+      (await api.post<EdoDocument>(`/documents/${id}/send-to-leader`, {})).data,
+    onSuccess: invalidate,
+  });
   const reject = useMutation({
     mutationFn: async (vars: { reason: string; pin: string }) =>
       (await api.post<EdoDocument>(`/documents/${id}/reject`, vars)).data,
@@ -505,6 +511,24 @@ export function EdoDocumentViewPage({
       // Staff o'zi yaratgan qoralamadan «alohida-alohida» topshiriq berishi mumkin.
       (isCreator && doc.status === 'draft'));
 
+  // "Raxbarga yuborish" — FAQAT admin/kanselyariya, FAQAT barcha tasdiqlovchilar
+  // tasdiqlagach va zanjirda rahbar (avazbek) hali bo'lmasa. (ParticipantsPanel'dagi
+  // shart bilan bir xil — bu yerda sarlavhadagi tugma uchun.)
+  const leaderInChainHdr = doc.participants.some(
+    (p) => p.role === 'approver' && p.user?.login === 'avazbek',
+  );
+  const nonLeaderApproversHdr = doc.participants.filter(
+    (p) => p.role === 'approver' && p.user?.login !== 'avazbek',
+  );
+  const allApprovedHdr =
+    nonLeaderApproversHdr.length > 0 &&
+    nonLeaderApproversHdr.every((p) => p.status === 'approved');
+  const canSendToLeader =
+    isStaff &&
+    !leaderInChainHdr &&
+    allApprovedHdr &&
+    !['draft', 'rejected'].includes(doc.status);
+
   // Mening pending ijro vazifalarim
   const myPendingTargets = (doc.resolutions ?? [])
     .flatMap((r) => r.targets.map((t) => ({ ...t, resolution: r })))
@@ -606,7 +630,28 @@ export function EdoDocumentViewPage({
                 {t('edo.view.history')}
                 <span className="text-slate-400">({doc.audit?.length ?? 0})</span>
               </button>
+              {/* "Raxbarga yuborish" — Tarix tugmasi yonida (admin/kanselyariya,
+                  barcha tasdiqlagach). Zanjir oynasida ham turaveradi. */}
+              {canSendToLeader && (
+                <button
+                  type="button"
+                  disabled={sendToLeaderMut.isPending}
+                  onClick={() => sendToLeaderMut.mutate()}
+                  title={t('edo.view.send_to_leader_hint')}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg disabled:opacity-50"
+                >
+                  {sendToLeaderMut.isPending ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Send size={14} />
+                  )}
+                  {t('edo.view.send_to_leader')}
+                </button>
+              )}
             </div>
+            {sendToLeaderMut.isError && (
+              <p className="text-xs text-red-600 mt-2">{extractError(sendToLeaderMut.error)}</p>
+            )}
             {doc.shortInfo && (
               <p className="text-sm text-slate-600 mt-1">{doc.shortInfo}</p>
             )}
