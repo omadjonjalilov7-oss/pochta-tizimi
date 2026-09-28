@@ -1567,6 +1567,27 @@ export class DocumentsService {
 
   // Menga biriktirilgan imzolanadigan tashqi hujjatlar ro'yxati
   async listToSign(userId: string) {
+    // Admin/kanselyariya — tizimdagi imzo kutayotgan barcha hujjatlar
+    // (imzolash huquqi bor xodim navbatда turgan yoki "Imzoда" holatidagi).
+    const seeAll = await this.canSeeAllDocs(userId);
+    if (seeAll) {
+      const docs = await this.prisma.document.findMany({
+        where: {
+          status: { in: ['in_review', 'podpisana'] },
+          participants: {
+            some: {
+              role: ParticipantRole.approver,
+              status: ParticipantStatus.pending,
+              user: { canSignExternal: true },
+            },
+          },
+        },
+        include: FULL_INCLUDE,
+        orderBy: { updatedAt: 'desc' },
+      });
+      return docs.map((d) => this.serialize(d));
+    }
+
     const me = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { canSignExternal: true },
@@ -2591,11 +2612,14 @@ export class DocumentsService {
 
   // Menga biriktirilgan vazifalar (tasdiqlash kutilayotgan)
   async listTasks(userId: string) {
+    // Admin/kanselyariya — tizimdagi barcha kutayotgan tasdiqlashlar;
+    // boshqalar — faqat o'zi navbatdagi tasdiqlovchi bo'lgan hujjatlar.
+    const seeAll = await this.canSeeAllDocs(userId);
     const docs = await this.prisma.document.findMany({
       where: {
         participants: {
           some: {
-            userId,
+            ...(seeAll ? {} : { userId }),
             role: ParticipantRole.approver,
             status: ParticipantStatus.pending,
           },
@@ -3240,16 +3264,22 @@ export class DocumentsService {
     const from = fromIso ? new Date(fromIso) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const to = toIso ? new Date(toIso) : new Date();
 
-    // Foydalanuvchi yaratgan hujjatlar bo'yicha kesim
+    // Admin/kanselyariya uchun — butun tizim kesimi; boshqalar uchun — faqat o'zi.
+    const seeAll = await this.canSeeAllDocs(userId);
+
+    // Yaratilgan hujjatlar bo'yicha kesim
     const created = await this.prisma.document.findMany({
-      where: { createdById: userId, createdAt: { gte: from, lte: to } },
+      where: {
+        ...(seeAll ? {} : { createdById: userId }),
+        createdAt: { gte: from, lte: to },
+      },
       select: { id: true, status: true, type: true, createdAt: true },
     });
 
-    // Foydalanuvchining tasdiqlash navbati statistikasi
+    // Tasdiqlash navbati statistikasi
     const myApprovals = await this.prisma.documentParticipant.findMany({
       where: {
-        userId,
+        ...(seeAll ? {} : { userId }),
         role: 'approver',
         document: { createdAt: { gte: from, lte: to } },
       },
@@ -3259,7 +3289,7 @@ export class DocumentsService {
     // Topshiriqlar (ResolutionTarget) bo'yicha kesim
     const myTasks = await this.prisma.resolutionTarget.findMany({
       where: {
-        userId,
+        ...(seeAll ? {} : { userId }),
         resolution: { document: { createdAt: { gte: from, lte: to } } },
       },
       select: { status: true, doneAt: true, deadline: true },
