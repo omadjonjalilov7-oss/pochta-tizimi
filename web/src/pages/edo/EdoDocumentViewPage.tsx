@@ -2139,17 +2139,22 @@ function ParticipantsPanel({
     isStaff && ['in_review', 'in_progress', 'overdue'].includes(doc.status);
 
   // "Raxbarga yuborish" — zanjirda rahbar (avazbek) hali bo'lmasa, uni oxirgi
-  // tasdiqlovchi qilib qo'shish. Yaratuvchi, joriy egasi yoki admin/kanselyariya
-  // yuborishi mumkin. Qoralama/rad etilgan hujjatда ko'rinmaydi.
+  // tasdiqlovchi qilib qo'shish. FAQAT admin/kanselyariya yubora oladi va FAQAT
+  // barcha tasdiqlovchilar tasdiqlagach ko'rinadi. Qoralama/rad etilganda ko'rinmaydi.
   const leaderInChain = doc.participants.some(
     (p) => p.role === 'approver' && p.user?.login === 'avazbek',
   );
-  const isCreatorOrHolder =
-    !!user && (user.id === doc.createdById || user.id === doc.currentHolderId);
+  const nonLeaderApprovers = doc.participants.filter(
+    (p) => p.role === 'approver' && p.user?.login !== 'avazbek',
+  );
+  const allApproved =
+    nonLeaderApprovers.length > 0 &&
+    nonLeaderApprovers.every((p) => p.status === 'approved');
   const canSendToLeader =
+    isStaff &&
     !leaderInChain &&
-    !['draft', 'rejected'].includes(doc.status) &&
-    (isStaff || isCreatorOrHolder);
+    allApproved &&
+    !['draft', 'rejected'].includes(doc.status);
 
   const sendToLeader = useMutation({
     mutationFn: async () =>

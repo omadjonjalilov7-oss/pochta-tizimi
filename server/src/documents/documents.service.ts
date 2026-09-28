@@ -1155,9 +1155,13 @@ export class DocumentsService {
     const doc = await this.prisma.document.findUnique({ where: { id } });
     if (!doc) throw new NotFoundException('Hujjat topilmadi');
 
+    // Buyurtmachi talabi: hujjatni rahbarga (avazbek) FAQAT admin yoki kanselyariya
+    // roli bor foydalanuvchi yubora oladi — yaratuvchi/joriy egasi emas.
     const seeAll = await this.canSeeAllDocs(userId);
-    if (!seeAll && doc.createdById !== userId && doc.currentHolderId !== userId) {
-      throw new ForbiddenException("Hujjatni rahbarga yuborishga haqingiz yo'q");
+    if (!seeAll) {
+      throw new ForbiddenException(
+        "Hujjatni rahbarga faqat kanselyariya yoki admin yubora oladi",
+      );
     }
     if (['draft', 'rejected'].includes(doc.status)) {
       throw new BadRequestException(
@@ -1183,6 +1187,20 @@ export class DocumentsService {
     const leaderPart = approvers.find((p) => p.userId === leader.id);
     if (leaderPart && leaderPart.status !== ParticipantStatus.rejected) {
       throw new BadRequestException('Rahbar allaqachon tasdiqlash zanjirida mavjud');
+    }
+    // Buyurtmachi talabi: rahbarga yuborishdan oldin BARCHA tasdiqlovchilar (rahbardan
+    // tashqari) tasdiqlagan bo'lishi shart. Aks holda hujjat hali tayyor emas.
+    const nonLeaderApprovers = approvers.filter((p) => p.userId !== leader.id);
+    if (nonLeaderApprovers.length === 0) {
+      throw new BadRequestException('Hujjatda tasdiqlovchilar yo\'q');
+    }
+    const allApproved = nonLeaderApprovers.every(
+      (p) => p.status === ParticipantStatus.approved,
+    );
+    if (!allApproved) {
+      throw new BadRequestException(
+        "Avval barcha tasdiqlovchilar hujjatni tasdiqlashi kerak",
+      );
     }
     const maxOrder = approvers.reduce((m, p) => Math.max(m, p.order), 0);
 
@@ -3976,9 +3994,9 @@ export class DocumentsService {
   private async requireActiveApprover(userId: string, id: string) {
     const doc = await this.prisma.document.findUnique({ where: { id } });
     if (!doc) throw new NotFoundException('Hujjat topilmadi');
-    // Tasdiqlash STATUSGA bog'liq emas — foydalanuvchida kutilayotgan (pending)
-    // tasdiqlash bo'lsa yetarli (quyidagi isAnyPendingApprover). Faqat yakunlangan
-    // (done/rejected) yoki hali yuborilmagan (draft) hujjatni to'smaymiz.
+    // Tasdiqlash STATUSGA bog'liq emas, lekin QAT'IY tartib (rink) bo'yicha boradi:
+    // faqat navbatdagi (eng kichik tartibli) guruh yoki majburiy tasdiqlovchi amal
+    // qiladi. Faqat yakunlangan (done/rejected) yoki yuborilmagan (draft) hujjatni to'smaymiz.
     //  - "in_review"   — tasdiqlash bosqichi;
     //  - "in_progress" — kanselyariya topshiriq kiritib Ijroga o'tkazgan, lekin
     //    tasdiqlovchilar hali kutayotgan bo'lishi mumkin — ular tasdiqlay olsin;
@@ -3996,11 +4014,10 @@ export class DocumentsService {
     // egasiga to'g'ri keladi, shu bois xatti-harakat o'zgarmaydi.
     if (await this.isPendingApproverAtMinOrder(userId, id)) return doc;
     if (await this.isMandatoryPendingApprover(userId, id)) return doc;
-    // Buyurtmachi talabi: hujjat bajarilmaguncha (in_review) zanjirdagi ISTALGAN
-    // kutayotgan (pending) tasdiqlovchi navbatini kutmasdan amal (tasdiqlash/rad/
-    // yo'naltirish/imzo) qila oladi. Yuqoridagi qat'iy tekshiruvlar o'tmasa ham,
-    // foydalanuvchida kutilayotgan tasdiqlash bo'lsa — ruxsat beramiz.
-    if (await this.isAnyPendingApprover(userId, id)) return doc;
+    // Buyurtmachi talabi (rink darajasi): tasdiqlash QAT'IY tartib (order) bo'yicha
+    // boradi. Faqat navbatdagi (eng kichik tartibli) guruh yoki majburiy tasdiqlovchi
+    // amal qila oladi. Navbati kelmagan tasdiqlovchi kutadi — o'z tartibi kelgach xabar
+    // oladi va shundagina tasdiqlay oladi.
     throw new ForbiddenException("Hujjat hozir sizning navbatingizda emas");
   }
 
