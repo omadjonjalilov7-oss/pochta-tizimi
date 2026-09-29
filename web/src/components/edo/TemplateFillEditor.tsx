@@ -111,7 +111,7 @@ export function TemplateFillEditor({
   onSubject,
   onBody,
   disabled,
-  maxBodyChars = 3000,
+  maxBodyChars = 12000,
 }: {
   templateId: string;
   subject: string;

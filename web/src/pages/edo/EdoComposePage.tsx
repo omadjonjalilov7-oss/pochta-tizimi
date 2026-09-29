@@ -1293,7 +1293,7 @@ export function EdoComposePage() {
                 onSubject={setSubject}
                 onBody={setBody}
                 disabled={!isDraft}
-                maxBodyChars={3000}
+                maxBodyChars={12000}
               />
             ) : (
               <RichBodyEditor
