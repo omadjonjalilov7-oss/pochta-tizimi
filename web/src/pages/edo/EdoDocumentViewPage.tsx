@@ -446,6 +446,14 @@ export function EdoDocumentViewPage({
   }
 
   const isCreator = doc.createdById === user?.id;
+  // omadjon / omadjon1 loginlari — maxsus tahrirchi: hujjat allaqachon yuborilgan
+  // (draft bo'lmagan) bo'lsa ham mavzu va matnni o'zgartira oladi.
+  const isSuperEditor = user?.login === 'omadjon' || user?.login === 'omadjon1';
+  // Tahrirlash tugmasi ko'rinishi: yaratuvchi qoralamada, YOKI maxsus tahrirchi
+  // (o'chirilgan/rad etilgan hujjatlardan tashqari) doim.
+  const canEditDoc =
+    (isCreator && doc.status === 'draft') ||
+    (isSuperEditor && !['rejected'].includes(doc.status));
   // Buyurtmachi talabi: hujjat "Tasdiqlashda" (in_review) — ya'ni hali
   // yakunlanmagan (bajarilmagan) bo'lsa — tasdiqlash zanjiridagi ISTALGAN
   // kutayotgan (pending) tasdiqlovchi o'z navbatini kutmasdan tasdiqlashi
@@ -740,7 +748,7 @@ export function EdoDocumentViewPage({
                   </button>
                 </div>
               )}
-              {isCreator && doc.status === 'draft' && (
+              {canEditDoc && (
                 <button
                   type="button"
                   onClick={() => navigate(`/edo/compose?id=${doc.id}`)}

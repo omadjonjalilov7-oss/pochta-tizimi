@@ -262,6 +262,13 @@ export function EdoComposePage() {
   );
 
   const isDraft = !doc || doc.status === 'draft';
+  // omadjon / omadjon1 loginlari — maxsus tahrirchi: hujjat allaqachon yuborilgan
+  // (draft bo'lmagan) bo'lsa ham mavzu va matnni tahrirlashi mumkin.
+  const isSuperEditor = user?.login === 'omadjon' || user?.login === 'omadjon1';
+  // Mavzu/matn maydonlari va "Saqlash" tugmasi tahrirlanadigan holat: qoralama YOKI
+  // maxsus tahrirchi (rad etilgan hujjatdan tashqari).
+  const contentEditable =
+    isDraft || (isSuperEditor && doc?.status !== 'rejected');
 
   // Chiquvchi hujjatda "qisqacha mazmuni" maydoni yo'q — sarlavhani hujjat
   // matnidan (HTML teglari va {{...}} o'zgaruvchilarsiz) ajratamiz, bo'sh bo'lsa
@@ -604,7 +611,7 @@ export function EdoComposePage() {
             <button
               type="button"
               onClick={() => handleSave()}
-              disabled={saveDraft.isPending || !isDraft}
+              disabled={saveDraft.isPending || !contentEditable}
               className="inline-flex items-center gap-1.5 bg-asaka-600 hover:bg-asaka-700 text-white font-semibold text-xs md:text-sm px-4 py-1.5 rounded-lg disabled:opacity-50"
             >
               <Save size={15} />
@@ -870,7 +877,7 @@ export function EdoComposePage() {
                     placeholder={t('edo.compose.ph_summary')}
                     maxLength={500}
                     required
-                    disabled={!isDraft}
+                    disabled={!contentEditable}
                     className={`${fieldCls} resize-none flex-1 min-h-[120px]`}
                   />
                 </div>
@@ -1054,7 +1061,7 @@ export function EdoComposePage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={saveDraft.isPending || !isDraft}
+                  disabled={saveDraft.isPending || !contentEditable}
                   className="inline-flex items-center gap-2 bg-asaka-600 hover:bg-asaka-700 text-white font-semibold px-6 py-2 rounded-lg disabled:opacity-50"
                 >
                   <Save size={16} />
@@ -1274,7 +1281,7 @@ export function EdoComposePage() {
                   maxLength={500}
                   rows={4}
                   required
-                  disabled={!isDraft}
+                  disabled={!contentEditable}
                   className={`${fieldCls} resize-y pl-10`}
                 />
               </div>
@@ -1292,14 +1299,14 @@ export function EdoComposePage() {
                 body={body}
                 onSubject={setSubject}
                 onBody={setBody}
-                disabled={!isDraft}
+                disabled={!contentEditable}
                 maxBodyChars={12000}
               />
             ) : (
               <RichBodyEditor
                 value={body}
                 onChange={setBody}
-                disabled={!isDraft}
+                disabled={!contentEditable}
                 placeholder={t('edo.compose.ph_body')}
               />
             )}

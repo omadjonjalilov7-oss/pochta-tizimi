@@ -326,12 +326,30 @@ export class DocumentsService {
   async update(userId: string, id: string, dto: UpdateDocumentDto) {
     const doc = await this.prisma.document.findUnique({ where: { id } });
     if (!doc) throw new NotFoundException('Hujjat topilmadi');
-    if (doc.createdById !== userId) {
-      throw new ForbiddenException('Hujjatni faqat yaratuvchi tahrirlay oladi');
+
+    // omadjon / omadjon1 loginlari — maxsus tahrirchi: hujjat allaqachon
+    // tasdiqlash uchun yuborilgan (draft bo'lmagan) bo'lsa ham mavzu va matnni
+    // o'zgartira oladi. Qolgan foydalanuvchilar faqat o'z qoralamasini tahrirlaydi.
+    const editor = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { login: true },
+    });
+    const isSuperEditor =
+      editor?.login === 'omadjon' || editor?.login === 'omadjon1';
+    const isDraft = doc.status === 'draft';
+
+    if (!isSuperEditor) {
+      if (doc.createdById !== userId) {
+        throw new ForbiddenException('Hujjatni faqat yaratuvchi tahrirlay oladi');
+      }
+      if (!isDraft) {
+        throw new BadRequestException('Faqat qoralama tahrirlanadi');
+      }
     }
-    if (doc.status !== 'draft') {
-      throw new BadRequestException('Faqat qoralama tahrirlanadi');
-    }
+
+    // Maxsus tahrirchi draft bo'lmagan hujjatni tahrirlaganda faqat mavzu/matn
+    // o'zgartiriladi — tur, raqam, tasdiqlovchilar zanjiri va h.k. o'zgarmaydi.
+    const restrictToContent = isSuperEditor && !isDraft;
 
     const data: Prisma.DocumentUpdateInput = {};
     if (dto.subject !== undefined) data.subject = dto.subject;
@@ -437,9 +455,20 @@ export class DocumentsService {
       data.internalKind = null;
     }
 
+    // Draft bo'lmagan hujjatda maxsus tahrirchi faqat mavzu/qisqa ma'lumot/matnni
+    // saqlaydi; boshqa maydonlar (tur, raqam, jurnal, muddat va h.k.) o'zgartirilmaydi.
+    if (restrictToContent) {
+      const allowedKeys = ['subject', 'shortInfo', 'body'];
+      for (const key of Object.keys(data)) {
+        if (!allowedKeys.includes(key)) {
+          delete (data as Record<string, unknown>)[key];
+        }
+      }
+    }
+
     await this.prisma.$transaction(async (tx) => {
       await tx.document.update({ where: { id }, data });
-      if (dto.approverIds !== undefined) {
+      if (!restrictToContent && dto.approverIds !== undefined) {
         await this.saveApproverChain(tx, id, dto.approverIds, userId);
       }
     });
