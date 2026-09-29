@@ -93,6 +93,13 @@ export class DocumentsController {
     return this.docs.listToSign(user.id);
   }
 
+  // "Tayyor hujjatlar" — bosh direktor (avazbek) tasdiqlagan hujjatlar
+  // (asosan admin/kanselyariya menyusi uchun).
+  @Get('leader-approved')
+  listLeaderApproved(@CurrentUser() user: CurrentUserPayload) {
+    return this.docs.listLeaderApproved(user.id);
+  }
+
   @Get('control')
   listControl(@CurrentUser() user: CurrentUserPayload) {
     return this.docs.listControl(user.id);

@@ -34,6 +34,7 @@ import {
   EdoInternalPage,
   EdoArchivePage,
   EdoToSignPage,
+  EdoReadyDocsPage,
   EdoDepartmentPage,
   EdoOpenTasksPage,
   EdoKorrektorPage,
@@ -102,6 +103,7 @@ export function App() {
           <Route path="internal" element={<EdoInternalPage />} />
           <Route path="archive" element={<EdoArchivePage />} />
           <Route path="signing" element={<EdoToSignPage />} />
+          <Route path="ready" element={<EdoReadyDocsPage />} />
           <Route path="templates" element={<EdoTemplatesPage />} />
           <Route path="stats" element={<EdoStatsPage />} />
           <Route path="stats/:view" element={<EdoStatsPage />} />

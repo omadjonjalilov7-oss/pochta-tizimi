@@ -378,6 +378,9 @@ export function LayoutEdo() {
           )}
           <EdoNav to="/edo/tasks" icon={Handshake} label={t('edo.nav.tasks_approval')} collapsed={collapsed} />
           <EdoNav to="/edo/signing" icon={FileSignature} label={t('edo.nav.to_sign')} collapsed={collapsed} />
+          {isStaff && (
+            <EdoNav to="/edo/ready" icon={ClipboardCheck} label={t('edo.nav.ready_docs')} collapsed={collapsed} />
+          )}
           <EdoNav to="/edo/department" icon={Building2} label={t('edo.nav.department')} collapsed={collapsed} />
           <EdoNav to="/edo/drafts" icon={SquarePen} label={t('edo.nav.editor')} collapsed={collapsed} />
 

@@ -863,10 +863,9 @@ export function EdoArchivePage() {
   );
 }
 
-// "Imzolanadigan hujjatlar" — buyurtmachi talabi: bu menyu "Mening hujjatlarim"dagi
-// "Tasdiqlanganlar" toifasi bilan bir xil hujjatlarni ko'rsatadi (shaxsan men
-// tasdiqlagan hujjatlar). Shu bois /documents/mine dan olib, isDocApprovedByMe
-// bo'yicha filtrlanadi (edo-mine cache'i qayta ishlatiladi).
+// "Imzolanadigan hujjatlar" — buyurtmachi talabi: faqat avazbek (rahbar) logingacha
+// barcha tasdiqlovchilar tasdiqlab bo'lgan, ammo rahbar hali imzolamagan hujjatlar
+// (awaiting_leader). /documents/mine dan olib, isAwaitingLeader bo'yicha filtrlanadi.
 export function EdoToSignPage() {
   return (
     <DocList
@@ -874,7 +873,21 @@ export function EdoToSignPage() {
       endpoint="/documents/mine"
       titleKey="edo.nav.to_sign"
       emptyKey="edo.list.empty_to_sign"
-      clientFilter={isDocApprovedByMe}
+      clientFilter={isAwaitingLeader}
+    />
+  );
+}
+
+// "Tayyor hujjatlar" — avazbek (rahbar) tasdiqlagan hujjatlar. Faqat kanselyariya
+// va admin rollariga ko'rinadi (LayoutEdo'da isStaff bilan yashiriladi).
+export function EdoReadyDocsPage() {
+  return (
+    <DocList
+      queryKey="edo-ready"
+      endpoint="/documents/leader-approved"
+      titleKey="edo.nav.ready_docs"
+      emptyKey="edo.list.empty_ready"
+      showHolder
     />
   );
 }

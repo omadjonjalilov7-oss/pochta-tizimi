@@ -1662,6 +1662,33 @@ export class DocumentsService {
     return docs.map((d) => this.serialize(d));
   }
 
+  // "Tayyor hujjatlar" — bosh direktor (avazbek) TASDIQLAGAN (imzolagan) hujjatlar.
+  // Faqat admin/kanselyariya menyusi: tizim bo'yicha barcha shunday hujjatlar.
+  // Oddiy foydalanuvchi (agar chaqirsa) — faqat o'zi ishtirokchi bo'lgan hujjatlar.
+  async listLeaderApproved(userId: string) {
+    const seeAll = await this.canSeeAllDocs(userId);
+    const docs = await this.prisma.document.findMany({
+      where: {
+        AND: [
+          {
+            participants: {
+              some: {
+                role: ParticipantRole.approver,
+                status: ParticipantStatus.approved,
+                user: { login: 'avazbek' },
+              },
+            },
+          },
+          // Oddiy foydalanuvchi — faqat o'zi ishtirokchi bo'lgan hujjatlar.
+          ...(seeAll ? [] : [{ participants: { some: { userId } } }]),
+        ],
+      },
+      include: FULL_INCLUDE,
+      orderBy: { updatedAt: 'desc' },
+    });
+    return docs.map((d) => this.serialize(d));
+  }
+
   // ── REZOLYUTSIYA / IJROCHI VAZIFALARI ─────────────────────────────────
 
   async addResolution(
