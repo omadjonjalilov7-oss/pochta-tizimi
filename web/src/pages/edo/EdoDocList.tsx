@@ -440,7 +440,7 @@ function ControlLegend() {
 }
 
 // ── "Mening hujjatlarim" — kategoriya tablari + qidiruv/filtr paneli ──
-type MyDocTab = 'all' | 'outgoing' | 'reply' | 'internal' | 'other' | 'to_leader' | 'unapproved' | 'approved';
+type MyDocTab = 'all' | 'outgoing' | 'reply' | 'internal' | 'other' | 'to_leader' | 'unapproved' | 'approved' | 'rejected';
 
 // Hujjat shu foydalanuvchi tomonidan tasdiqlanganmi?
 // - Agar foydalanuvchi tasdiqlovchi (approver) bo'lsa: uning participant.status === 'approved'.
@@ -473,6 +473,9 @@ export function isAwaitingLeader(d: EdoDocument): boolean {
 }
 
 function matchTab(d: EdoDocument, tab: MyDocTab, userId?: string): boolean {
+  // Rad etilgan hujjatlar FAQAT "Rad etilgan" tabida ko'rinadi — boshqa barcha
+  // tablarda (Hammasi, Tasdiqlanmagan, tur bo'yicha va h.k.) ko'rinmaydi.
+  if (tab !== 'rejected' && d.status === 'rejected') return false;
   switch (tab) {
     case 'all':
       return true;
@@ -490,6 +493,8 @@ function matchTab(d: EdoDocument, tab: MyDocTab, userId?: string): boolean {
       return !isDocApprovedByMe(d, userId);
     case 'approved':
       return isDocApprovedByMe(d, userId);
+    case 'rejected':
+      return d.status === 'rejected';
   }
 }
 
@@ -542,10 +547,10 @@ export function EdoMyDocsPage() {
 
   const tabCounts = useMemo(() => {
     const c: Record<MyDocTab, number> = {
-      all: 0, outgoing: 0, reply: 0, internal: 0, other: 0, to_leader: 0, unapproved: 0, approved: 0,
+      all: 0, outgoing: 0, reply: 0, internal: 0, other: 0, to_leader: 0, unapproved: 0, approved: 0, rejected: 0,
     };
     for (const d of docs) {
-      (['all', 'outgoing', 'reply', 'internal', 'other', 'to_leader', 'unapproved', 'approved'] as MyDocTab[]).forEach((tb) => {
+      (['all', 'outgoing', 'reply', 'internal', 'other', 'to_leader', 'unapproved', 'approved', 'rejected'] as MyDocTab[]).forEach((tb) => {
         if (matchTab(d, tb, user?.id)) c[tb] += 1;
       });
     }
@@ -585,8 +590,10 @@ export function EdoMyDocsPage() {
     setDateTo('');
   };
 
-  const tabs: MyDocTab[] = ['all', 'unapproved', 'approved', 'outgoing', 'reply', 'internal', 'other', 'to_leader'];
-  const statuses: DocumentStatus[] = ['draft', 'in_review', 'in_progress', 'done', 'rejected', 'overdue'];
+  const tabs: MyDocTab[] = ['all', 'unapproved', 'approved', 'rejected', 'outgoing', 'reply', 'internal', 'other', 'to_leader'];
+  // "rejected" holati alohida "Rad etilgan" tabida ko'rsatiladi, shu bois status
+  // filtri ro'yxatidan olib tashlandi (boshqa tablarda rad etilgan chiqmaydi).
+  const statuses: DocumentStatus[] = ['draft', 'in_review', 'in_progress', 'done', 'overdue'];
 
   return (
     <div className="w-full px-3 md:px-6 py-4 md:py-6">
