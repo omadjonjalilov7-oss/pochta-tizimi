@@ -385,10 +385,9 @@ export function EdoDocumentViewPage({
   const [extendDeadlineValue, setExtendDeadlineValue] = useState('');
   const [extendReasonValue, setExtendReasonValue] = useState('');
   const [sendApproverIds, setSendApproverIds] = useState<string[]>([]);
-  // Qoralamani yuborish usuli: hozircha faqat 'separate' (alohida-alohida) —
-  // har bir tanlangan xodimga hujjat mustaqil boradi. "Odatiy" (zanjir) usuli
-  // vaqtincha olib tashlandi, foydalanuvchi usulni qo'lda tanlamaydi.
-  const [sendMode] = useState<'normal' | 'separate'>('separate');
+  // Yuborish usuli: ichki hujjatlar RANK (rink) zanjiri bo'yicha (parallel=false),
+  // chiquvchi hujjatlar to'g'ridan-to'g'ri imzoga (parallel=true) yuboriladi.
+  // Foydalanuvchi usulni qo'lda tanlamaydi — hujjat turiga qarab avtomat aniqlanadi.
   const [showChainModal, setShowChainModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showControlModal, setShowControlModal] = useState(false);
@@ -899,8 +898,9 @@ export function EdoDocumentViewPage({
           {/* Amallar */}
           {isCreator && doc.status === 'draft' && (
             <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-4">
-              {/* Yuborish usuli har doim "alohida-alohida" (parallel) — tanlov
-                  combobox'i vaqtincha olib tashlandi. */}
+              {/* Ichki hujjat RANK (rink) zanjiri bo'yicha, chiquvchi hujjat
+                  to'g'ridan-to'g'ri imzoga yuboriladi — usul hujjat turiga qarab
+                  avtomat aniqlanadi, foydalanuvchi tanlamaydi. */}
               <ApproverChainPicker
                 users={allUsers}
                 value={sendApproverIds}
@@ -908,9 +908,9 @@ export function EdoDocumentViewPage({
                 excludeUserIds={[doc.createdById]}
                 label={t('edo.view.approvers_label')}
                 hint={
-                  doc.type === 'outgoing' || sendMode === 'separate'
+                  doc.type === 'outgoing'
                     ? t('edo.view.approvers_parallel_hint')
-                    : t('edo.view.approvers_hint')
+                    : t('edo.view.approvers_rank_hint')
                 }
               />
 
@@ -926,8 +926,11 @@ export function EdoDocumentViewPage({
                   onClick={() =>
                     send.mutate({
                       approverIds: sendApproverIds,
-                      // Chiquvchi hujjatlar doim parallel (alohida-alohida) yuboriladi
-                      parallel: doc.type === 'outgoing' ? true : sendMode === 'separate',
+                      // Chiquvchi hujjatlar doim parallel (to'g'ridan-to'g'ri imzoga).
+                      // Ichki hujjatlar RANK (rink) zanjiri bo'yicha ketadi: parallel=false
+                      // bo'lsa backend tasdiqlovchilarni lavozim rankiga qarab guruhlaydi
+                      // (katta rank birinchi), oxirida avazbek (rahbar) avtomat.
+                      parallel: doc.type === 'outgoing',
                     })
                   }
                   disabled={send.isPending}

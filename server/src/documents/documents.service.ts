@@ -625,8 +625,12 @@ export class DocumentsService {
     // qo'shiladi. Ular xabar oladi, navbatdan tashqari tasdiqlay oladi va
     // hujjatni ko'ra oladi. Mavjud bo'lmagan/faol bo'lmagan loginlar o'tkazib
     // yuboriladi (hujjat yuborilishini to'xtatmaydi).
+    // MUHIM: foydalanuvchi tasdiqlovchilarni O'ZI tanlaganda (useRankChain) — faqat
+    // tanlangan xodimlar RANK bo'yicha ketadi va avazbek (rahbar) avtomat oxirida
+    // qo'shiladi; qo'shimcha majburiy xodimlar ARALASHTIRILMAYDI. Majburiy blok
+    // faqat hech kim tanlanmagan (eski avtomat zanjir) holatida ishlaydi.
     const mandatoryNotify: string[] = [];
-    if (!isParallel && (doc.type === 'outgoing' || doc.type === 'internal')) {
+    if (!isParallel && !useRankChain && (doc.type === 'outgoing' || doc.type === 'internal')) {
       const mUsers = await this.prisma.user.findMany({
         where: { login: { in: [...MANDATORY_APPROVER_LOGINS] }, isActive: true },
         select: { id: true, login: true },
