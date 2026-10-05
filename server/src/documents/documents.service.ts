@@ -4105,10 +4105,13 @@ export class DocumentsService {
     // egasiga to'g'ri keladi, shu bois xatti-harakat o'zgarmaydi.
     if (await this.isPendingApproverAtMinOrder(userId, id)) return doc;
     if (await this.isMandatoryPendingApprover(userId, id)) return doc;
-    // Buyurtmachi talabi (rink darajasi): tasdiqlash QAT'IY tartib (order) bo'yicha
-    // boradi. Faqat navbatdagi (eng kichik tartibli) guruh yoki majburiy tasdiqlovchi
-    // amal qila oladi. Navbati kelmagan tasdiqlovchi kutadi — o'z tartibi kelgach xabar
-    // oladi va shundagina tasdiqlay oladi.
+    // Buyurtmachi talabi: hujjat hali yakunlanmagan (done/rejected/draft emas) bo'lsa —
+    // navbati o'tib ketgan (kech qolgan) tasdiqlovchi ham izoh yozib tasdiqlashi yoki
+    // boshqaga yo'naltirishi mumkin. Ya'ni zanjirdagi ISTALGAN kutayotgan (pending)
+    // tasdiqlovchi amal qila oladi. Faqat hujjat butunlay yakunlangandagina (masalan,
+    // avazbek login tasdiqlab hujjat "Bajarildi" holatiga o'tgach) — yuqoridagi status
+    // tekshiruvi bu metodga kirishni to'sadi.
+    if (await this.isAnyPendingApprover(userId, id)) return doc;
     throw new ForbiddenException("Hujjat hozir sizning navbatingizda emas");
   }
 

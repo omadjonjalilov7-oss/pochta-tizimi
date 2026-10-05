@@ -272,11 +272,18 @@ export function DocListItem({
                 {t('edo.list.you_rejected')}
               </span>
             )}
-            {myPart?.status === 'pending' && (
-              <span className="inline-flex items-center gap-0.5 text-xs font-medium px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
-                {t('edo.list.you_pending')}
-              </span>
-            )}
+            {myPart?.status === 'pending' &&
+              (['done', 'rejected'].includes(d.status) ? (
+                // Hujjat yakunlangan (masalan, avazbek tasdiqlab "Bajarildi" bo'lgan),
+                // lekin bu tasdiqlovchi o'z navbatini o'tkazib yuborgan.
+                <span className="inline-flex items-center gap-0.5 text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">
+                  {t('edo.list.you_missed')}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-0.5 text-xs font-medium px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                  {t('edo.list.you_pending')}
+                </span>
+              ))}
             <span className="text-[11px] text-slate-400">{t(`edo.doc_type.${d.type}`)}</span>
           </div>
           <div className="text-sm font-medium text-slate-900 truncate">{d.subject}</div>

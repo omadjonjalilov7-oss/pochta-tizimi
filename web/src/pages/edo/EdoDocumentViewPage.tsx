@@ -2382,13 +2382,22 @@ function ParticipantStatusBadge({
     rejected: 'text-red-700',
     done: 'text-emerald-700',
   };
+  // Boshqaga yo'naltirgan ishtirokchi: forward() uni observer + done holatiga o'tkazadi.
+  // Oddiy observer esa doim pending bo'ladi, shu bois bu kombinatsiya aynan
+  // "boshqaga yo'naltirdi"ni bildiradi — "Bajardi" o'rniga shuni ko'rsatamiz.
+  const isForwarded = role === 'observer' && status === 'done';
   // Yaratuvchi hujjatni "tasdiqlamaydi" — uni yaratadi/kiritadi. Shu sabab
   // yaratuvchi uchun "Tasdiqladi" o'rniga "Yaratdi" yozuvi ko'rsatiladi.
-  const label =
-    role === 'creator' && status === 'approved'
+  const label = isForwarded
+    ? t('edo.p_status.forwarded')
+    : role === 'creator' && status === 'approved'
       ? t('edo.p_status.created')
       : t(`edo.p_status.${status}`);
-  return <span className={cn('text-xs font-medium', map[status])}>{label}</span>;
+  return (
+    <span className={cn('text-xs font-medium', isForwarded ? 'text-violet-700' : map[status])}>
+      {label}
+    </span>
+  );
 }
 
 const AUDIT_STYLE: Record<

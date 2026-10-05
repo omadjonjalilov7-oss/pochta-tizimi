@@ -817,7 +817,8 @@
       "approved": "Tasdiqladi",
       "rejected": "Rad etdi",
       "done": "Bajardi",
-      "created": "Yaratdi"
+      "created": "Yaratdi",
+      "forwarded": "Boshqaga yo'naltirdi"
     },
     "action": {
       "created": "yaratdi",
@@ -1195,7 +1196,8 @@
       "control_red": "Muddat o'tgan",
       "you_approved": "Siz tasdiqladingiz",
       "you_rejected": "Siz rad etdingiz",
-      "you_pending": "Sizni tasdiqlashingiz kutilmoqda"
+      "you_pending": "Sizni tasdiqlashingiz kutilmoqda",
+      "you_missed": "O'tkazib yubordingiz"
     },
     "calendar": {
       "title": "Taqvim",
