@@ -96,7 +96,8 @@ export function EimzoSignModal({
     try {
       const keyId = await clientRef.current.loadKey(selected);
       const payloadB64 = strToBase64(signable.payload);
-      const pkcs7 = await clientRef.current.createPkcs7(keyId, payloadB64, true);
+      // detached=false → imzo ichiga ma'lumot joylanadi (attached), E-IMZO-SERVER mustaqil tekshira oladi
+      const pkcs7 = await clientRef.current.createPkcs7(keyId, payloadB64, false);
       const hash = await sha256Hex(signable.payload);
       const result = await signMutation.mutateAsync({
         pkcs7Data: pkcs7,
