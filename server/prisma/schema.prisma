@@ -76,6 +76,9 @@ model User {
   canSendExternal Boolean  @default(false) @map("can_send_external")
   // EDO: tashqi yuboriladigan hujjatlarni E-IMZO bilan imzolash huquqi (faqat tor doiradagi xodimlar)
   canSignExternal Boolean  @default(false) @map("can_sign_external")
+  // EDO: hujjatlarni ELEKTRON KALIT (E-IMZO) bilan tasdiqlaydi. Belgilanmagan
+  // xodimlar hujjatni 4 xonali PIN bilan tasdiqlaydi (zaxira usul).
+  canApproveWithKey Boolean @default(false) @map("can_approve_with_key")
   isActive        Boolean  @default(true) @map("is_active")
   // Maxfiy login: bu foydalanuvchi oddiy xodimlarga ro'yxatlarda ko'rinmaydi
   isProtected     Boolean  @default(false) @map("is_protected")
@@ -641,6 +644,11 @@ model DocumentSignature {
   verified      Boolean   @default(false)
   verifiedAt    DateTime? @map("verified_at") @db.Timestamptz(3)
   verifyError   String?   @map("verify_error") @db.Text
+  // Imzo qanday usul bilan tekshirilgani: 'eimzo-server' (to'liq kriptografik,
+  // yuridik kuchga ega) yoki 'structural' (hash + sertifikat muddati; E-IMZO
+  // server ulanmagan holatda). TSA — vaqt tamg'asi (uzoq muddatli yuridik kuch).
+  verifyMethod  String?   @map("verify_method") @db.VarChar(32)
+  tsaTime       DateTime? @map("tsa_time") @db.Timestamptz(3)
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   signer   User     @relation(fields: [signerId], references: [id])

@@ -29,6 +29,8 @@ export interface User {
   managerId?: string | null;
   canSendExternal: boolean;
   canSignExternal: boolean;
+  // Hujjatlarni elektron kalit (E-IMZO) bilan tasdiqlaydimi? (aks holda PIN)
+  canApproveWithKey?: boolean;
   externalMailEnabled?: boolean;
   externalMailLogin?: string | null;
   isActive: boolean;
@@ -185,6 +187,8 @@ export interface EdoSignature {
   verified: boolean;
   verifiedAt?: string | null;
   verifyError?: string | null;
+  verifyMethod?: string | null;
+  tsaTime?: string | null;
   signer: Pick<User, 'id' | 'fullName' | 'login' | 'avatarPath'>;
 }
 

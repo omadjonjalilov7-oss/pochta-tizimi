@@ -132,6 +132,7 @@ export class UsersService {
         // Tashqi pochtali xodim avtomat tashqiga yubora oladi
         canSendExternal: mailType === 'external' ? true : (dto.canSendExternal ?? false),
         canSignExternal: dto.canSignExternal ?? false,
+        canApproveWithKey: dto.canApproveWithKey ?? false,
         role: dto.role ?? 'user',
         isAdmin: (dto.role ?? 'user') === 'admin', // legacy ustunni sinxron saqlaymiz
         canSeeProtected: dto.canSeeProtected ?? false,

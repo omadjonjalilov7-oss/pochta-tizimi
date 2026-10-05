@@ -488,9 +488,16 @@ export function EdoDocumentViewPage({
   // Creator PDF'ni olishi mumkin faqat rais imzolasa, boshqalar doimo olishlari mumkin
   const canCreatePdf = !isCreator || isFinallyApproved;
 
-  // E-IMZO bilan imzolash mumkin: tashqi hujjat + foydalanuvchida ruxsat + hozir uning navbatida
+  // Tasdiqlash usuli: ELEKTRON KALIT (E-IMZO) yoki PIN.
+  //  - chiquvchi (tashqi) hujjat: imzolash huquqi (canSignExternal) bo'lsa → E-IMZO imzo (POST /sign);
+  //  - ichki/kiruvchi hujjat: xodim profilida "kalit bilan tasdiqlash" (canApproveWithKey)
+  //    yoqilgan bo'lsa → E-IMZO bilan tasdiqlash (POST /approve); aks holda 4 xonali PIN.
+  const eimzoVariant: 'sign' | 'approve' = doc.type === 'outgoing' ? 'sign' : 'approve';
   const canSignWithEimzo =
-    isCurrentApprover && doc.type === 'outgoing' && (user?.canSignExternal ?? false);
+    isCurrentApprover &&
+    (doc.type === 'outgoing'
+      ? (user?.canSignExternal ?? false)
+      : (user?.canApproveWithKey ?? false));
 
   // Topshiriq (rezolyutsiya / poruchenie) BIRIKTIRISHNI faqat kanselyariya yoki
   // admin roli amalga oshiradi. Boshqa xodimlar faqat o'ziga biriktirilgan
@@ -1054,8 +1061,11 @@ export function EdoDocumentViewPage({
             />
           )}
 
-          {/* Imzolar paneli — tashqi hujjat uchun */}
-          {doc.type === 'outgoing' && <SignaturesPanel doc={doc} />}
+          {/* Imzolar paneli — tashqi hujjatda doim, boshqa turlarda esa
+              elektron kalit bilan tasdiqlangan imzolar mavjud bo'lsa. */}
+          {(doc.type === 'outgoing' || (doc.signatures?.length ?? 0) > 0) && (
+            <SignaturesPanel doc={doc} />
+          )}
 
           {/* Mening ijro vazifalarim — ijrochi izoh yozadi (bajarilishini kanselyariya belgilaydi) */}
           {myPendingTargets.length > 0 && (
@@ -1210,6 +1220,7 @@ export function EdoDocumentViewPage({
           documentId={doc.id}
           documentNumber={doc.number}
           documentSubject={doc.subject}
+          variant={eimzoVariant}
           onClose={() => setShowSignModal(false)}
           onSigned={() => {
             setShowSignModal(false);
@@ -1464,6 +1475,11 @@ function SignaturesPanel({ doc }: { doc: EdoDocument }) {
                 <div className="text-xs text-slate-400">
                   {t('edo.sign.serial')}: <span className="font-mono">{s.certSerial.slice(0, 24)}…</span>
                 </div>
+                {s.tsaTime && (
+                  <div className="text-xs text-slate-400">
+                    {t('edo.view.tsa_time')}: {new Date(s.tsaTime).toLocaleString(lang)}
+                  </div>
+                )}
               </div>
               <div className="flex-shrink-0">
                 {s.verified ? (

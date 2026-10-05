@@ -1,6 +1,7 @@
 import {
   ArrayMaxSize,
   IsArray,
+  IsBase64,
   IsISO8601,
   IsOptional,
   IsString,
@@ -10,14 +11,18 @@ import {
   MinLength,
 } from 'class-validator';
 
-// Hujjatni tasdiqlash uchun 4-xonalik PIN-kod (faqat tasdiqlash payti so'raladi).
+// Hujjatni tasdiqlash. Ikki usul:
+//   1) PIN — 4 xonali kod (elektron kaliti yo'q xodimlar uchun, zaxira usul);
+//   2) E-IMZO — elektron kalit bilan imzolash (pkcs7Data... maydonlari to'ldiriladi).
+// Qaysi usul ekani yuborilgan maydonlarga qarab aniqlanadi: pkcs7Data bo'lsa — E-IMZO.
 // addApproverIds — joriy tasdiqlovchi o'zidan keyin zanjirga qo'shimcha tasdiqlovchilar
-// kiritmoqchi bo'lsa shu yerda ro'yxat sifatida beradi (masalan, "men tasdiqladim,
-// keyin mening xodimim ham ko'rib chiqib tasdiqlasin").
+// kiritmoqchi bo'lsa shu yerda ro'yxat sifatida beradi.
 export class ApproveDocumentDto {
+  // PIN endi IXTIYORIY — E-IMZO bilan tasdiqlanganda talab qilinmaydi.
+  @IsOptional()
   @IsString()
   @Matches(/^\d{4}$/, { message: "PIN aniq 4 raqamdan iborat bo'lishi shart" })
-  pin!: string;
+  pin?: string;
 
   @IsOptional()
   @IsString()
@@ -27,13 +32,49 @@ export class ApproveDocumentDto {
   @IsOptional()
   @IsString()
   @MaxLength(20)
-  approvalMethod?: string; // 'signature', 'qr', 'digital', 'manual'
+  approvalMethod?: string; // 'eimzo', 'signature', 'qr', 'digital', 'manual'
 
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(20)
   @IsUUID('all', { each: true })
   addApproverIds?: string[];
+
+  // ── E-IMZO (elektron kalit) bilan tasdiqlash maydonlari ──────────────
+  // CAPIWS'dan qaytgan PKCS#7 (CMS) imzo, base64.
+  @IsOptional()
+  @IsBase64()
+  pkcs7Data?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  certSerial?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  certSubject?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  certIssuer?: string;
+
+  @IsOptional()
+  @IsString()
+  certValidFrom?: string;
+
+  @IsOptional()
+  @IsString()
+  certValidTo?: string;
+
+  // Imzolangan kanonik matnning SHA-256 hash'i (hex). Server o'zi qayta hisoblab
+  // taqqoslaydi — mos kelmasa imzo rad etiladi (hujjat o'zgartirilgan/boshqa).
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  signatureHash?: string;
 }
 
 // Admin/kanselyariya hujjat tasdiqlash zanjiriga qo'shimcha xodim(lar) qo'shadi.

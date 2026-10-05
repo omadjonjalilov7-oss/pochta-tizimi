@@ -54,6 +54,11 @@ export class CreateUserDto {
   @IsBoolean()
   canSignExternal?: boolean;
 
+  // EDO: hujjatlarni elektron kalit (E-IMZO) bilan tasdiqlaydimi?
+  @IsOptional()
+  @IsBoolean()
+  canApproveWithKey?: boolean;
+
   // Maxfiy loginlarni ko'ra oladimi (admin yoqadi)
   @IsOptional()
   @IsBoolean()

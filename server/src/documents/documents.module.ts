@@ -8,6 +8,7 @@ import { DocumentsService } from './documents.service';
 import { OnlyOfficeService } from './onlyoffice.service';
 import { DocumentsCron } from './documents.cron';
 import { QrApprovalService } from './qr-approval.service';
+import { EimzoVerifyService } from './eimzo-verify.service';
 import { PdfGeneratorService } from './pdf-generator.service';
 import { ReportService } from './report.service';
 import { MessagesModule } from '../messages/messages.module';
@@ -30,7 +31,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     NotificationsModule,
   ],
   controllers: [DocumentsController, PublicController, OnlyOfficeController],
-  providers: [DocumentsService, OnlyOfficeService, DocumentsCron, QrApprovalService, PdfGeneratorService, ReportService],
+  providers: [DocumentsService, OnlyOfficeService, DocumentsCron, QrApprovalService, EimzoVerifyService, PdfGeneratorService, ReportService],
   exports: [DocumentsService, QrApprovalService, PdfGeneratorService, ReportService],
 })
 export class DocumentsModule {}

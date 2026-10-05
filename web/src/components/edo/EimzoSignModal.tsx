@@ -10,6 +10,10 @@ interface Props {
   documentId: string;
   documentNumber: string;
   documentSubject: string;
+  // Imzo qaysi endpointga yuboriladi:
+  //   'sign'    → chiquvchi (tashqi) hujjatni imzolash (POST /sign)
+  //   'approve' → ichki/kiruvchi hujjatni elektron kalit bilan tasdiqlash (POST /approve)
+  variant?: 'sign' | 'approve';
   onClose: () => void;
   onSigned: (doc: EdoDocument) => void;
 }
@@ -20,6 +24,7 @@ export function EimzoSignModal({
   documentId,
   documentNumber,
   documentSubject,
+  variant = 'sign',
   onClose,
   onSigned,
 }: Props) {
@@ -75,7 +80,13 @@ export function EimzoSignModal({
       certValidFrom?: string;
       certValidTo?: string;
       signatureHash: string;
-    }) => (await api.post<EdoDocument>(`/documents/${documentId}/sign`, body)).data,
+    }) =>
+      (
+        await api.post<EdoDocument>(
+          `/documents/${documentId}/${variant === 'approve' ? 'approve' : 'sign'}`,
+          body,
+        )
+      ).data,
   });
 
   async function handleSign() {

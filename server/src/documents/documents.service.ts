@@ -62,6 +62,7 @@ import {
 } from './template-fill';
 import { ConfigService } from '@nestjs/config';
 import { QrApprovalService } from './qr-approval.service';
+import { EimzoVerifyService, SignatureVerifyResult } from './eimzo-verify.service';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -182,6 +183,8 @@ const FULL_INCLUDE = {
       verified: true,
       verifiedAt: true,
       verifyError: true,
+      verifyMethod: true,
+      tsaTime: true,
       signer: { select: { id: true, fullName: true, login: true, avatarPath: true } },
     },
   },
@@ -206,6 +209,7 @@ export class DocumentsService {
     private readonly qrApproval: QrApprovalService,
     private readonly jwt: JwtService,
     private readonly notifications: NotificationsService,
+    private readonly eimzoVerify: EimzoVerifyService,
   ) {
     this.attDir =
       this.config.get<string>('ATTACHMENTS_DIR') || 'C:\\D\\pochta\\storage\\attachments';
@@ -808,8 +812,38 @@ export class DocumentsService {
   // ── HARAKATLAR ────────────────────────────────────────────────────────
 
   async approve(userId: string, id: string, dto: ApproveDocumentDto) {
-    await this.users.verifyApprovalPin(userId, dto.pin);
+    // Tasdiqlash usulini aniqlaymiz: E-IMZO (elektron kalit) yoki PIN.
+    //  - pkcs7Data yuborilgan bo'lsa → E-IMZO (kalit bilan imzolash);
+    //  - aks holda → 4 xonali PIN (zaxira usul).
+    const useKey = !!dto.pkcs7Data;
+    const approverAccount = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { canApproveWithKey: true },
+    });
+    if (useKey) {
+      if (!approverAccount?.canApproveWithKey) {
+        throw new ForbiddenException(
+          "Sizda elektron kalit (E-IMZO) bilan tasdiqlash huquqi yo'q",
+        );
+      }
+    } else {
+      await this.users.verifyApprovalPin(userId, dto.pin ?? '');
+    }
     const doc = await this.requireActiveApprover(userId, id);
+
+    // E-IMZO bo'lsa — imzoni tekshiramiz (hujjat hash'i, sertifikat muddati,
+    // sozlangan bo'lsa E-IMZO server orqali to'liq kriptografik tekshiruv + TSA).
+    let sigResult: SignatureVerifyResult | null = null;
+    if (useKey) {
+      const payload = this.buildSignablePayload(doc);
+      sigResult = await this.eimzoVerify.verify({
+        pkcs7Base64: dto.pkcs7Data!,
+        payload,
+        submittedHash: dto.signatureHash,
+        certValidFrom: dto.certValidFrom ?? null,
+        certValidTo: dto.certValidTo ?? null,
+      });
+    }
 
     // Joriy tasdiqlovchining zanjirdagi pozitsiyasini topamiz
     const me = await this.prisma.documentParticipant.findFirst({
@@ -843,9 +877,33 @@ export class DocumentsService {
           status: ParticipantStatus.approved,
           actedAt: new Date(),
           approvalNotes: dto.approvalNotes || null,
-          approvalMethod: dto.approvalMethod || 'manual',
+          approvalMethod: useKey ? 'eimzo' : dto.approvalMethod || 'manual',
         },
       });
+
+      // E-IMZO bilan tasdiqlangan bo'lsa — imzoni (PKCS#7) va tekshiruv
+      // natijasini saqlaymiz. Imzo blobi bazada qoladi, keyin ham qayta
+      // tekshirish mumkin.
+      if (useKey && sigResult) {
+        await tx.documentSignature.create({
+          data: {
+            documentId: id,
+            signerId: userId,
+            pkcs7Data: Buffer.from(dto.pkcs7Data!, 'base64'),
+            certSerial: dto.certSerial || '',
+            certSubject: dto.certSubject || '',
+            certIssuer: dto.certIssuer ?? null,
+            certValidFrom: dto.certValidFrom ? new Date(dto.certValidFrom) : null,
+            certValidTo: dto.certValidTo ? new Date(dto.certValidTo) : null,
+            signatureHash: dto.signatureHash || '',
+            verified: sigResult.verified,
+            verifiedAt: sigResult.verified ? new Date() : null,
+            verifyError: sigResult.error,
+            verifyMethod: sigResult.method,
+            tsaTime: sigResult.tsaTime,
+          },
+        });
+      }
 
       if (addIds.length > 0) {
         // Joriy tasdiqlovchidan keyingilarni siljitamiz va yangilarni o'rtaga qistiramiz
@@ -1555,6 +1613,16 @@ export class DocumentsService {
       throw new BadRequestException("PKCS#7 imzosi juda kichik — noto'g'ri ma'lumot");
     }
 
+    // Imzoni tekshiramiz (hujjat hash'i, sertifikat muddati, sozlangan bo'lsa
+    // E-IMZO server orqali to'liq kriptografik tekshiruv + TSA vaqt tamg'asi).
+    const sigResult = await this.eimzoVerify.verify({
+      pkcs7Base64: dto.pkcs7Data,
+      payload: this.buildSignablePayload(doc),
+      submittedHash: dto.signatureHash,
+      certValidFrom: dto.certValidFrom ?? null,
+      certValidTo: dto.certValidTo ?? null,
+    });
+
     await this.prisma.$transaction(async (tx) => {
       await tx.documentSignature.create({
         data: {
@@ -1567,6 +1635,11 @@ export class DocumentsService {
           certValidFrom: dto.certValidFrom ? new Date(dto.certValidFrom) : null,
           certValidTo: dto.certValidTo ? new Date(dto.certValidTo) : null,
           signatureHash: dto.signatureHash,
+          verified: sigResult.verified,
+          verifiedAt: sigResult.verified ? new Date() : null,
+          verifyError: sigResult.error,
+          verifyMethod: sigResult.method,
+          tsaTime: sigResult.tsaTime,
         },
       });
       // Imzo qo'yilganini va tasdiqlashni belgilaymiz
