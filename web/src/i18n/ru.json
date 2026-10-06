@@ -1131,6 +1131,7 @@
       "verified": "Проверено",
       "unverified": "Не проверено",
       "tsa_time": "Метка времени (TSA)",
+      "delete_file_confirm": "Вы действительно хотите удалить этот файл?",
       "download_pdf": "Скачать PDF",
       "pdf_disabled_creator": "PDF можно скачать только после подписи руководителя",
       "preview_word": "Черновик документа",

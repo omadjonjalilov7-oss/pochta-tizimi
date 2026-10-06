@@ -3564,8 +3564,10 @@ export class DocumentsService {
     if (!doc) throw new NotFoundException('Hujjat topilmadi');
     await this.requireAccess(userId, doc);
     // Hujjatda qatnashayotgan xar bir foydalanuvchi fayl briktira oladi
-    // (lekin faqat draft, in_review, in_progress statuslarida)
-    if (!['draft', 'in_review', 'in_progress'].includes(doc.status)) {
+    // (lekin faqat draft, in_review, in_progress statuslarida).
+    // Admin esa — har qanday holatda (har ehtimolga qarshi).
+    const admin = await this.isAdmin(userId);
+    if (!admin && !['draft', 'in_review', 'in_progress'].includes(doc.status)) {
       throw new BadRequestException('Fayllar bajarilgan yoki rad etilgan hujjatlarga yuklanmaydi');
     }
     if (file.size > this.attMaxBytes) {
@@ -3631,7 +3633,8 @@ export class DocumentsService {
     }
     const doc = att.document;
     await this.requireAccess(userId, doc);
-    if (!['draft', 'in_review', 'in_progress'].includes(doc.status)) {
+    const adminReplace = await this.isAdmin(userId);
+    if (!adminReplace && !['draft', 'in_review', 'in_progress'].includes(doc.status)) {
       throw new BadRequestException(
         'Fayllar bajarilgan yoki rad etilgan hujjatlarda tahrirlanmaydi',
       );
@@ -3758,7 +3761,8 @@ export class DocumentsService {
     if (!this.isWordEditableExt(att.filename)) {
       throw new BadRequestException('Bu fayl turini tahrirlab bo‘lmaydi');
     }
-    if (!this.isDocEditableStatus(att.document.status)) {
+    const adminHtml = await this.isAdmin(userId);
+    if (!adminHtml && !this.isDocEditableStatus(att.document.status)) {
       throw new BadRequestException(
         'Hujjat holati tahrirlashga ruxsat bermaydi',
       );
@@ -3979,11 +3983,13 @@ export class DocumentsService {
     if (!att || !att.document || att.documentId !== docId) {
       throw new NotFoundException('Fayl topilmadi');
     }
-    // Faylni o'chirish: yaratuvchi yoki fayl yuklaydigan foydalanuvchi
-    if (att.document.createdById !== userId && att.uploadedById !== userId) {
+    // Faylni o'chirish: yaratuvchi yoki fayl yuklaydigan foydalanuvchi.
+    // Admin esa — istalgan fayl va istalgan holatda (har ehtimolga qarshi).
+    const adminDelete = await this.isAdmin(userId);
+    if (!adminDelete && att.document.createdById !== userId && att.uploadedById !== userId) {
       throw new ForbiddenException("Fayl faqat yaratuvchi yoki fayl yuklaydigan foydalanuvchi tomonidan o'chirilib oladi");
     }
-    if (att.document.status !== 'draft') {
+    if (!adminDelete && att.document.status !== 'draft') {
       throw new BadRequestException("Faqat qoralamadan o'chirish mumkin");
     }
     try {
@@ -4142,6 +4148,16 @@ export class DocumentsService {
       select: { role: true },
     });
     return u?.role === 'admin' || u?.role === 'chancellery';
+  }
+
+  // Faqat admin — har qanday hujjat holatida fayllarni boshqarish (qo'shish,
+  // o'chirish, almashtirish) huquqiga ega. "Har ehtimolga qarshi" imkon.
+  private async isAdmin(userId: string): Promise<boolean> {
+    const u = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    return u?.role === 'admin';
   }
 
   // Ro'lga qarab ro'yxat filtri: admin/konselyariya — hammasi, oddiy user — o'zi ishtirok etganlari

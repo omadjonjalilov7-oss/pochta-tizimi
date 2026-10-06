@@ -109,20 +109,24 @@ function AttachmentCard({
   documentId,
   att,
   editable,
+  deletable,
   onDownload,
   onEdit,
   onEditOnline,
   onExpandFull,
   onToggleOpen,
+  onDelete,
 }: {
   documentId: string;
   att: EdoAttachment;
   editable: boolean;
+  deletable?: boolean;
   onDownload: () => void;
   onEdit: () => void;
   onEditOnline: () => void;
   onExpandFull: () => void;
   onToggleOpen?: (open: boolean) => void;
+  onDelete?: () => void;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -194,6 +198,16 @@ function AttachmentCard({
               title={t('edo.editor.hint')}
             >
               <Pencil size={18} />
+            </button>
+          )}
+          {deletable && (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="p-2 rounded-lg text-red-600 hover:bg-red-100 transition-colors"
+              title={t('common.delete')}
+            >
+              <Trash2 size={18} />
             </button>
           )}
         </div>
@@ -373,6 +387,11 @@ export function EdoDocumentViewPage({
     },
     onSuccess: invalidate,
   });
+  const deleteAttachment = useMutation({
+    mutationFn: async (vars: { attId: string }) =>
+      (await api.delete(`/documents/${id}/attachments/${vars.attId}`)).data,
+    onSuccess: invalidate,
+  });
   const extendDeadline = useMutation({
     mutationFn: async (vars: { newDeadline: string; reason?: string }) =>
       (await api.patch<EdoDocument>(`/documents/${id}/extend-deadline`, vars)).data,
@@ -476,7 +495,11 @@ export function EdoDocumentViewPage({
     APPROVABLE_STATUSES.includes(doc.status) &&
     (doc.currentHolderId === user?.id || isPendingApprover);
   const isParticipant = !!user && doc.participants.some((p) => p.userId === user.id);
-  const canUploadAttachment = (isCreator || isParticipant) && ['draft', 'in_review', 'in_progress'].includes(doc.status);
+  // Admin — har qanday hujjat holatida fayl qo'sha/o'chira/almashtira oladi (har ehtimolga qarshi).
+  const isAdmin = user?.role === 'admin';
+  const canUploadAttachment =
+    isAdmin ||
+    ((isCreator || isParticipant) && ['draft', 'in_review', 'in_progress'].includes(doc.status));
   const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
 
   // PDF generatsiya mumkin: creator bo'lsa, rais imzolagan bo'lsin
@@ -862,6 +885,12 @@ export function EdoDocumentViewPage({
                         documentId={doc.id}
                         att={a}
                         editable={canUploadAttachment && isWordEditable(a.filename)}
+                        deletable={isAdmin}
+                        onDelete={() => {
+                          if (window.confirm(t('edo.view.delete_file_confirm'))) {
+                            deleteAttachment.mutate({ attId: a.id });
+                          }
+                        }}
                         onDownload={() =>
                           downloadAttachment(doc.id, a.id, a.filename)
                         }
