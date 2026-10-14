@@ -953,11 +953,7 @@ export function EdoDocumentViewPage({
                 onChange={setSendApproverIds}
                 excludeUserIds={[doc.createdById]}
                 label={t('edo.view.approvers_label')}
-                hint={
-                  doc.type === 'outgoing'
-                    ? t('edo.view.approvers_parallel_hint')
-                    : t('edo.view.approvers_rank_hint')
-                }
+                hint={t('edo.view.approvers_rank_hint')}
               />
 
               <div className="flex flex-wrap gap-2">
@@ -972,11 +968,12 @@ export function EdoDocumentViewPage({
                   onClick={() =>
                     send.mutate({
                       approverIds: sendApproverIds,
-                      // Chiquvchi hujjatlar doim parallel (to'g'ridan-to'g'ri imzoga).
-                      // Ichki hujjatlar RANK (rink) zanjiri bo'yicha ketadi: parallel=false
-                      // bo'lsa backend tasdiqlovchilarni lavozim rankiga qarab guruhlaydi
-                      // (katta rank birinchi), oxirida avazbek (rahbar) avtomat.
-                      parallel: doc.type === 'outgoing',
+                      // Barcha hujjatlar (ichki va chiquvchi) RANK (rank) zanjiri
+                      // bo'yicha ketadi: parallel=false bo'lsa backend tasdiqlovchilarni
+                      // lavozim rankiga qarab guruhlaydi (katta rank soni birinchi),
+                      // har guruh tasdiqlagach keyingisiga xabar ketadi, oxirida
+                      // avazbek (rahbar) avtomat qo'shiladi.
+                      parallel: false,
                     })
                   }
                   disabled={send.isPending}

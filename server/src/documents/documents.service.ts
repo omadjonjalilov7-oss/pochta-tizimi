@@ -4294,9 +4294,8 @@ export class DocumentsService {
     };
   }
 
-  // Faqat hozir tasdiqlash navbatida turgan foydalanuvchi.
-  // Istisno: majburiy tasdiqlovchilar (aziza…avazbek) navbatdan tashqari ham
-  // tasdiqlay oladi — ularda kutilayotgan (pending) tasdiqlash bo'lsa yetarli.
+  // Faqat hozir tasdiqlash navbatida turgan (eng kichik tartibli guruhdagi)
+  // foydalanuvchi tasdiqlay oladi. QAT'IY RANK TARTIBI — navbatsiz tasdiqlash yo'q.
   private async requireActiveApprover(userId: string, id: string) {
     const doc = await this.prisma.document.findUnique({ where: { id } });
     if (!doc) throw new NotFoundException('Hujjat topilmadi');
@@ -4314,19 +4313,15 @@ export class DocumentsService {
       throw new BadRequestException("Hujjat tasdiqlash bosqichida emas");
     }
     if (doc.currentHolderId === userId) return doc;
-    // Parallel (alohida-alohida) yuborishda barcha tasdiqlovchilar bir xil eng kichik
-    // tartibda bo'ladi — shu sabab navbatdagi (eng kichik tartibli) har qanday kutuvchi
-    // tasdiqlovchi tasdiqlay oladi. Ketma-ket (zanjir) holatida bu aynan joriy navbat
-    // egasiga to'g'ri keladi, shu bois xatti-harakat o'zgarmaydi.
+    // QAT'IY RANK TARTIBI (buyurtmachi talabi): faqat hozirgi eng past navbat
+    // (eng kichik tartibli) guruhdagi kutuvchi tasdiqlovchi amal qila oladi.
+    // Katta rank soni (kichik vakolat) birinchi tasdiqlaydi, keyin navbat
+    // kichikroq rank songa (kattaroq vakolat) o'tadi, oxirida avazbek (rahbar).
+    // Parallel (alohida-alohida) yuborishda barcha tasdiqlovchilar bir xil eng
+    // kichik tartibda bo'ladi — shu sabab ularning hammasi tasdiqlay oladi.
+    // "Navbatsiz tasdiqlash" (majburiy tasdiqlovchi yoki istalgan pending
+    // tasdiqlovchi navbatdan tashqari tasdiqlashi) OLIB TASHLANDI.
     if (await this.isPendingApproverAtMinOrder(userId, id)) return doc;
-    if (await this.isMandatoryPendingApprover(userId, id)) return doc;
-    // Buyurtmachi talabi: hujjat hali yakunlanmagan (done/rejected/draft emas) bo'lsa —
-    // navbati o'tib ketgan (kech qolgan) tasdiqlovchi ham izoh yozib tasdiqlashi yoki
-    // boshqaga yo'naltirishi mumkin. Ya'ni zanjirdagi ISTALGAN kutayotgan (pending)
-    // tasdiqlovchi amal qila oladi. Faqat hujjat butunlay yakunlangandagina (masalan,
-    // avazbek login tasdiqlab hujjat "Bajarildi" holatiga o'tgach) — yuqoridagi status
-    // tekshiruvi bu metodga kirishni to'sadi.
-    if (await this.isAnyPendingApprover(userId, id)) return doc;
     throw new ForbiddenException("Hujjat hozir sizning navbatingizda emas");
   }
 
@@ -4357,49 +4352,6 @@ export class DocumentsService {
       select: { order: true },
     });
     return !!min && mine.order === min.order;
-  }
-
-  // Foydalanuvchida shu hujjatda kutilayotgan (pending) tasdiqlash bormi?
-  // (tartibdan qat'i nazar — buyurtmachi talabi bo'yicha navbatsiz tasdiqlash)
-  private async isAnyPendingApprover(
-    userId: string,
-    docId: string,
-  ): Promise<boolean> {
-    const p = await this.prisma.documentParticipant.findFirst({
-      where: {
-        documentId: docId,
-        userId,
-        role: ParticipantRole.approver,
-        status: ParticipantStatus.pending,
-      },
-      select: { id: true },
-    });
-    return !!p;
-  }
-
-  // Foydalanuvchi majburiy tasdiqlovchimi va shu hujjatda kutilayotgan
-  // tasdiqlashi bormi? (navbatdan tashqari tasdiqlash uchun)
-  private async isMandatoryPendingApprover(
-    userId: string,
-    docId: string,
-  ): Promise<boolean> {
-    const u = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { login: true },
-    });
-    if (!u || !(MANDATORY_APPROVER_LOGINS as readonly string[]).includes(u.login)) {
-      return false;
-    }
-    const p = await this.prisma.documentParticipant.findFirst({
-      where: {
-        documentId: docId,
-        userId,
-        role: ParticipantRole.approver,
-        status: ParticipantStatus.pending,
-      },
-      select: { id: true },
-    });
-    return !!p;
   }
 
   private async shouldNotify(userId: string): Promise<boolean> {

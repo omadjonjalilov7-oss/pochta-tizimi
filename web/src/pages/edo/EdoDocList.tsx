@@ -515,7 +515,10 @@ export function EdoMyDocsPage() {
     queryFn: async () => (await api.get<EdoDocument[]>('/documents/mine')).data,
   });
 
-  const [tab, setTab] = useState<MyDocTab>('all');
+  // Buyurtmachi talabi: "Mening hujjatlarim" ochilganda avtomat "Tasdiqlanmagan"
+  // tabi ochilsin — har bir xodim (ayniqsa rahbar) kirgandayoq faqat o'zi hali
+  // tasdiqlamagan hujjatlarni ko'radi. (matchTab 'unapproved' → !isDocApprovedByMe)
+  const [tab, setTab] = useState<MyDocTab>('unapproved');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<DocumentStatus | 'all'>('all');
   const [dateFrom, setDateFrom] = useState('');
