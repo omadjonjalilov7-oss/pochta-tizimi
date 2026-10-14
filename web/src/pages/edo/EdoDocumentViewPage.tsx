@@ -288,6 +288,16 @@ export function EdoDocumentViewPage({
       (await api.post<EdoDocument>(`/documents/${id}/comment`, { text })).data,
     onSuccess: invalidate,
   });
+  const editComment = useMutation({
+    mutationFn: async (vars: { commentId: string; text: string }) =>
+      (await api.patch<EdoDocument>(`/documents/${id}/comment/${vars.commentId}`, { text: vars.text })).data,
+    onSuccess: invalidate,
+  });
+  const deleteComment = useMutation({
+    mutationFn: async (vars: { commentId: string }) =>
+      (await api.delete<EdoDocument>(`/documents/${id}/comment/${vars.commentId}`)).data,
+    onSuccess: invalidate,
+  });
   const sendToSign = useMutation({
     mutationFn: async () =>
       (await api.post<EdoDocument>(`/documents/${id}/send-to-sign`, {})).data,
@@ -1129,7 +1139,15 @@ export function EdoDocumentViewPage({
           />
 
           {/* Izohlar va Audit */}
-          <CommentsSection doc={doc} onComment={(t) => comment.mutate(t)} sending={comment.isPending} />
+          <CommentsSection
+            doc={doc}
+            onComment={(t) => comment.mutate(t)}
+            sending={comment.isPending}
+            currentUserId={user?.id}
+            isAdmin={isAdmin}
+            onEditComment={(commentId, text) => editComment.mutate({ commentId, text })}
+            onDeleteComment={(commentId) => deleteComment.mutate({ commentId })}
+          />
         </div>
       </div>
 
@@ -2160,13 +2178,23 @@ function CommentsSection({
   doc,
   onComment,
   sending,
+  currentUserId,
+  isAdmin,
+  onEditComment,
+  onDeleteComment,
 }: {
   doc: EdoDocument;
   onComment: (text: string) => void;
   sending: boolean;
+  currentUserId?: string;
+  isAdmin?: boolean;
+  onEditComment?: (commentId: string, text: string) => void;
+  onDeleteComment?: (commentId: string) => void;
 }) {
   const { t, i18n } = useTranslation();
   const [text, setText] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
   const lang = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
 
   function handleSubmit(e: FormEvent) {
@@ -2174,6 +2202,19 @@ function CommentsSection({
     if (!text.trim()) return;
     onComment(text.trim());
     setText('');
+  }
+
+  function startEdit(commentId: string, currentText: string) {
+    setEditingId(commentId);
+    setEditText(currentText);
+  }
+
+  function saveEdit(commentId: string) {
+    const trimmed = editText.trim();
+    if (!trimmed) return;
+    onEditComment?.(commentId, trimmed);
+    setEditingId(null);
+    setEditText('');
   }
 
   return (
@@ -2186,18 +2227,73 @@ function CommentsSection({
         {doc.comments.length === 0 && (
           <p className="text-sm text-slate-400">{t('edo.view.no_comments')}</p>
         )}
-        {doc.comments.map((c) => (
-          <div key={c.id} className="flex gap-3">
-            <Avatar fullName={c.author.fullName} avatarPath={c.author.avatarPath} size="sm" />
-            <div className="flex-1 bg-slate-50 rounded-lg px-3 py-2">
-              <div className="flex items-baseline gap-2 mb-1">
-                <span className="text-sm font-medium text-slate-900">{cyrName(c.author.fullName)}</span>
-                <span className="text-xs text-slate-400">{new Date(c.createdAt).toLocaleString(lang)}</span>
+        {doc.comments.map((c) => {
+          const canManage = isAdmin || c.author.id === currentUserId;
+          return (
+            <div key={c.id} className="flex gap-3 group">
+              <Avatar fullName={c.author.fullName} avatarPath={c.author.avatarPath} size="sm" />
+              <div className="flex-1 bg-slate-50 rounded-lg px-3 py-2">
+                <div className="flex items-baseline gap-2 mb-1">
+                  <span className="text-sm font-medium text-slate-900">{cyrName(c.author.fullName)}</span>
+                  <span className="text-xs text-slate-400">{new Date(c.createdAt).toLocaleString(lang)}</span>
+                  {canManage && editingId !== c.id && (
+                    <span className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        onClick={() => startEdit(c.id, c.text)}
+                        title={t('common.edit')}
+                        className="p-1 text-slate-400 hover:text-asaka-600"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm(t('edo.view.delete_comment_confirm'))) {
+                            onDeleteComment?.(c.id);
+                          }
+                        }}
+                        title={t('common.delete')}
+                        className="p-1 text-slate-400 hover:text-red-600"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </span>
+                  )}
+                </div>
+                {editingId === c.id ? (
+                  <div className="space-y-2">
+                    <textarea
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      rows={2}
+                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => saveEdit(c.id)}
+                        disabled={!editText.trim()}
+                        className="bg-asaka-600 hover:bg-asaka-700 disabled:opacity-50 text-white font-medium px-3 py-1.5 rounded-lg text-xs"
+                      >
+                        {t('common.save')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setEditingId(null); setEditText(''); }}
+                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-3 py-1.5 rounded-lg text-xs"
+                      >
+                        {t('common.cancel')}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-700 whitespace-pre-wrap">{c.text}</p>
+                )}
               </div>
-              <p className="text-sm text-slate-700 whitespace-pre-wrap">{c.text}</p>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <form onSubmit={handleSubmit} className="border-t border-slate-100 pt-3 space-y-2">
@@ -2291,6 +2387,17 @@ function ParticipantsPanel({
       queryClient.invalidateQueries({ queryKey: ['edo-doc', doc.id] });
       setAddOpen(false);
       setAddIds([]);
+    },
+  });
+
+  // Faqat admin — bilmasdan qo'shilgan xodimni tasdiqlash zanjiridan olib tashlash.
+  const isAdmin = user?.role === 'admin';
+  const removeParticipant = useMutation({
+    mutationFn: async (participantId: string) =>
+      (await api.delete(`/documents/${doc.id}/participants/${participantId}`)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['edo-doc', doc.id] });
+      queryClient.invalidateQueries({ queryKey: ['edo-mine'] });
     },
   });
 
@@ -2405,6 +2512,21 @@ function ParticipantsPanel({
                   <p className="text-xs text-red-700 mt-1 italic">"{p.rejectReason}"</p>
                 )}
               </div>
+              {isAdmin && p.role === 'approver' && p.user?.login !== 'avazbek' && (
+                <button
+                  type="button"
+                  disabled={removeParticipant.isPending}
+                  title={t('edo.view.remove_participant')}
+                  onClick={() => {
+                    if (window.confirm(t('edo.view.remove_participant_confirm'))) {
+                      removeParticipant.mutate(p.id);
+                    }
+                  }}
+                  className="shrink-0 p-1 text-slate-300 hover:text-red-600 disabled:opacity-50"
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
             </li>
           );
         })}

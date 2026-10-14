@@ -1439,6 +1439,132 @@ export class DocumentsService {
     return this.findOne(userId, id);
   }
 
+  // Izohni tahrirlash — faqat izoh muallifi yoki admin.
+  async editComment(userId: string, id: string, commentId: string, dto: CommentDto) {
+    const doc = await this.prisma.document.findUnique({ where: { id } });
+    if (!doc) throw new NotFoundException('Hujjat topilmadi');
+    await this.requireAccess(userId, doc);
+
+    const comment = await this.prisma.documentComment.findUnique({ where: { id: commentId } });
+    if (!comment || comment.documentId !== id) {
+      throw new NotFoundException('Izoh topilmadi');
+    }
+    const admin = await this.isAdmin(userId);
+    if (!admin && comment.authorId !== userId) {
+      throw new ForbiddenException("Faqat izoh muallifi yoki admin tahrirlay oladi");
+    }
+
+    await this.prisma.documentComment.update({
+      where: { id: commentId },
+      data: { text: dto.text },
+    });
+    await this.prisma.documentAuditLog.create({
+      data: { documentId: id, actorId: userId, action: 'comment_edited' },
+    });
+
+    return this.findOne(userId, id);
+  }
+
+  // Izohni o'chirish — faqat izoh muallifi yoki admin.
+  async deleteComment(userId: string, id: string, commentId: string) {
+    const doc = await this.prisma.document.findUnique({ where: { id } });
+    if (!doc) throw new NotFoundException('Hujjat topilmadi');
+    await this.requireAccess(userId, doc);
+
+    const comment = await this.prisma.documentComment.findUnique({ where: { id: commentId } });
+    if (!comment || comment.documentId !== id) {
+      throw new NotFoundException('Izoh topilmadi');
+    }
+    const admin = await this.isAdmin(userId);
+    if (!admin && comment.authorId !== userId) {
+      throw new ForbiddenException("Faqat izoh muallifi yoki admin o'chira oladi");
+    }
+
+    await this.prisma.documentComment.delete({ where: { id: commentId } });
+    await this.prisma.documentAuditLog.create({
+      data: { documentId: id, actorId: userId, action: 'comment_deleted' },
+    });
+
+    return this.findOne(userId, id);
+  }
+
+  // Tasdiqlash zanjiridan ishtirokchini olib tashlash — faqat admin.
+  // "Bilmasdan qo'shilgan xodimni olib tashlash" uchun. Iloji bo'lsa shu
+  // xodim pochtasiga borgan tasdiqlash xabarini ham o'chiradi (bira to'la).
+  async removeParticipant(userId: string, id: string, participantId: string) {
+    const admin = await this.isAdmin(userId);
+    if (!admin) {
+      throw new ForbiddenException("Faqat admin ishtirokchini olib tashlashi mumkin");
+    }
+    const doc = await this.prisma.document.findUnique({ where: { id } });
+    if (!doc) throw new NotFoundException('Hujjat topilmadi');
+
+    const part = await this.prisma.documentParticipant.findUnique({
+      where: { id: participantId },
+      include: { user: { select: { id: true, login: true } } },
+    });
+    if (!part || part.documentId !== id) {
+      throw new NotFoundException('Ishtirokchi topilmadi');
+    }
+    // Bosh direktor (avazbek) — yakuniy imzolovchi, uni hech qachon olib tashlamaymiz.
+    if (part.user.login === 'avazbek') {
+      throw new BadRequestException("Bosh direktorni (avazbek) zanjirdan olib tashlab bo'lmaydi");
+    }
+
+    const removedUserId = part.user.id;
+
+    await this.prisma.$transaction(async (tx) => {
+      // 1) Ishtirokchini o'chiramiz.
+      await tx.documentParticipant.delete({ where: { id: participantId } });
+      // 2) Audit log.
+      await tx.documentAuditLog.create({
+        data: { documentId: id, actorId: userId, action: 'participant_removed' },
+      });
+    });
+
+    // 3) Shu xodim pochtasiga borgan tasdiqlash xabarini o'chiramiz (best-effort).
+    //    Tasdiqlash xabari sarlavhasi: "[EDO <raqam>] <mavzu>".
+    try {
+      await this.prisma.messageRecipient.deleteMany({
+        where: {
+          userId: removedUserId,
+          message: { subject: `[EDO ${doc.number}] ${doc.subject}` },
+        },
+      });
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('[EDO] removeParticipant mailbox cleanup failed:', e);
+    }
+
+    // 4) Agar olib tashlangan xodim hozir navbatda turgan bo'lsa — zanjirni
+    //    keyingi kutilayotgan tasdiqlovchiga o'tkazamiz va unga xabar yuboramiz.
+    if (doc.currentHolderId === removedUserId) {
+      const next = await this.prisma.documentParticipant.findFirst({
+        where: {
+          documentId: id,
+          role: ParticipantRole.approver,
+          status: ParticipantStatus.pending,
+        },
+        orderBy: { order: 'asc' },
+      });
+      if (next) {
+        await this.prisma.document.update({
+          where: { id },
+          data: { currentHolderId: next.userId },
+        });
+        await this.notifyApprover(next.userId, userId, id, doc.number, doc.subject);
+      } else {
+        // Boshqa kutilayotgan tasdiqlovchi qolmadi — egasini bo'shatamiz.
+        await this.prisma.document.update({
+          where: { id },
+          data: { currentHolderId: null },
+        });
+      }
+    }
+
+    return this.findOne(userId, id);
+  }
+
   async forward(userId: string, id: string, dto: ForwardDto) {
     // Forward — javobgarlikni o'tkazish; PIN talab qilinadi (tasdiqlashga teng harakat)
     await this.users.verifyApprovalPin(userId, dto.pin);

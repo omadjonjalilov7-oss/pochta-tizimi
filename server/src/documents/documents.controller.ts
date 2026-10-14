@@ -438,6 +438,37 @@ export class DocumentsController {
     return this.docs.addComment(user.id, id, dto);
   }
 
+  // Izohni tahrirlash — faqat izoh muallifi yoki admin.
+  @Patch(':id/comment/:commentId')
+  editComment(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('commentId', new ParseUUIDPipe()) commentId: string,
+    @Body() dto: CommentDto,
+  ) {
+    return this.docs.editComment(user.id, id, commentId, dto);
+  }
+
+  // Izohni o'chirish — faqat izoh muallifi yoki admin.
+  @Delete(':id/comment/:commentId')
+  deleteComment(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('commentId', new ParseUUIDPipe()) commentId: string,
+  ) {
+    return this.docs.deleteComment(user.id, id, commentId);
+  }
+
+  // Tasdiqlash zanjiridan ishtirokchini olib tashlash — faqat admin.
+  @Delete(':id/participants/:participantId')
+  removeParticipant(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('participantId', new ParseUUIDPipe()) participantId: string,
+  ) {
+    return this.docs.removeParticipant(user.id, id, participantId);
+  }
+
   @Post(':id/forward')
   forward(
     @CurrentUser() user: CurrentUserPayload,
