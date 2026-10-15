@@ -143,9 +143,6 @@ export function exportInternalDocWord(
 ) {
   const content = data.body ?? '';
   const isHtml = /^\s*<[a-z]/i.test(content);
-  const bodyInner = isHtml
-    ? content
-    : `<div style="white-space:pre-wrap;">${esc(content)}</div>`;
 
   let chainHtml = '';
   if (data.includeChain && data.rows.length > 0) {
@@ -156,8 +153,9 @@ export function exportInternalDocWord(
               r.deptPos,
             )}</span>`
           : esc(r.fullName);
+        // QR kod — aniq 2sm x 2sm kvadrat.
         const qrCell = r.qrDataUrl
-          ? `<img src="${r.qrDataUrl}" width="90" height="90" alt="QR" />`
+          ? `<img src="${r.qrDataUrl}" width="76" height="76" style="width:2cm;height:2cm;" alt="QR" />`
           : '';
         return `
           <tr>
@@ -168,7 +166,7 @@ export function exportInternalDocWord(
             <td style="border:1px solid #000;padding:6px 8px;text-align:center;vertical-align:middle;white-space:nowrap;">${esc(
               fmtWhen(r.actedAt),
             )}</td>
-            <td style="border:1px solid #000;padding:6px 8px;text-align:center;vertical-align:middle;">${qrCell}</td>
+            <td style="border:1px solid #000;padding:6px 8px;text-align:center;vertical-align:middle;width:2.4cm;">${qrCell}</td>
           </tr>`;
       })
       .join('');
@@ -186,7 +184,7 @@ export function exportInternalDocWord(
             <th style="width:150px;border:1px solid #000;padding:6px 8px;background:#f0f0f0;">${esc(
               labels.when,
             )}</th>
-            <th style="width:110px;border:1px solid #000;padding:6px 8px;background:#f0f0f0;">${esc(
+            <th style="width:2.4cm;border:1px solid #000;padding:6px 8px;background:#f0f0f0;">${esc(
               labels.qr,
             )}</th>
           </tr>
@@ -195,7 +193,13 @@ export function exportInternalDocWord(
       </table>`;
   }
 
-  const html = `<!DOCTYPE html>
+  let html: string;
+  if (data.includeChain) {
+    // SHABLON TANLANMAGAN: mavzu sarlavhasi + matn + tasdiqlovchilar zanjiri.
+    const bodyInner = isHtml
+      ? content
+      : `<div style="white-space:pre-wrap;">${esc(content)}</div>`;
+    html = `<!DOCTYPE html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head>
   <meta charset="utf-8" />
@@ -212,6 +216,26 @@ export function exportInternalDocWord(
   ${chainHtml}
 </body>
 </html>`;
+  } else {
+    // SHABLON TANLANGAN: hujjat 1:1 chiqsin — shablon matni o'z stillari bilan,
+    // qo'shimcha sarlavha va majburiy shrift bermaymiz (o'zgarib ketmasin).
+    const bodyInner = isHtml
+      ? content
+      : `<div style="white-space:pre-wrap;">${esc(content)}</div>`;
+    html = `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta charset="utf-8" />
+  <title>${esc(data.subject)}</title>
+  <style>
+    @page { size: A4; margin: 2cm; }
+  </style>
+</head>
+<body>
+  ${bodyInner}
+</body>
+</html>`;
+  }
 
   const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
   const url = URL.createObjectURL(blob);
