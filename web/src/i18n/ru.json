@@ -1139,6 +1139,7 @@
       "remove_participant_confirm": "Удалить этого сотрудника из цепочки согласования? Уведомление в его почте также будет удалено.",
       "remove_participant": "Удалить из цепочки",
       "download_pdf": "Скачать PDF",
+      "download_word": "Скачать",
       "pdf_disabled_creator": "PDF можно скачать только после подписи руководителя",
       "preview_word": "Черновик документа",
       "chain_word": "Цепочка (Word)",
