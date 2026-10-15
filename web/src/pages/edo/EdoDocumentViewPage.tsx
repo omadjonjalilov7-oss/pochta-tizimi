@@ -50,7 +50,7 @@ import { useAuth } from '../../context/AuthContext';
 import { cn, cyrName, trDyn } from '../../lib/utils';
 import { SecretInput } from '../../components/SecretInput';
 import { ApproverChainPicker } from '../../components/edo/ApproverChainPicker';
-import { exportApproverChainWord, exportInternalDocWord } from '../../lib/exportChainWord';
+import { exportApproverChainWord } from '../../lib/exportChainWord';
 
 // OnlyOffice onlayn tahrirlash vaqtinchalik o'chirilgan (server tomonda hali
 // to'liq ishlamadi). Kod butunligicha qoldirilgan — yaxshi ishlagach shu
@@ -640,27 +640,18 @@ export function EdoDocumentViewPage({
             <div className="flex flex-col sm:flex-row items-stretch sm:items-start gap-2">
               <h1 className="text-lg md:text-xl font-semibold text-slate-900 flex-1 break-words">{doc.subject}</h1>
               <div className="flex gap-2 shrink-0 flex-wrap">
-                {doc.type === 'internal' ? (
-                  // Ichki hujjat: mavzu + matn har doim Word'da yuklanadi
-                  // (shablon bo'lmasa — tasdiqlovchilar zanjiri matn tagiga
-                  // qo'shiladi). avazbek tasdiqlashini kutmasdan yuklanadi.
-                  <DocWordButton doc={doc} disabled={doc.status === 'draft'} />
-                ) : (
-                  <>
-                    {doc.status !== 'draft' && (
-                      <PdfDownloadButton
-                        doc={doc}
-                        disabled={!canCreatePdf}
-                        isCreator={isCreator}
-                      />
-                    )}
-                    <WordExportButton
-                      doc={doc}
-                      disabled={doc.status === 'draft'}
-                    />
-                    {doc.type === 'outgoing' && <ChainWordButton doc={doc} />}
-                  </>
+                {doc.status !== 'draft' && (
+                  <PdfDownloadButton
+                    doc={doc}
+                    disabled={!canCreatePdf}
+                    isCreator={isCreator}
+                  />
                 )}
+                <WordExportButton
+                  doc={doc}
+                  disabled={doc.status === 'draft'}
+                />
+                {doc.type === 'outgoing' && <ChainWordButton doc={doc} />}
                 <QrButton docId={doc.id} docNumber={doc.number} />
               </div>
             </div>
@@ -1496,64 +1487,6 @@ function ChainWordButton({ doc }: { doc: EdoDocument }) {
     >
       <FileDown size={14} />
       <span>{busy ? t('common.saving') : t('edo.view.chain_word')}</span>
-    </button>
-  );
-}
-
-// "Yukla" tugmasi — ICHKI hujjat uchun. Hujjat mavzusi va matnini Word (.doc)
-// qilib yuklab oladi. Shablon tanlanmagan bo'lsa — matn tagiga tasdiqlovchilar
-// zanjiri (F.I.Sh., tasdiqlagan vaqti, QR kod) qo'shiladi. Zanjir + QR
-// ma'lumoti backend'dagi /chain-export dan olinadi (QR faqat serverda).
-function DocWordButton({ doc, disabled }: { doc: EdoDocument; disabled?: boolean }) {
-  const { t } = useTranslation();
-  const [busy, setBusy] = useState(false);
-
-  const handleClick = async () => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      const includeChain = !doc.templateId;
-      let rows: any[] = [];
-      if (includeChain) {
-        try {
-          const { data } = await api.get(`/documents/${doc.id}/chain-export`);
-          rows = data?.rows ?? [];
-        } catch {
-          rows = [];
-        }
-      }
-      exportInternalDocWord(
-        {
-          number: doc.number ?? '',
-          subject: doc.subject ?? '',
-          body: doc.renderedBody ?? doc.body ?? '',
-          includeChain,
-          rows,
-        },
-        {
-          chainTitle: t('edo.view.chain_word_title'),
-          num: t('edo.view.chain_word_num'),
-          fio: t('edo.view.chain_word_fio'),
-          when: t('edo.view.chain_word_when'),
-          qr: t('edo.view.chain_word_qr'),
-        },
-      );
-    } catch (e) {
-      alert(extractError(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <button
-      onClick={handleClick}
-      disabled={disabled || busy}
-      title={t('edo.view.download_word')}
-      className="inline-flex items-center gap-1.5 text-xs font-medium text-asaka-700 hover:text-asaka-800 hover:bg-asaka-50 px-2 py-1 rounded-md disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-    >
-      {busy ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-      <span>{t('edo.view.download_word')}</span>
     </button>
   );
 }
