@@ -2806,12 +2806,21 @@ export class DocumentsService {
   async listMine(userId: string) {
     const seeAll = await this.canSeeAllDocs(userId);
     const docs = await this.prisma.document.findMany({
-      where: await this.participantScope(userId),
+      where: {
+        AND: [
+          await this.participantScope(userId),
+          // Buyurtmachi talabi: BAJARILGAN (done) hujjatlar "Mening hujjatlarim"da
+          // umuman ko'rinmaydi — ular faqat "Arxiv" bo'limida bo'ladi (barcha
+          // foydalanuvchilar uchun).
+          { status: { not: DocumentStatus.done } },
+        ],
+      },
       include: FULL_INCLUDE,
       orderBy: { updatedAt: 'desc' },
     });
     // QAT'IY ZANJIR: yuqori navbatdagi tasdiqlovchiga (rais/direktorlar) hujjat
-    // quyi xodimlar tasdiqlamaguncha ko'rinmaydi. Admin/kanselyariya — hammasi.
+    // quyi xodimlar tasdiqlamaguncha, STATUSIDAN QAT'I NAZAR ko'rinmaydi.
+    // Admin/kanselyariya — hammasi.
     const visible = seeAll
       ? docs
       : docs.filter((d) => this.isVisibleInMine(userId, d));

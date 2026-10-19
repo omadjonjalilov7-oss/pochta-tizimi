@@ -447,7 +447,25 @@ function ControlLegend() {
 }
 
 // ── "Mening hujjatlarim" — kategoriya tablari + qidiruv/filtr paneli ──
-type MyDocTab = 'all' | 'outgoing' | 'reply' | 'internal' | 'other' | 'to_leader' | 'unapproved' | 'approved' | 'rejected';
+type MyDocTab = 'all' | 'my_turn' | 'outgoing' | 'reply' | 'internal' | 'other' | 'to_leader' | 'unapproved' | 'approved' | 'rejected';
+
+// Hujjat AYNAN shu foydalanuvchi navbatida (u tasdiqlashi kerak)mi?
+// Zanjirda u pending tasdiqlovchi va uning tartibi hozirgi eng kichik (joriy navbat)
+// bo'lsa — ya'ni quyi lavozimlar tasdiqlab bo'lgan, endi navbat unga kelgan.
+export function isMyTurn(d: EdoDocument, userId?: string): boolean {
+  if (!userId) return false;
+  // Faqat tasdiqlash bosqichidagi hujjatlar
+  if (!['in_review', 'in_progress', 'overdue', 'podpisana'].includes(d.status)) return false;
+  const approvers = (d.participants ?? []).filter((p) => p.role === 'approver');
+  const mine = approvers.find((p) => p.userId === userId);
+  if (!mine || mine.status !== 'pending') return false;
+  const pendingOrders = approvers
+    .filter((p) => p.status === 'pending')
+    .map((p) => p.order);
+  if (pendingOrders.length === 0) return false;
+  const minOrder = Math.min(...pendingOrders);
+  return mine.order === minOrder;
+}
 
 // Hujjat shu foydalanuvchi tomonidan tasdiqlanganmi?
 // - Agar foydalanuvchi tasdiqlovchi (approver) bo'lsa: uning participant.status === 'approved'.
@@ -486,6 +504,8 @@ function matchTab(d: EdoDocument, tab: MyDocTab, userId?: string): boolean {
   switch (tab) {
     case 'all':
       return true;
+    case 'my_turn':
+      return isMyTurn(d, userId);
     case 'outgoing':
       return d.type === 'outgoing';
     case 'reply':
@@ -557,10 +577,10 @@ export function EdoMyDocsPage() {
 
   const tabCounts = useMemo(() => {
     const c: Record<MyDocTab, number> = {
-      all: 0, outgoing: 0, reply: 0, internal: 0, other: 0, to_leader: 0, unapproved: 0, approved: 0, rejected: 0,
+      all: 0, my_turn: 0, outgoing: 0, reply: 0, internal: 0, other: 0, to_leader: 0, unapproved: 0, approved: 0, rejected: 0,
     };
     for (const d of docs) {
-      (['all', 'outgoing', 'reply', 'internal', 'other', 'to_leader', 'unapproved', 'approved', 'rejected'] as MyDocTab[]).forEach((tb) => {
+      (['all', 'my_turn', 'outgoing', 'reply', 'internal', 'other', 'to_leader', 'unapproved', 'approved', 'rejected'] as MyDocTab[]).forEach((tb) => {
         if (matchTab(d, tb, user?.id)) c[tb] += 1;
       });
     }
@@ -600,10 +620,12 @@ export function EdoMyDocsPage() {
     setDateTo('');
   };
 
-  const tabs: MyDocTab[] = ['all', 'unapproved', 'approved', 'rejected', 'outgoing', 'reply', 'internal', 'other', 'to_leader'];
+  const tabs: MyDocTab[] = ['my_turn', 'all', 'unapproved', 'approved', 'rejected', 'outgoing', 'reply', 'internal', 'other', 'to_leader'];
   // "rejected" holati alohida "Rad etilgan" tabida ko'rsatiladi, shu bois status
   // filtri ro'yxatidan olib tashlandi (boshqa tablarda rad etilgan chiqmaydi).
-  const statuses: DocumentStatus[] = ['draft', 'in_review', 'in_progress', 'done', 'overdue'];
+  // "done" (bajarilgan) hujjatlar "Mening hujjatlarim"da ko'rinmaydi (faqat Arxivda),
+  // shu sabab status filtri ro'yxatidan ham olib tashlandi.
+  const statuses: DocumentStatus[] = ['draft', 'in_review', 'in_progress', 'overdue'];
 
   return (
     <div className="w-full px-3 md:px-6 py-4 md:py-6">

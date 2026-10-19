@@ -1166,6 +1166,7 @@
     },
     "mydocs": {
       "tab_all": "Barchasi",
+      "tab_my_turn": "Navbatim (tasdiqlashim kerak)",
       "tab_outgoing": "Chiquvchi",
       "tab_reply": "Javob xati",
       "tab_internal": "Ichki",
