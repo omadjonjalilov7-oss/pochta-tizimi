@@ -2804,12 +2804,18 @@ export class DocumentsService {
 
   // Mening barcha hujjatlarim (yaratganlarim + ishtirok etganlarim)
   async listMine(userId: string) {
+    const seeAll = await this.canSeeAllDocs(userId);
     const docs = await this.prisma.document.findMany({
       where: await this.participantScope(userId),
       include: FULL_INCLUDE,
       orderBy: { updatedAt: 'desc' },
     });
-    return docs.map((d) => this.serialize(d));
+    // QAT'IY ZANJIR: yuqori navbatdagi tasdiqlovchiga (rais/direktorlar) hujjat
+    // quyi xodimlar tasdiqlamaguncha ko'rinmaydi. Admin/kanselyariya — hammasi.
+    const visible = seeAll
+      ? docs
+      : docs.filter((d) => this.isVisibleInMine(userId, d));
+    return visible.map((d) => this.serialize(d));
   }
 
   // Qidiruv — yagona ID (asaka-...), tartib raqami yoki mavzu bo'yicha.
@@ -4292,6 +4298,38 @@ export class DocumentsService {
     return {
       OR: [{ createdById: userId }, { participants: { some: { userId } } }],
     };
+  }
+
+  // QAT'IY ZANJIR KO'RINISHI (buyurtmachi talabi): zanjirda yuqoriroq navbatda
+  // turgan tasdiqlovchiga (rais/direktorlar) hujjat quyi navbatdagilar
+  // tasdiqlamaguncha KO'RINMAYDI. Hujjat foydalanuvchiga ko'rinadi, agar:
+  //  - uni O'ZI yaratgan bo'lsa;
+  //  - tasdiqlovchidan BOSHQA rol (ijrochi/target/kuzatuvchi) bilan ishtirok etsa;
+  //  - tasdiqlovchi sifatida allaqachon QAROR qilgan (approved/rejected) bo'lsa;
+  //  - yoki hozir aynan UNING navbati bo'lsa (eng kichik tartibli kutuvchi guruh).
+  private isVisibleInMine(userId: string, doc: any): boolean {
+    if (doc.createdById === userId) return true;
+    const myParts = (doc.participants ?? []).filter(
+      (p: any) => p.userId === userId,
+    );
+    if (myParts.length === 0) return false;
+    // Tasdiqlovchidan boshqa ishtirok (ijrochi/target/kuzatuvchi) — doim ko'rinadi
+    if (myParts.some((p: any) => p.role !== ParticipantRole.approver)) return true;
+    const mine = myParts.find((p: any) => p.role === ParticipantRole.approver);
+    if (!mine) return true;
+    // Allaqachon qaror qilgan (tasdiqlagan/rad etgan) — tarix uchun ko'rinadi
+    if (mine.status !== ParticipantStatus.pending) return true;
+    // Kutayotgan tasdiqlovchi — faqat o'z navbati kelganda ko'rinadi
+    const pendingOrders = (doc.participants ?? [])
+      .filter(
+        (p: any) =>
+          p.role === ParticipantRole.approver &&
+          p.status === ParticipantStatus.pending,
+      )
+      .map((p: any) => p.order as number);
+    if (pendingOrders.length === 0) return true;
+    const minOrder = Math.min(...pendingOrders);
+    return mine.order === minOrder;
   }
 
   // Faqat hozir tasdiqlash navbatida turgan (eng kichik tartibli guruhdagi)
