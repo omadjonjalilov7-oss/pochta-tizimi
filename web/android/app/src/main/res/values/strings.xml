@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Asaka EDO</string>
+    <string name="title_activity_main">Asaka EDO</string>
+    <string name="package_name">uz.asakamotors.edo</string>
+    <string name="custom_url_scheme">uz.asakamotors.edo</string>
+</resources>
