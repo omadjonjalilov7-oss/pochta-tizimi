@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TelegramService } from './telegram.service';
 import { SmsService } from './sms.service';
 import { PushService } from './push.service';
+import { WebPushService } from './webpush.service';
 
 // Tashqi kanallar (Telegram + SMS) bo'yicha yagona kirish nuqtasi.
 // Pochta ichidagi xabar/realtime alohida (documents.service) — bu faqat
@@ -14,6 +15,7 @@ export class NotificationsService {
     private readonly telegram: TelegramService,
     private readonly sms: SmsService,
     private readonly push: PushService,
+    private readonly webPush: WebPushService,
   ) {}
 
   // Bitta foydalanuvchiga tashqi bildirishnoma. telegram matni HTML bo'lishi
@@ -36,6 +38,7 @@ export class NotificationsService {
     const push = opts.push ?? this.pushFromTelegram(opts.telegram);
     if (push) {
       jobs.push(this.push.sendToUser(userId, push).catch(() => undefined));
+      jobs.push(this.webPush.sendToUser(userId, push).catch(() => undefined));
     }
     await Promise.all(jobs);
   }

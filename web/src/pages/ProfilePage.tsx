@@ -7,6 +7,7 @@ import { formatDateTime, cn } from '../lib/utils';
 import { api } from '../lib/api';
 import type { User } from '../lib/types';
 import { SecretInput } from '../components/SecretInput';
+import { registerWebPush, webPushStatus } from '../lib/webpush';
 
 interface ExternalMailStatus {
   connected: boolean;
@@ -458,9 +459,55 @@ function PreferencesSection() {
             hint={t('profile.prefs_notify_sms_hint')}
           />
           {saving && <Loader2 size={14} className="animate-spin text-slate-400" />}
+          <DevicePushButton />
         </div>
         {err && <div className="text-xs text-red-600">{err}</div>}
       </div>
+    </div>
+  );
+}
+
+// PWA (iPhone bosh ekranga qo'shilgan ilova / brauzer) uchun shu qurilmada
+// bildirishnomani yoqish. iOS'da ruxsat faqat foydalanuvchi bosganida so'raladi,
+// shuning uchun alohida tugma. Native (Android APK) da ko'rinmaydi.
+function DevicePushButton() {
+  const { t } = useTranslation();
+  const [status, setStatus] = useState(() => webPushStatus());
+  const [busy, setBusy] = useState(false);
+
+  if (status === 'unsupported') return null;
+
+  const enable = async () => {
+    setBusy(true);
+    try {
+      await registerWebPush();
+    } finally {
+      setStatus(webPushStatus());
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="pt-1">
+      {status === 'granted' ? (
+        <div className="flex items-center gap-2 text-xs text-emerald-600">
+          <CheckCircle2 size={14} /> {t('profile.device_push_on')}
+        </div>
+      ) : status === 'denied' ? (
+        <div className="flex items-center gap-2 text-xs text-amber-600">
+          <AlertCircle size={14} /> {t('profile.device_push_denied')}
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={enable}
+          disabled={busy}
+          className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-60 dark:bg-slate-700 dark:hover:bg-slate-600"
+        >
+          {busy ? <Loader2 size={14} className="animate-spin" /> : <Bell size={14} />}
+          {t('profile.device_push_enable')}
+        </button>
+      )}
     </div>
   );
 }

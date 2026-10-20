@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { api, getToken, setToken } from '../lib/api';
 import { registerPush, unregisterPush } from '../lib/push';
+import { registerWebPush, unregisterWebPush } from '../lib/webpush';
 import type { User, LoginResponse } from '../lib/types';
 
 interface AuthContextValue {
@@ -31,7 +32,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (user) void registerPush();
+    if (user) {
+      void registerPush();
+      // PWA (iPhone/brauzer): ruxsat allaqachon berilgan bo'lsa jim obuna
+      // bo'ladi. Birinchi marta yoqish — Profil sahifasidagi tugma orqali.
+      void registerWebPush();
+    }
   }, [user]);
 
   const login = async (loginName: string, password: string, rememberMe = false) => {
@@ -46,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     void unregisterPush();
+    void unregisterWebPush();
     setToken(null);
     setUser(null);
   };
