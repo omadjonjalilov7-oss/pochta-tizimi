@@ -114,6 +114,8 @@ model User {
   // Kanal bo'yicha bildirishnoma yoqilganmi (notifyEdo — Pochta ichidagi xabar)
   notifyTelegram          Boolean   @default(true) @map("notify_telegram")
   notifySms               Boolean   @default(true) @map("notify_sms")
+  // Mobil ilova push-bildirishnomalari (FCM)
+  notifyPush              Boolean   @default(true) @map("notify_push")
 
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -160,11 +162,30 @@ model User {
   // Xabar o'qish jurnali
   messageReadLogs          MessageReadLog[] @relation("ReadLogs")
 
+  // Mobil ilova push-token'lari (FCM)
+  pushTokens               PushToken[]
+
   @@index([departmentId])
   @@index([positionId])
   @@index([managerId])
   @@index([isActive])
   @@map("users")
+}
+
+// Mobil ilova push-bildirishnoma token'lari (FCM device token).
+// Bitta foydalanuvchida bir nechta qurilma bo'lishi mumkin.
+model PushToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String   @unique @db.Text
+  platform  String   @default("android") @db.VarChar(16)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_tokens")
 }
 
 // ============================================================

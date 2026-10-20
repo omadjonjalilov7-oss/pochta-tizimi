@@ -8,6 +8,11 @@ const config: CapacitorConfig = {
     url: 'https://edo.asaka-motors.uz',
     cleartext: false,
   },
+  plugins: {
+    PushNotifications: {
+      presentationOptions: ['badge', 'sound', 'alert'],
+    },
+  },
 };
 
 export default config;

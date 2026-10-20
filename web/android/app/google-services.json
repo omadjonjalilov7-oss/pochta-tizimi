@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "55299941144",
+    "project_id": "asaka-edo",
+    "storage_bucket": "asaka-edo.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:55299941144:android:92721a4e7c867928c1b46d",
+        "android_client_info": {
+          "package_name": "uz.asakamotors.edo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDxMuCOZ1s_DCw9_Z9ldIkzri7kTSybkf8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

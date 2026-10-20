@@ -7,3 +7,8 @@ coverage/
 .idea/
 .vscode/
 storage/
+
+# Firebase service account (maxfiy kalit — hech qachon git'ga tushmasin)
+firebase-service-account.json
+*service-account*.json
+*serviceAccount*.json

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { api, getToken, setToken } from '../lib/api';
+import { registerPush, unregisterPush } from '../lib/push';
 import type { User, LoginResponse } from '../lib/types';
 
 interface AuthContextValue {
@@ -29,6 +30,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    if (user) void registerPush();
+  }, [user]);
+
   const login = async (loginName: string, password: string, rememberMe = false) => {
     const { data } = await api.post<LoginResponse>('/auth/login', {
       login: loginName,
@@ -40,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    void unregisterPush();
     setToken(null);
     setUser(null);
   };
