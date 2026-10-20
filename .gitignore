@@ -18,6 +18,13 @@ build/
 # Maxfiy kalitlar (yozib qo'yilgan)
 1.txt
 
+# Firebase service account (MAXFIY — hech qachon git'ga tushmasin)
+asaka-edo-firebase.json
+**/firebase-service-account.json
+**/*service-account*.json
+**/*serviceAccount*.json
+**/*firebase-adminsdk*.json
+
 # Logs
 *.log
 npm-debug.log*
