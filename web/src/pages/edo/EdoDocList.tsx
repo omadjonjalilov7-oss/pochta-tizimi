@@ -891,9 +891,217 @@ export function EdoInternalPage() {
   );
 }
 
+// Filtrlanadigan hujjatlar ro'yxati — "Mening hujjatlarim" sahifasidagi kabi
+// chapda ro'yxat, o'ngda qidiruv/filtr paneli (nomi/raqami + holat + sana oralig'i).
+// Arxiv va shunga o'xshash sahifalar uchun qayta ishlatiladi.
+function FilteredDocList({
+  queryKey,
+  endpoint,
+  titleKey,
+  emptyKey,
+}: {
+  queryKey: string;
+  endpoint: string;
+  titleKey: string;
+  emptyKey: string;
+}) {
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+  const qc = useQueryClient();
+  const { data: docs = [], isLoading } = useQuery({
+    queryKey: [queryKey],
+    queryFn: async () => (await api.get<EdoDocument[]>(endpoint)).data,
+  });
+
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<DocumentStatus | 'all'>('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const toggle = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const bulkDelete = useMutation({
+    mutationFn: async (ids: string[]) => (await api.post('/documents/bulk-delete', { ids })).data,
+    onSuccess: () => {
+      setSelected(new Set());
+      qc.invalidateQueries({ queryKey: [queryKey] });
+    },
+  });
+  const deleteDraft = useMutation({
+    mutationFn: async (id: string) => (await api.delete(`/documents/${id}`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: [queryKey] }),
+  });
+  const onDeleteDraft = (id: string) => {
+    if (!window.confirm(t('edo.list.delete_confirm', { count: 1 }))) return;
+    deleteDraft.mutate(id);
+  };
+  const onBulkDelete = () => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    if (!window.confirm(t('edo.list.delete_confirm', { count: ids.length }))) return;
+    bulkDelete.mutate(ids);
+  };
+
+  // Ro'yxatda mavjud holatlar — status filtri ro'yxatini dinamik to'ldiramiz.
+  const presentStatuses = useMemo(() => {
+    const set = new Set<DocumentStatus>();
+    for (const d of docs) set.add(d.status);
+    return [...set];
+  }, [docs]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const fromTs = dateFrom ? new Date(dateFrom).getTime() : null;
+    const toTs = dateTo ? new Date(dateTo).getTime() + 24 * 60 * 60 * 1000 : null;
+    return docs
+      .filter((d) => {
+        if (statusFilter !== 'all' && d.status !== statusFilter) return false;
+        if (fromTs && new Date(d.createdAt).getTime() < fromTs) return false;
+        if (toTs && new Date(d.createdAt).getTime() > toTs) return false;
+        if (q) {
+          const hay = `${d.number} ${d.docUid ?? ''} ${d.subject} ${d.shortInfo ?? ''}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [docs, statusFilter, dateFrom, dateTo, search]);
+
+  const hasFilters = !!search || statusFilter !== 'all' || !!dateFrom || !!dateTo;
+  const clearFilters = () => {
+    setSearch('');
+    setStatusFilter('all');
+    setDateFrom('');
+    setDateTo('');
+  };
+
+  return (
+    <div className="w-full px-3 md:px-6 py-4 md:py-6">
+      <div className="flex items-center justify-between mb-4 gap-3">
+        <h1 className="text-lg md:text-xl font-semibold text-slate-900">{t(titleKey)}</h1>
+        {isAdmin && selected.size > 0 && (
+          <button
+            onClick={onBulkDelete}
+            disabled={bulkDelete.isPending}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-60 rounded-lg transition"
+          >
+            {bulkDelete.isPending ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+            {t('edo.list.delete_selected', { count: selected.size })}
+          </button>
+        )}
+      </div>
+
+      <div className="flex flex-col lg:flex-row gap-4">
+        {/* Chap ustun — hujjatlar ro'yxati */}
+        <div className="flex-1 min-w-0">
+          {isLoading ? (
+            <div className="text-slate-400 p-6">{t('common.loading')}</div>
+          ) : filtered.length === 0 ? (
+            <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center">
+              <FileText size={36} className="mx-auto text-slate-300 mb-2" />
+              <p className="text-slate-500 text-sm">{t(emptyKey)}</p>
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {filtered.map((d) => (
+                <DocListItem
+                  key={d.id}
+                  d={d}
+                  isAdmin={isAdmin}
+                  selected={selected.has(d.id)}
+                  onToggle={toggle}
+                  showHolder
+                  onDeleteDraft={onDeleteDraft}
+                  deletingDraft={deleteDraft.isPending}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* O'ng ustun — qidiruv / filtr paneli */}
+        <aside className="lg:w-72 shrink-0">
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-4 lg:sticky lg:top-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-700">{t('edo.mydocs.filters')}</h2>
+              {hasFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-red-600"
+                >
+                  <X size={12} />
+                  {t('edo.mydocs.clear')}
+                </button>
+              )}
+            </div>
+
+            <div className="relative">
+              <Search size={15} className="absolute left-2.5 top-2.5 text-slate-400" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t('edo.mydocs.search_ph')}
+                className="w-full pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 focus:ring-2 focus:ring-asaka-100 outline-none"
+              />
+            </div>
+
+            {presentStatuses.length > 1 && (
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">{t('edo.mydocs.status')}</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as DocumentStatus | 'all')}
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 outline-none bg-white"
+                >
+                  <option value="all">{t('edo.mydocs.tab_all')}</option>
+                  {presentStatuses.map((s) => (
+                    <option key={s} value={s}>
+                      {t(`edo.status.${s}`)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">{t('edo.mydocs.date_from')}</label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">{t('edo.mydocs.date_to')}</label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-asaka-500 outline-none"
+              />
+            </div>
+
+            <div className="text-xs text-slate-400 pt-1 border-t border-slate-100">
+              {t('edo.mydocs.found', { count: filtered.length })}
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
 export function EdoArchivePage() {
   return (
-    <DocList
+    <FilteredDocList
       queryKey="edo-archive"
       endpoint="/documents/archive"
       titleKey="edo.nav.archive"
