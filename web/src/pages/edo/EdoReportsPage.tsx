@@ -52,7 +52,7 @@ function defaultRange() {
 export function EdoReportsPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const canSeeAll = user?.role === 'admin' || user?.role === 'chancellery';
+  const canSeeAll = user?.role === 'admin' || user?.role === 'chancellery' || user?.role === 'buxgalter';
   const [{ from, to }, setRange] = useState(defaultRange);
   const [openMetric, setOpenMetric] = useState<{ metric: string; title: string } | null>(null);
 

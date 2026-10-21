@@ -90,7 +90,7 @@ function StatCard({
 export function EdoStatsPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const isStaff = user?.role === 'admin' || user?.role === 'chancellery';
+  const isStaff = user?.role === 'admin' || user?.role === 'chancellery' || user?.role === 'buxgalter';
   const { view } = useParams<{ view?: string }>();
   const [{ from, to }, setRange] = useState(defaultRange);
   const [openMetric, setOpenMetric] = useState<{ metric: string; title: string } | null>(null);

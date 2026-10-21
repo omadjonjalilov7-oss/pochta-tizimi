@@ -77,7 +77,7 @@ export class QrApprovalService {
       where: { id: userId },
       select: { role: true },
     });
-    return u?.role === 'admin' || u?.role === 'chancellery';
+    return u?.role === 'admin' || u?.role === 'chancellery' || u?.role === 'buxgalter';
   }
 
   /**

@@ -436,6 +436,7 @@
     "role_label": "Rol",
     "role_user": "Foydalanuvchi",
     "role_chancellery": "Konselyariya",
+    "role_buxgalter": "Buxgalter",
     "role_admin": "Administrator",
     "tooltip_admin": "Administrator",
     "tooltip_external_mail": "Tashqi pochta",
@@ -511,7 +512,16 @@
     "topnav": {
       "assignments": "Topshiriqlar",
       "chancellery": "Kanselyariya",
-      "control": "Nazorat"
+      "control": "Nazorat",
+      "buxgalter": "Buxgalter"
+    },
+    "buxgalter": {
+      "title": "Buxgalter oynasi",
+      "hint": "Bajarilgan hujjatlarni to'lov qilinganidan so'ng sichqoncha bilan o'ng tarafga tortib qo'ying. Bu amal faqat sizga ko'rinadi — hujjatga va boshqa foydalanuvchilarga ta'sir qilmaydi.",
+      "pane_done": "Bajarilgan hujjatlar",
+      "pane_paid": "To'langan (siz belgilagan)",
+      "empty_done": "Bajarilgan hujjatlar yo'q",
+      "empty_paid": "Hali bironta hujjat to'langan deb belgilanmagan"
     },
     "nav": {
       "compose": "Yangi hujjat",

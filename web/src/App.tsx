@@ -40,6 +40,7 @@ import {
   EdoKorrektorPage,
 } from './pages/edo/EdoDocList';
 import { EdoControlPage } from './pages/edo/EdoControlPage';
+import { EdoBuxgalterPage } from './pages/edo/EdoBuxgalterPage';
 import { EdoScanPage } from './pages/edo/EdoScanPage';
 import { EdoKanselyariyaPage } from './pages/edo/EdoKanselyariyaPage';
 
@@ -88,6 +89,7 @@ export function App() {
           <Route path="mine" element={<EdoMyDocsPage />} />
           <Route path="search" element={<EdoSearchPage />} />
           <Route path="control" element={<EdoControlPage />} />
+          <Route path="buxgalter" element={<EdoBuxgalterPage />} />
           <Route path="control/open-tasks" element={<EdoOpenTasksPage />} />
           <Route path="kanselyariya" element={<Navigate to="/edo/kanselyariya/exists" replace />} />
           <Route path="kanselyariya/:filter" element={<EdoKanselyariyaPage />} />

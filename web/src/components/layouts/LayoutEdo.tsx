@@ -23,6 +23,7 @@ import {
   CalendarDays,
   MessagesSquare,
   ShieldCheck,
+  Calculator,
   Building2,
   SquarePen,
   Handshake,
@@ -235,7 +236,8 @@ function NewDocButton({ collapsed, showIncoming }: { collapsed?: boolean; showIn
 export function LayoutEdo() {
   const { t } = useTranslation();
   const { user, notification, handleLogout } = useLayoutData();
-  const isStaff = user.role === 'admin' || user.role === 'chancellery';
+  const isStaff = user.role === 'admin' || user.role === 'chancellery' || user.role === 'buxgalter';
+  const isBuxgalter = user.role === 'admin' || user.role === 'buxgalter';
   const { openTheme, openDesign, openLanguage, modals } = useAppearanceModals();
   // Menu har doim ochiq turadi (compose sahifasida ham kichraymaydi)
   const collapsed = false;
@@ -292,6 +294,9 @@ export function LayoutEdo() {
             <TopNav to="/edo/tasks" icon={Handshake} label={t('edo.topnav.assignments')} />
             <TopNav to="/edo/stats/overview" icon={LayoutGrid} label={t('edo.topnav.chancellery')} />
             <TopNav to="/edo/control" icon={ShieldCheck} label={t('edo.topnav.control')} />
+            {isBuxgalter && (
+              <TopNav to="/edo/buxgalter" icon={Calculator} label={t('edo.topnav.buxgalter')} />
+            )}
           </nav>
         )}
         <div className="flex items-center gap-2 ml-auto">

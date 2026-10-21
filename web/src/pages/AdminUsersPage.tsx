@@ -148,6 +148,11 @@ export function AdminUsersPage() {
                             {t('admin.role_chancellery')}
                           </span>
                         )}
+                        {u.role === 'buxgalter' && (
+                          <span className="inline-block bg-emerald-100 text-emerald-700 text-xs px-2 py-0.5 rounded">
+                            {t('admin.role_buxgalter')}
+                          </span>
+                        )}
                         {u.canSendExternal && (
                           <span title={t('admin.tooltip_external_mail')} className="text-amber-600">
                             <Globe size={14} />
@@ -276,7 +281,7 @@ function UserModal({
   const [canSignExternal, setCanSignExternal] = useState(user?.canSignExternal || false);
   const [canApproveWithKey, setCanApproveWithKey] = useState(user?.canApproveWithKey || false);
   const [canSeeProtected, setCanSeeProtected] = useState(user?.canSeeProtected || false);
-  const [role, setRole] = useState<'admin' | 'chancellery' | 'user'>(user?.role || 'user');
+  const [role, setRole] = useState<'admin' | 'chancellery' | 'buxgalter' | 'user'>(user?.role || 'user');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -553,11 +558,12 @@ function UserModal({
             </label>
             <select
               value={role}
-              onChange={(e) => setRole(e.target.value as 'admin' | 'chancellery' | 'user')}
+              onChange={(e) => setRole(e.target.value as 'admin' | 'chancellery' | 'buxgalter' | 'user')}
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
             >
               <option value="user">{t('admin.role_user')}</option>
               <option value="chancellery">{t('admin.role_chancellery')}</option>
+              <option value="buxgalter">{t('admin.role_buxgalter')}</option>
               <option value="admin">{t('admin.role_admin')}</option>
             </select>
           </div>

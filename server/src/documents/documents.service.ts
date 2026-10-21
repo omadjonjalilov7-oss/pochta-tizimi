@@ -1951,7 +1951,7 @@ export class DocumentsService {
     // Topshiriq (rezolyutsiya / poruchenie) BIRIKTIRISHNI faqat kanselyariya yoki
     // admin roli amalga oshiradi. Boshqa xodimlar (yaratuvchi, tasdiqlovchi, ijrochi)
     // faqat o'ziga biriktirilgan topshiriqqa izoh yoza oladi (addTargetNote).
-    const isStaff = role === 'admin' || role === 'chancellery';
+    const isStaff = role === 'admin' || role === 'chancellery' || role === 'buxgalter';
     if (!isStaff) {
       throw new ForbiddenException(
         "Topshiriq biriktirishni faqat kanselyariya yoki admin xodimi amalga oshiradi",
@@ -2096,7 +2096,7 @@ export class DocumentsService {
     if (!doc) throw new NotFoundException('Hujjat topilmadi');
 
     const isCreator = doc.createdById === userId;
-    const isStaff = role === 'admin' || role === 'chancellery';
+    const isStaff = role === 'admin' || role === 'chancellery' || role === 'buxgalter';
     if (!isCreator && !isStaff) {
       throw new ForbiddenException("Sizda hujjatni rahbarga ma'ruza qilish huquqi yo'q");
     }
@@ -2163,7 +2163,7 @@ export class DocumentsService {
       include: { resolution: { include: { document: true } } },
     });
     if (!target) throw new NotFoundException('Topshiriq topilmadi');
-    const isStaff = role === 'admin' || role === 'chancellery';
+    const isStaff = role === 'admin' || role === 'chancellery' || role === 'buxgalter';
     const isDocCreator = target.resolution.document.createdById === userId;
     if (!isStaff && !isDocCreator) {
       throw new ForbiddenException(
@@ -2291,7 +2291,7 @@ export class DocumentsService {
       include: { resolution: { include: { document: true } } },
     });
     if (!target) throw new NotFoundException('Topshiriq topilmadi');
-    const isStaff = role === 'admin' || role === 'chancellery';
+    const isStaff = role === 'admin' || role === 'chancellery' || role === 'buxgalter';
     const isAuthor = target.resolution.authorId === userId;
     const isDocCreator = target.resolution.document.createdById === userId;
     if (!isStaff && !isAuthor && !isDocCreator) {
@@ -2359,7 +2359,7 @@ export class DocumentsService {
       include: { targets: true },
     });
     if (!res) throw new NotFoundException('Rezolyutsiya topilmadi');
-    const isStaff = role === 'admin' || role === 'chancellery';
+    const isStaff = role === 'admin' || role === 'chancellery' || role === 'buxgalter';
     // Kiruvchi hujjatda rahbar (joriy egasi) ham topshiriqni tahrirlay oladi.
     const parentDoc = await this.prisma.document.findUnique({
       where: { id: res.documentId },
@@ -2492,7 +2492,7 @@ export class DocumentsService {
       include: { targets: true },
     });
     if (!res) throw new NotFoundException('Rezolyutsiya topilmadi');
-    const isStaff = role === 'admin' || role === 'chancellery';
+    const isStaff = role === 'admin' || role === 'chancellery' || role === 'buxgalter';
     if (res.authorId !== userId && !isStaff) {
       throw new ForbiddenException("Sizda o'chirish huquqi yo'q");
     }
@@ -3023,6 +3023,52 @@ export class DocumentsService {
       orderBy: { closedAt: 'desc' },
     });
     return docs.map((d) => this.serialize(d));
+  }
+
+  // ── BUXGALTER (to'lov nazorati) ────────────────────────────────────────
+  // Buxgalter oynasi: barcha BAJARILGAN (done) hujjatlar + shu buxgalter o'z
+  // qo'li bilan "to'landi" deb belgilagan hujjatlar ro'yxati (markedIds).
+  // "To'landi" belgisi FAQAT shu foydalanuvchiga tegishli — hujjatning umumiy
+  // holatiga va boshqa foydalanuvchilarga mutlaqo ta'sir qilmaydi.
+  async listAccountantDone(userId: string) {
+    const [docs, marks] = await Promise.all([
+      this.prisma.document.findMany({
+        where: { status: 'done' },
+        include: FULL_INCLUDE,
+        orderBy: { closedAt: 'desc' },
+      }),
+      this.prisma.accountantMark.findMany({
+        where: { userId },
+        select: { documentId: true },
+      }),
+    ]);
+    return {
+      documents: docs.map((d) => this.serialize(d)),
+      markedIds: marks.map((m) => m.documentId),
+    };
+  }
+
+  // Hujjatni shu buxgalter uchun "to'landi" deb belgilaydi (o'ngga oladi).
+  async markAccountantPaid(userId: string, documentId: string) {
+    const doc = await this.prisma.document.findUnique({
+      where: { id: documentId },
+      select: { id: true },
+    });
+    if (!doc) throw new NotFoundException('Hujjat topilmadi');
+    await this.prisma.accountantMark.upsert({
+      where: { userId_documentId: { userId, documentId } },
+      create: { userId, documentId },
+      update: {},
+    });
+    return { ok: true };
+  }
+
+  // "To'landi" belgisini olib tashlaydi (chapga qaytaradi).
+  async unmarkAccountantPaid(userId: string, documentId: string) {
+    await this.prisma.accountantMark.deleteMany({
+      where: { userId, documentId },
+    });
+    return { ok: true };
   }
 
   // ── NAZORAT (Kanselyariya) ─────────────────────────────────────────────
@@ -4288,7 +4334,7 @@ export class DocumentsService {
       where: { id: userId },
       select: { role: true },
     });
-    return u?.role === 'admin' || u?.role === 'chancellery';
+    return u?.role === 'admin' || u?.role === 'chancellery' || u?.role === 'buxgalter';
   }
 
   // Faqat admin — har qanday hujjat holatida fayllarni boshqarish (qo'shish,
@@ -4710,7 +4756,7 @@ export class DocumentsService {
       where: { id: userId },
       select: { role: true },
     });
-    const canManageAll = user?.role === 'admin' || user?.role === 'chancellery';
+    const canManageAll = user?.role === 'admin' || user?.role === 'chancellery' || user?.role === 'buxgalter';
 
     if (!isCreator && !canManageAll) {
       throw new ForbiddenException('Faqat yaratuvchi yoki rahbar muddatni uzayta oladi');

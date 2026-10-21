@@ -51,10 +51,12 @@ model Position {
 // EDO ro'llari:
 //  admin       — barcha hujjatlar + foydalanuvchi/tizim sozlamalari
 //  chancellery — konselyariya: barcha hujjatlar, taxrir tarixi, hisobotlar, holatlar (foydalanuvchi sozlamasi YO'Q)
+//  buxgalter   — buxgalteriya: kanselyariyaning BARCHA imkoniyatlari + "Buxgalter" oynasi (to'lov nazorati)
 //  user        — faqat o'zi ishtirok etgan hujjatlar + faqat o'z profili
 enum UserRole {
   admin
   chancellery
+  buxgalter
   user
 }
 
@@ -167,6 +169,9 @@ model User {
 
   // PWA web-push obunalari (iOS Safari 16.4+ va brauzerlar)
   webPushSubs              WebPushSubscription[]
+
+  // Buxgalter "to'landi" belgilari (faqat shu buxgalter uchun — hujjatga ta'sir qilmaydi)
+  accountantMarks          AccountantMark[]
 
   @@index([departmentId])
   @@index([positionId])
@@ -571,6 +576,7 @@ model Document {
   attachments  DocumentAttachment[]
   signatures   DocumentSignature[]
   audit        DocumentAuditLog[]
+  accountantMarks AccountantMark[]
 
   @@index([createdById])
   @@index([currentHolderId])
@@ -578,6 +584,25 @@ model Document {
   @@index([type])
   @@index([year, numberCategory])
   @@map("documents")
+}
+
+// Buxgalter "to'landi" belgisi — buxgalter rolidagi foydalanuvchi bajarilgan
+// hujjatni o'z "Buxgalter" oynasida chapdan o'ngga (to'langan) olib qo'yganda
+// yoziladi. FAQAT shu foydalanuvchiga tegishli — hujjatning umumiy holatiga va
+// boshqa foydalanuvchilarga mutlaqo ta'sir qilmaydi.
+model AccountantMark {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  documentId String   @map("document_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, documentId])
+  @@index([userId])
+  @@index([documentId])
+  @@map("accountant_marks")
 }
 
 model DocumentParticipant {

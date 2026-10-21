@@ -105,10 +105,35 @@ export class DocumentsController {
     return this.docs.listControl(user.id);
   }
 
+  // ── Buxgalter oynasi — bajarilgan (done) hujjatlar + shaxsiy "to'langan" belgilari ──
+  @Get('accountant/done')
+  listAccountantDone(@CurrentUser() user: CurrentUserPayload) {
+    this.ensureStaff(user);
+    return this.docs.listAccountantDone(user.id);
+  }
+
+  @Post('accountant/mark')
+  markAccountantPaid(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body('documentId', ParseUUIDPipe) documentId: string,
+  ) {
+    this.ensureStaff(user);
+    return this.docs.markAccountantPaid(user.id, documentId);
+  }
+
+  @Delete('accountant/mark/:id')
+  unmarkAccountantPaid(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    this.ensureStaff(user);
+    return this.docs.unmarkAccountantPaid(user.id, id);
+  }
+
   // ── Nazorat oynalari (faqat admin/kanselyariya) ──
   private ensureStaff(user: CurrentUserPayload) {
-    if (user.role !== 'admin' && user.role !== 'chancellery') {
-      throw new ForbiddenException('Nazorat oynalari faqat administrator yoki kanselyariya uchun');
+    if (user.role !== 'admin' && user.role !== 'chancellery' && user.role !== 'buxgalter') {
+      throw new ForbiddenException('Nazorat oynalari faqat administrator, kanselyariya yoki buxgalter uchun');
     }
   }
 
@@ -191,7 +216,7 @@ export class DocumentsController {
     @Query('from') from?: string,
     @Query('to') to?: string,
   ) {
-    const canSeeAll = user.role === 'admin' || user.role === 'chancellery';
+    const canSeeAll = user.role === 'admin' || user.role === 'chancellery' || user.role === 'buxgalter';
     if (!canSeeAll) {
       throw new ForbiddenException("Global statistika faqat administrator yoki konselyariya uchun");
     }
@@ -206,7 +231,7 @@ export class DocumentsController {
     @Query('type') type?: string,
     @Query('search') search?: string,
   ) {
-    const canSeeAll = user.role === 'admin' || user.role === 'chancellery';
+    const canSeeAll = user.role === 'admin' || user.role === 'chancellery' || user.role === 'buxgalter';
     return this.reports.preview(user.id, canSeeAll, from, to, type, search);
   }
 
@@ -221,7 +246,7 @@ export class DocumentsController {
     @Query('search') search?: string,
   ) {
     const fmt = format === 'pdf' ? 'pdf' : 'excel';
-    const canSeeAll = user.role === 'admin' || user.role === 'chancellery';
+    const canSeeAll = user.role === 'admin' || user.role === 'chancellery' || user.role === 'buxgalter';
     const { filename, mime, buffer } = await this.reports.generate(
       user.id,
       canSeeAll,

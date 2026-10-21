@@ -535,7 +535,7 @@ export function EdoDocumentViewPage({
   // Topshiriq (rezolyutsiya / poruchenie) BIRIKTIRISHNI faqat kanselyariya yoki
   // admin roli amalga oshiradi. Boshqa xodimlar faqat o'ziga biriktirilgan
   // topshiriqqa izoh yozadi (pastdagi "izoh" tugmasi ular uchun ochiq qoladi).
-  const isStaff = user?.role === 'admin' || user?.role === 'chancellery';
+  const isStaff = user?.role === 'admin' || user?.role === 'chancellery' || user?.role === 'buxgalter';
   // Kiruvchi hujjatda rezolyutsiya rahbari (hozirgi egasi, masalan avazbek) ham
   // topshiriqlarni boshqarishi (tahrirlash/o'chirish) mumkin.
   const isLeaderHolder = !!user && doc.currentHolderId === user.id;
@@ -2329,7 +2329,7 @@ function ParticipantsPanel({
   );
 
   // Admin/kanselyariya hali yakunlanmagan hujjat zanjiriga xodim qo'sha oladi
-  const isStaff = user?.role === 'admin' || user?.role === 'chancellery';
+  const isStaff = user?.role === 'admin' || user?.role === 'chancellery' || user?.role === 'buxgalter';
   const canAddApprovers =
     isStaff && ['in_review', 'in_progress', 'overdue'].includes(doc.status);
 

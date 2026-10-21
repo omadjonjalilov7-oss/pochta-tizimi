@@ -37,7 +37,7 @@ export interface User {
   isAdmin: boolean;
   isProtected?: boolean;
   canSeeProtected?: boolean;
-  role: 'admin' | 'chancellery' | 'user';
+  role: 'admin' | 'chancellery' | 'buxgalter' | 'user';
   notifyEdo?: boolean;
   notifyTelegram?: boolean;
   notifySms?: boolean;

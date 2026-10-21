@@ -24,7 +24,7 @@ export function EdoJurnalPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
   // Jurnal kategoriyalarini boshqarish: admin va kanselyariya (chancellery)
-  const canManage = user?.role === 'admin' || user?.role === 'chancellery';
+  const canManage = user?.role === 'admin' || user?.role === 'chancellery' || user?.role === 'buxgalter';
   const queryClient = useQueryClient();
 
   const [tab, setTab] = useState<'edit' | 'stats'>('edit');

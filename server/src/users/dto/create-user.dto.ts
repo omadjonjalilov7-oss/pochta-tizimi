@@ -64,10 +64,10 @@ export class CreateUserDto {
   @IsBoolean()
   canSeeProtected?: boolean;
 
-  // EDO roli: admin | chancellery (konselyariya) | user
+  // EDO roli: admin | chancellery (konselyariya) | buxgalter (buxgalteriya) | user
   @IsOptional()
-  @IsIn(['admin', 'chancellery', 'user'])
-  role?: 'admin' | 'chancellery' | 'user';
+  @IsIn(['admin', 'chancellery', 'buxgalter', 'user'])
+  role?: 'admin' | 'chancellery' | 'buxgalter' | 'user';
 
   // Pochta turi: 'internal' (ichki @pochta.local) yoki 'external' (tashqi @asaka-motors.uz)
   @IsOptional()
