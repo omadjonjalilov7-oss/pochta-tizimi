@@ -26,7 +26,6 @@ import { useTranslation } from 'react-i18next';
 import { Avatar } from '../Avatar';
 import { Logo } from '../Logo';
 import { AppSwitcher } from '../AppSwitcher';
-import ZoomMeetingButton from '../ZoomMeetingButton';
 import { cn, cyrName, trDyn } from '../../lib/utils';
 import { useLayoutData } from './useLayoutData';
 import { useAppearanceModals } from '../AppearanceModals';
@@ -102,7 +101,6 @@ export function LayoutClassic() {
           </Link>
         </div>
         <AppSwitcher className="bg-brand-600/40" />
-        <ZoomMeetingButton />
         <div className="flex items-center gap-4">
           {notification && (
             <div className="flex items-center gap-2 bg-brand-600 px-3 py-1.5 rounded-lg text-sm animate-pulse">

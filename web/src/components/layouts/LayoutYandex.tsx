@@ -22,7 +22,6 @@ import { useTranslation } from 'react-i18next';
 import { Avatar } from '../Avatar';
 import { Logo } from '../Logo';
 import { AppSwitcher } from '../AppSwitcher';
-import ZoomMeetingButton from '../ZoomMeetingButton';
 import { cn, cyrName } from '../../lib/utils';
 import { useLayoutData } from './useLayoutData';
 import { useAppearanceModals } from '../AppearanceModals';
@@ -93,9 +92,7 @@ export function LayoutYandex() {
           Pochta
         </Link>
         <AppSwitcher />
-        <div className="flex-1 flex justify-center">
-          <ZoomMeetingButton />
-        </div>
+        <div className="flex-1" />
         {notification && (
           <div className="flex items-center gap-2 bg-yellow-100 text-yellow-900 px-2 py-1 rounded text-xs animate-pulse">
             <Bell size={12} />
