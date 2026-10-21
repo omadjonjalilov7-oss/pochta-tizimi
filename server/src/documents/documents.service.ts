@@ -4360,14 +4360,22 @@ export class DocumentsService {
       throw new BadRequestException("Hujjat tasdiqlash bosqichida emas");
     }
     if (doc.currentHolderId === userId) return doc;
+    // BUYURTMACHI TALABI: avazbek (bosh direktor) HAR DOIM, HAR QANDAY navbatda
+    // cheklovsiz tasdiqlay oladi — u zanjirning oxirgi guruhida tursa ham, navbati
+    // kelmagan bo'lsa ham. Shuning uchun uning uchun tartib tekshiruvini o'tkazamiz.
+    const actor = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { login: true },
+    });
+    if (actor?.login === 'avazbek') return doc;
     // QAT'IY RANK TARTIBI (buyurtmachi talabi): faqat hozirgi eng past navbat
     // (eng kichik tartibli) guruhdagi kutuvchi tasdiqlovchi amal qila oladi.
     // Katta rank soni (kichik vakolat) birinchi tasdiqlaydi, keyin navbat
     // kichikroq rank songa (kattaroq vakolat) o'tadi, oxirida avazbek (rahbar).
     // Parallel (alohida-alohida) yuborishda barcha tasdiqlovchilar bir xil eng
     // kichik tartibda bo'ladi — shu sabab ularning hammasi tasdiqlay oladi.
-    // "Navbatsiz tasdiqlash" (majburiy tasdiqlovchi yoki istalgan pending
-    // tasdiqlovchi navbatdan tashqari tasdiqlashi) OLIB TASHLANDI.
+    // Bir xil RANKdagilar ham bitta guruh — order (tartib) raqamlari har xil bo'lsa
+    // ham, navbat kutmasdan tasdiqlay oladi (isPendingApproverAtMinOrder ichida).
     if (await this.isPendingApproverAtMinOrder(userId, id)) return doc;
     throw new ForbiddenException("Hujjat hozir sizning navbatingizda emas");
   }
@@ -4379,26 +4387,40 @@ export class DocumentsService {
     userId: string,
     docId: string,
   ): Promise<boolean> {
-    const mine = await this.prisma.documentParticipant.findFirst({
-      where: {
-        documentId: docId,
-        userId,
-        role: ParticipantRole.approver,
-        status: ParticipantStatus.pending,
-      },
-      select: { order: true },
-    });
-    if (!mine) return false;
-    const min = await this.prisma.documentParticipant.findFirst({
+    // Barcha kutilayotgan (pending) tasdiqlovchilarni lavozim RANKi bilan olamiz.
+    const pending = await this.prisma.documentParticipant.findMany({
       where: {
         documentId: docId,
         role: ParticipantRole.approver,
         status: ParticipantStatus.pending,
       },
       orderBy: { order: 'asc' },
-      select: { order: true },
+      select: {
+        userId: true,
+        order: true,
+        user: {
+          select: { login: true, position: { select: { rank: true } } },
+        },
+      },
     });
-    return !!min && mine.order === min.order;
+    if (pending.length === 0) return false;
+    const mine = pending.find((p) => p.userId === userId);
+    if (!mine) return false;
+    // avazbek (bosh direktor) — har doim tasdiqlay oladi.
+    if (mine.user?.login === 'avazbek') return true;
+    // Hozirgi faol guruh — eng kichik tartibli (order) kutuvchilar.
+    const minOrder = pending[0].order;
+    if (mine.order === minOrder) return true;
+    // BUYURTMACHI TALABI: bir xil RANK raqamli xodimlar bitta guruh hisoblanadi.
+    // Agar faol guruhda men bilan BIR XIL rankdagi xodim bo'lsa — men ham o'z
+    // navbatimni kutmasdan tasdiqlay olaman (order raqamim kattaroq bo'lsa ham).
+    const activeRanks = new Set(
+      pending
+        .filter((p) => p.order === minOrder)
+        .map((p) => p.user?.position?.rank ?? 100),
+    );
+    const myRank = mine.user?.position?.rank ?? 100;
+    return activeRanks.has(myRank);
   }
 
   private async shouldNotify(userId: string): Promise<boolean> {
