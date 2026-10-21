@@ -24,6 +24,7 @@ import { Avatar } from '../Avatar';
 import { Logo } from '../Logo';
 import { HeaderSearch } from '../HeaderSearch';
 import { AppSwitcher } from '../AppSwitcher';
+import ZoomMeetingButton from '../ZoomMeetingButton';
 import { cn } from '../../lib/utils';
 import { useLayoutData } from './useLayoutData';
 import { useAppearanceModals } from '../AppearanceModals';
@@ -103,6 +104,7 @@ export function LayoutGmail() {
             inputClassName="w-full pl-12 pr-4 py-2.5 text-sm rounded-lg bg-slate-100 hover:bg-white hover:shadow focus:bg-white focus:shadow-md outline-none transition"
           />
         </div>
+        <ZoomMeetingButton />
         <div className="flex items-center gap-2 ml-auto">
           {notification && (
             <div className="flex items-center gap-2 bg-brand-50 text-brand-700 px-3 py-1.5 rounded-full text-xs animate-pulse">

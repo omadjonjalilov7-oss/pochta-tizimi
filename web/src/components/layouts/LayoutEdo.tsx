@@ -41,6 +41,7 @@ import { useTranslation } from 'react-i18next';
 import { Avatar } from '../Avatar';
 import { AsakaLogo } from '../AsakaLogo';
 import { AppSwitcher } from '../AppSwitcher';
+import ZoomMeetingButton from '../ZoomMeetingButton';
 import { cn } from '../../lib/utils';
 import { useLayoutData } from './useLayoutData';
 import { useAppearanceModals } from '../AppearanceModals';
@@ -294,7 +295,8 @@ export function LayoutEdo() {
             <TopNav to="/edo/control" icon={ShieldCheck} label={t('edo.topnav.control')} />
           </nav>
         )}
-        <div className="flex items-center gap-2 ml-auto">
+        <ZoomMeetingButton className="ml-auto" />
+        <div className="flex items-center gap-2 ml-3">
           {notification && (
             <div className="flex items-center gap-2 bg-asaka-50 text-asaka-700 px-3 py-1.5 rounded-full text-xs animate-pulse">
               <Bell size={14} />

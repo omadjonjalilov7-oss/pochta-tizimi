@@ -24,6 +24,7 @@ import { Logo } from '../Logo';
 import { Resizer } from '../Resizer';
 import { HeaderSearch } from '../HeaderSearch';
 import { AppSwitcher } from '../AppSwitcher';
+import ZoomMeetingButton from '../ZoomMeetingButton';
 import { cn, cyrName } from '../../lib/utils';
 import { useLayoutData } from './useLayoutData';
 import { useAppearanceModals } from '../AppearanceModals';
@@ -152,6 +153,7 @@ export function LayoutOutlook() {
             placeholder={t('common.search')}
           />
         </div>
+        <ZoomMeetingButton className="mr-3" />
         <div className="flex items-center gap-3">
           {notification && (
             <div className="flex items-center gap-2 bg-brand-600 px-2 py-1 rounded text-xs animate-pulse">
