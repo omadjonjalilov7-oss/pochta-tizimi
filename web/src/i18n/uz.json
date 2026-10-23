@@ -1076,6 +1076,8 @@
       "word_reupload": "Tahrirlangan faylni saqlash",
       "your_turn": "Hujjat sizning navbatingizda — qaror qabul qiling",
       "approve": "Tasdiqlash",
+      "urgent_approve": "Zudlik bilan tasdiqlash",
+      "urgent_approve_hint": "Quyi xodimlar tasdiqlagan yoki tasdiqlamaganidan qat'iy nazar hujjat darhol tasdiqlanadi. Faqat rahbar uchun.",
       "reject": "Rad etish",
       "forward": "Boshqaga yo'naltirish",
       "reject_reason_ph": "Rad etish sababini batafsil yozing...",

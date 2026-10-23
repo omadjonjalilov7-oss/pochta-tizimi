@@ -2,6 +2,7 @@ import {
   ArrayMaxSize,
   IsArray,
   IsBase64,
+  IsBoolean,
   IsISO8601,
   IsOptional,
   IsString,
@@ -39,6 +40,12 @@ export class ApproveDocumentDto {
   @ArrayMaxSize(20)
   @IsUUID('all', { each: true })
   addApproverIds?: string[];
+
+  // "Zudlik bilan tasdiqlash" — faqat rahbar (avazbek) uchun. Quyi xodimlar
+  // tasdiqlagan yoki tasdiqlamaganidan qat'iy nazar hujjatni darhol yakunlaydi.
+  @IsOptional()
+  @IsBoolean()
+  urgent?: boolean;
 
   // ── E-IMZO (elektron kalit) bilan tasdiqlash maydonlari ──────────────
   // CAPIWS'dan qaytgan PKCS#7 (CMS) imzo, base64.

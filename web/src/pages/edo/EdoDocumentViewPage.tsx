@@ -35,6 +35,7 @@ import {
   Eye,
   EyeOff,
   AppWindow,
+  Zap,
 } from 'lucide-react';
 import { EimzoSignModal } from '../../components/edo/EimzoSignModal';
 import { ControlAssignmentModal } from '../../components/edo/ControlAssignmentModal';
@@ -279,7 +280,7 @@ export function EdoDocumentViewPage({
     queryFn: async () => (await api.get<User[]>('/users')).data,
   });
   const approve = useMutation({
-    mutationFn: async (vars: { pin: string; addApproverIds?: string[]; approvalNotes?: string }) =>
+    mutationFn: async (vars: { pin: string; addApproverIds?: string[]; approvalNotes?: string; urgent?: boolean }) =>
       (await api.post<EdoDocument>(`/documents/${id}/approve`, vars)).data,
     onSuccess: invalidate,
   });
@@ -1081,8 +1082,8 @@ export function EdoDocumentViewPage({
           {isCurrentApprover && (
             <ApproverActions
               docCreatorId={doc.createdById}
-              onApprove={(pin, addApproverIds, approvalNotes) =>
-                approve.mutate({ pin, addApproverIds, approvalNotes })
+              onApprove={(pin, addApproverIds, approvalNotes, urgent) =>
+                approve.mutate({ pin, addApproverIds, approvalNotes, urgent })
               }
               onReject={(reason, pin) => reject.mutate({ reason, pin })}
               onForward={(toUserId, note, pin, additionalApproverIds) =>
@@ -1740,7 +1741,7 @@ function ApproverActions({
   onSignWithEimzo,
 }: {
   docCreatorId: string;
-  onApprove: (pin: string, addApproverIds?: string[], approvalNotes?: string) => void;
+  onApprove: (pin: string, addApproverIds?: string[], approvalNotes?: string, urgent?: boolean) => void;
   onReject: (reason: string, pin: string) => void;
   onForward: (
     toUserId: string,
@@ -1760,6 +1761,7 @@ function ApproverActions({
   const [rejectPin, setRejectPin] = useState('');
   const [approvePinModalOpen, setApprovePinModalOpen] = useState(false);
   const [approvePin, setApprovePin] = useState('');
+  const [urgentMode, setUrgentMode] = useState(false);
   const [approvalNotes, setApprovalNotes] = useState('');
   const [pinLocalErr, setPinLocalErr] = useState<string | null>(null);
   const [approveAddIds, setApproveAddIds] = useState<string[]>([]);
@@ -1770,14 +1772,16 @@ function ApproverActions({
   const [forwardExtraIds, setForwardExtraIds] = useState<string[]>([]);
 
   const hasPin = !!user?.hasApprovalPin;
+  const isLeader = user?.login === 'avazbek';
   const onlyDigits = (v: string) => v.replace(/\D/g, '').slice(0, 4);
 
-  const startApprove = () => {
+  const startApprove = (urgent = false) => {
     setPinLocalErr(null);
     setApprovePin('');
     setApprovalNotes('');
     setApproveAddIds([]);
     setShowAddApprovers(false);
+    setUrgentMode(urgent);
     if (!hasPin) {
       setPinLocalErr(t('edo.view.pin_not_set'));
       setApprovePinModalOpen(true);
@@ -1793,12 +1797,18 @@ function ApproverActions({
       setPinLocalErr(t('edo.view.pin_err_format'));
       return;
     }
-    onApprove(approvePin, approveAddIds.length > 0 ? approveAddIds : undefined, approvalNotes || undefined);
+    onApprove(
+      approvePin,
+      approveAddIds.length > 0 ? approveAddIds : undefined,
+      approvalNotes || undefined,
+      urgentMode || undefined,
+    );
     setApprovePinModalOpen(false);
     setApprovePin('');
     setApprovalNotes('');
     setApproveAddIds([]);
     setShowAddApprovers(false);
+    setUrgentMode(false);
   };
 
   const { data: users = [] } = useQuery({
@@ -1835,12 +1845,24 @@ function ApproverActions({
             </button>
           ) : (
             <button
-              onClick={startApprove}
+              onClick={() => startApprove(false)}
               disabled={loadingAction === 'approve'}
               className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg"
             >
               <CheckCircle2 size={16} />
               {loadingAction === 'approve' ? t('common.saving') : t('edo.view.approve')}
+            </button>
+          )}
+          {/* Faqat rahbar (avazbek): quyi xodimlardan qat'iy nazar zudlik bilan tasdiqlash */}
+          {isLeader && (
+            <button
+              onClick={() => startApprove(true)}
+              disabled={loadingAction === 'approve'}
+              title={t('edo.view.urgent_approve_hint')}
+              className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg"
+            >
+              <Zap size={16} />
+              {t('edo.view.urgent_approve')}
             </button>
           )}
           <button
@@ -1942,18 +1964,27 @@ function ApproverActions({
             className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4"
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                <ShieldCheck size={20} />
+              <div className={cn(
+                'w-10 h-10 rounded-xl flex items-center justify-center',
+                urgentMode ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700',
+              )}>
+                {urgentMode ? <Zap size={20} /> : <ShieldCheck size={20} />}
               </div>
               <div>
                 <h3 className="text-base font-semibold text-slate-900">
-                  {t('edo.view.pin_modal_title')}
+                  {urgentMode ? t('edo.view.urgent_approve') : t('edo.view.pin_modal_title')}
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
                   {t('edo.view.pin_modal_subtitle')}
                 </p>
               </div>
             </div>
+            {urgentMode && (
+              <div className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+                <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                <span>{t('edo.view.urgent_approve_hint')}</span>
+              </div>
+            )}
             {hasPin ? (
               <>
                 <div>
@@ -2030,10 +2061,13 @@ function ApproverActions({
                   <button
                     type="submit"
                     disabled={loadingAction === 'approve'}
-                    className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg text-sm"
+                    className={cn(
+                      'inline-flex items-center gap-2 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg text-sm',
+                      urgentMode ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-600 hover:bg-emerald-700',
+                    )}
                   >
-                    <CheckCircle2 size={16} />
-                    {t('edo.view.approve')}
+                    {urgentMode ? <Zap size={16} /> : <CheckCircle2 size={16} />}
+                    {urgentMode ? t('edo.view.urgent_approve') : t('edo.view.approve')}
                   </button>
                 </div>
               </>

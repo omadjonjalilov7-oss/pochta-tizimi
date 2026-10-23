@@ -641,6 +641,9 @@ export class DocumentsService {
       });
       const byLogin = new Map(mUsers.map((u) => [u.login, u.id] as const));
       for (const login of MANDATORY_APPROVER_LOGINS) {
+        // avazbek (rahbar) avtomat zanjirga qo'shilmaydi — u faqat qo'lda
+        // "Rahbarga yuborish" orqali qo'shiladi (sendToLeader).
+        if (login === 'avazbek') continue;
         const uid = byLogin.get(login);
         if (!uid || uid === userId) continue;
         if (!chain.includes(uid)) chain.push(uid);
@@ -681,18 +684,14 @@ export class DocumentsService {
         ? await this.allocateNumber(doc.numberDept.code)
         : doc.number;
 
-    // RANK zanjiri: avazbekni (rahbar) zanjir oxiriga qo'shamiz (agar hali yo'q
-    // bo'lsa) va tasdiqlovchilarni rank bo'yicha guruhlab tartib (order) beramiz.
+    // RANK zanjiri: tasdiqlovchilarni rank bo'yicha guruhlab tartib (order) beramiz.
+    // MUHIM: avazbek (rahbar) zanjirga AVTOMAT QO'SHILMAYDI. Barcha quyi xodimlar
+    // tasdiqlab bo'lgach hujjat "awaiting_leader" (rahbarga yuborishga tayyor)
+    // holatiga o'tadi va "Mening hujjatlarim" dagi "Rahbarga yuborish" tugmasi
+    // orqali QO'LDA avazbekka yuboriladi (sendToLeader).
     let rankOrders: Map<string, number> | null = null;
     let firstGroupIds: string[] = [];
     if (useRankChain) {
-      const leader = await this.prisma.user.findUnique({
-        where: { login: 'avazbek' },
-        select: { id: true, isActive: true },
-      });
-      if (leader?.isActive && leader.id !== userId && !chain.includes(leader.id)) {
-        chain.push(leader.id);
-      }
       const built = await this.buildRankOrders(chain);
       rankOrders = built.orderByUser;
       firstGroupIds = built.firstGroupIds;
@@ -829,7 +828,7 @@ export class DocumentsService {
     } else {
       await this.users.verifyApprovalPin(userId, dto.pin ?? '');
     }
-    const doc = await this.requireActiveApprover(userId, id);
+    const doc = await this.requireActiveApprover(userId, id, dto.urgent === true);
 
     // E-IMZO bo'lsa — imzoni tekshiramiz (hujjat hash'i, sertifikat muddati,
     // sozlangan bo'lsa E-IMZO server orqali to'liq kriptografik tekshiruv + TSA).
@@ -971,15 +970,18 @@ export class DocumentsService {
       select: { userId: true, order: true },
     });
 
-    // Bosh direktor (avazbek) tasdiqlasa — ichki/chiquvchi hujjat DARHOL yakunlanadi
-    // (raqam beriladi), zanjirda boshqa tasdiqlovchilar qolgan bo'lsa ham. Ichki
-    // shablonda _gen_dir → QR, _sana_7 → tasdiqlangan sana avtomat to'ladi.
+    // Bosh direktor (avazbek) "ZUDLIK BILAN TASDIQLASH" tugmasi bilan tasdiqlasa —
+    // ichki/chiquvchi hujjat zanjirda boshqa tasdiqlovchilar qolgan bo'lsa ham
+    // DARHOL yakunlanadi (raqam beriladi). Oddiy tugma bilan esa avazbek faqat
+    // barcha quyi xodimlar tasdiqlagach tasdiqlay oladi (requireActiveApprover
+    // ichida tekshiriladi) — bunda zanjir allaqachon tugagan bo'ladi.
     const approverUser = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { login: true },
     });
     const finalizeNow =
       approverUser?.login === 'avazbek' &&
+      dto.urgent === true &&
       (doc.type === 'internal' || doc.type === 'outgoing');
 
     if (pendingApprovers.length > 0 && !finalizeNow) {
@@ -4389,7 +4391,11 @@ export class DocumentsService {
 
   // Faqat hozir tasdiqlash navbatida turgan (eng kichik tartibli guruhdagi)
   // foydalanuvchi tasdiqlay oladi. QAT'IY RANK TARTIBI — navbatsiz tasdiqlash yo'q.
-  private async requireActiveApprover(userId: string, id: string) {
+  private async requireActiveApprover(
+    userId: string,
+    id: string,
+    urgent = false,
+  ) {
     const doc = await this.prisma.document.findUnique({ where: { id } });
     if (!doc) throw new NotFoundException('Hujjat topilmadi');
     // Tasdiqlash STATUSGA bog'liq emas, lekin QAT'IY tartib (rink) bo'yicha boradi:
@@ -4405,15 +4411,43 @@ export class DocumentsService {
     ) {
       throw new BadRequestException("Hujjat tasdiqlash bosqichida emas");
     }
-    if (doc.currentHolderId === userId) return doc;
-    // BUYURTMACHI TALABI: avazbek (bosh direktor) HAR DOIM, HAR QANDAY navbatda
-    // cheklovsiz tasdiqlay oladi — u zanjirning oxirgi guruhida tursa ham, navbati
-    // kelmagan bo'lsa ham. Shuning uchun uning uchun tartib tekshiruvini o'tkazamiz.
     const actor = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { login: true },
     });
-    if (actor?.login === 'avazbek') return doc;
+    const isLeader = actor?.login === 'avazbek';
+
+    // ── RAHBAR (avazbek) uchun maxsus qoida ──────────────────────────────
+    if (isLeader) {
+      // "Zudlik bilan tasdiqlash" — quyi xodimlar tasdiqlagan yoki yo'qligidan
+      // qat'iy nazar cheklovsiz tasdiqlaydi.
+      if (urgent) return doc;
+      // Oddiy "Tasdiqlash" tugmasi — avval barcha quyi (rahbar bo'lmagan)
+      // tasdiqlovchilar tasdiqlagan bo'lishi SHART. Aks holda bloklaymiz.
+      const pendingLower = await this.prisma.documentParticipant.count({
+        where: {
+          documentId: id,
+          role: ParticipantRole.approver,
+          status: ParticipantStatus.pending,
+          user: { login: { not: 'avazbek' } },
+        },
+      });
+      if (pendingLower > 0) {
+        throw new BadRequestException(
+          "Quyi xodimlar hujjatni hali tasdiqlamagan. Avval ular tasdiqlashi kerak yoki \"Zudlik bilan tasdiqlash\" tugmasidan foydalaning.",
+        );
+      }
+      return doc;
+    }
+
+    // Rahbar bo'lmaganlar "urgent" ni ishlata olmaydi.
+    if (urgent) {
+      throw new ForbiddenException(
+        "Zudlik bilan tasdiqlash faqat rahbar (bosh direktor) uchun ruxsat etilgan",
+      );
+    }
+
+    if (doc.currentHolderId === userId) return doc;
     // QAT'IY RANK TARTIBI (buyurtmachi talabi): faqat hozirgi eng past navbat
     // (eng kichik tartibli) guruhdagi kutuvchi tasdiqlovchi amal qila oladi.
     // Katta rank soni (kichik vakolat) birinchi tasdiqlaydi, keyin navbat
@@ -4452,8 +4486,6 @@ export class DocumentsService {
     if (pending.length === 0) return false;
     const mine = pending.find((p) => p.userId === userId);
     if (!mine) return false;
-    // avazbek (bosh direktor) — har doim tasdiqlay oladi.
-    if (mine.user?.login === 'avazbek') return true;
     // Hozirgi faol guruh — eng kichik tartibli (order) kutuvchilar.
     const minOrder = pending[0].order;
     if (mine.order === minOrder) return true;
