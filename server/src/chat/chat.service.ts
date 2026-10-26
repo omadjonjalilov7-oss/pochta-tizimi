@@ -187,6 +187,15 @@ export class ChatService {
     return this.serializeMsg(msg);
   }
 
+  // ── Yuboruvchining to'liq ismi (push sarlavhasi uchun) ────────────────
+  async senderName(userId: string): Promise<string> {
+    const u = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { fullName: true },
+    });
+    return u?.fullName || 'Yangi xabar';
+  }
+
   // ── O'qilgan deb belgilash ─────────────────────────────────────────────
   async markRead(userId: string, partnerId: string) {
     const now = new Date();

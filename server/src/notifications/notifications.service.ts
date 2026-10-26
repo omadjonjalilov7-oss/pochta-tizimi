@@ -43,6 +43,18 @@ export class NotificationsService {
     await Promise.all(jobs);
   }
 
+  // Faqat push (FCM + PWA web-push) — Telegram/SMS yubormaydi. Chat kabi
+  // tez-tez keladigan bildirishnomalar uchun (Telegram/SMS'ni spam qilmaslik).
+  async pushOnly(
+    userId: string,
+    push: { title: string; body: string; data?: Record<string, string> },
+  ): Promise<void> {
+    await Promise.all([
+      this.push.sendToUser(userId, push).catch(() => undefined),
+      this.webPush.sendToUser(userId, push).catch(() => undefined),
+    ]);
+  }
+
   // Telegram HTML matnidan oddiy push (1-qator sarlavha, qolgani tana) yasaydi.
   private pushFromTelegram(
     telegram: string,

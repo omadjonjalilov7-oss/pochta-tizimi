@@ -9,6 +9,16 @@ import { MessagesGateway } from '../messages/messages.gateway';
 export class ChatGateway {
   constructor(private readonly ws: MessagesGateway) {}
 
+  /** Foydalanuvchi hozir ulangan (online) bo'lsa true — push yubormaslik uchun */
+  async isOnline(userId: string): Promise<boolean> {
+    try {
+      const sockets = await this.ws.server.in(`user:${userId}`).fetchSockets();
+      return sockets.length > 0;
+    } catch {
+      return false;
+    }
+  }
+
   /** Yangi chat xabari — qabul qiluvchiga real-vaqt yuborish */
   emitChatMessage(recipientId: string, message: any) {
     this.ws.server.to(`user:${recipientId}`).emit('chat_message', {

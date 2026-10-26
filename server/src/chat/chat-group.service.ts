@@ -430,6 +430,15 @@ export class ChatGroupService {
     return { memberIds: members.map((m) => m.userId) };
   }
 
+  // Guruh nomi (push sarlavhasi uchun)
+  async groupName(groupId: string): Promise<string> {
+    const g = await this.prisma.chatGroup.findUnique({
+      where: { id: groupId },
+      select: { name: true },
+    });
+    return g?.name || 'Guruh';
+  }
+
   private async assertMember(userId: string, groupId: string) {
     const membership = await this.prisma.chatGroupMember.findUnique({
       where: { groupId_userId: { groupId, userId } },

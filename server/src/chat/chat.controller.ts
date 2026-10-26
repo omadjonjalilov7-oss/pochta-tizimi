@@ -25,6 +25,7 @@ import {
   CurrentUserPayload,
 } from '../auth/decorators/current-user.decorator';
 import { ChatGateway } from './chat.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 import { IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
 class SendChatDto {
@@ -50,6 +51,7 @@ export class ChatController {
     private readonly chat: ChatService,
     private readonly gateway: ChatGateway,
     private readonly groups: ChatGroupService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   @Get('contacts')
@@ -94,6 +96,20 @@ export class ChatController {
     );
     // Real-vaqt: qabul qiluvchiga xabar yuboramiz
     this.gateway.emitChatMessage(body.toUserId, msg);
+    // Qabul qiluvchi offline bo'lsa — PWA/FCM push ("chatdan yangi xabar").
+    // Online bo'lsa socket orqali ilovaning o'zi ogohlantiradi (ikki marta emas).
+    if (!(await this.gateway.isOnline(body.toUserId))) {
+      const name = await this.chat.senderName(user.id);
+      const preview =
+        (msg.attachments?.length ?? 0) > 0 && !msg.body
+          ? '📎 Fayl'
+          : msg.body || 'Yangi xabar';
+      void this.notifications.pushOnly(body.toUserId, {
+        title: name,
+        body: preview.slice(0, 240),
+        data: { url: '/edo/chat', tag: `chat-${user.id}` },
+      });
+    }
     return msg;
   }
 

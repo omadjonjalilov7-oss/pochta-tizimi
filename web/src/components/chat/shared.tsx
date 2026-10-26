@@ -30,6 +30,22 @@ import i18n, { getLanguage } from '../../i18n';
 import { latinToCyrillic } from '../../i18n/translit';
 import { Avatar } from '../Avatar';
 import { cn } from '../../lib/utils';
+import { api } from '../../lib/api';
+
+// Chat faylini yuklab olish. Plain <a href> ishlatib bo'lmaydi — u Bearer
+// tokenni yubormaydi (401 bo'ladi). Shu sabab hujjatlar kabi axios orqali
+// (interceptor token qo'shadi) blob qilib olamiz va saqlaymiz.
+async function downloadChatAttachment(apiPath: string, filename: string) {
+  const res = await api.get(apiPath, { responseType: 'blob' });
+  const url = URL.createObjectURL(res.data as Blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 // Sana/vaqt lokalizatsiyasi. Rus tili → ru-RU; o'zbek (lotin/krill) → uz-UZ.
 // Krill uchun natijani translit qilamiz (brauzer uz-Cyrl'ni bilmasligi mumkin).
@@ -640,11 +656,12 @@ export function MessageBubble({
             {msg.attachments.length > 0 && (
               <div className="mb-1 space-y-1">
                 {msg.attachments.map((a) => (
-                  <a
+                  <button
                     key={a.id}
-                    href={`/api/chat/attachments/${a.id}/download`}
-                    target="_blank"
-                    rel="noreferrer"
+                    type="button"
+                    onClick={() =>
+                      downloadChatAttachment(`/chat/attachments/${a.id}/download`, a.filename)
+                    }
                     className={`flex items-center gap-1.5 text-xs underline ${
                       isMine ? 'text-brand-100 hover:text-white' : 'text-brand-600 hover:text-brand-800'
                     }`}
@@ -652,7 +669,7 @@ export function MessageBubble({
                     <Download size={11} />
                     <span className="truncate max-w-[180px]">{a.filename}</span>
                     <span className="opacity-70 shrink-0">({formatBytes(a.sizeBytes)})</span>
-                  </a>
+                  </button>
                 ))}
               </div>
             )}
@@ -1239,11 +1256,12 @@ export function GroupMessageBubble({
             {msg.attachments.length > 0 && (
               <div className="mb-1 space-y-1">
                 {msg.attachments.map((a) => (
-                  <a
+                  <button
                     key={a.id}
-                    href={`/api/chat/groups/attachments/${a.id}/download`}
-                    target="_blank"
-                    rel="noreferrer"
+                    type="button"
+                    onClick={() =>
+                      downloadChatAttachment(`/chat/groups/attachments/${a.id}/download`, a.filename)
+                    }
                     className={`flex items-center gap-1.5 text-xs underline ${
                       isMine ? 'text-brand-100 hover:text-white' : 'text-brand-600 hover:text-brand-800'
                     }`}
@@ -1251,7 +1269,7 @@ export function GroupMessageBubble({
                     <Download size={11} />
                     <span className="truncate max-w-[180px]">{a.filename}</span>
                     <span className="opacity-70 shrink-0">({formatBytes(a.sizeBytes)})</span>
-                  </a>
+                  </button>
                 ))}
               </div>
             )}

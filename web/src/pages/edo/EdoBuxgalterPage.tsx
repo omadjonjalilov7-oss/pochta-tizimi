@@ -1,16 +1,21 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { FileText, Search, X, Calculator, Wallet, Loader2, GripVertical } from 'lucide-react';
+import { FileText, Search, X, Calculator, Wallet, Loader2, GripVertical, Building2 } from 'lucide-react';
 import { api } from '../../lib/api';
 import type { EdoDocument } from '../../lib/types';
+import { useAuth } from '../../context/AuthContext';
 import { DocListItem } from './EdoDocList';
 import { cn } from '../../lib/utils';
 
 interface AccountantDoneResp {
   documents: EdoDocument[];
-  markedIds: string[];
+  paidIds: string[];
+  otherIds: string[];
+  markedIds?: string[];
 }
+
+type Pane = 'other' | 'mid' | 'paid';
 
 // Bitta tomon uchun filtr holati (qidiruv + sana oralig'i).
 function useFilter() {
@@ -85,17 +90,20 @@ function FilterBar({ f }: { f: ReturnType<typeof useFilter> }) {
 
 export function EdoBuxgalterPage() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const qc = useQueryClient();
+  // "Boshqa bo'lim" oynasiga olish faqat buxgalter (yoki admin) uchun.
+  const canMoveOther = user?.role === 'buxgalter' || user?.role === 'admin';
+
   const { data, isLoading } = useQuery({
     queryKey: ['edo-accountant-done'],
     queryFn: async () => (await api.get<AccountantDoneResp>('/documents/accountant/done')).data,
   });
 
-  // Optimistik belgilash uchun mahalliy to'plam — serverdan kelgan markedIds bilan
-  // boshlanadi, mutatsiya darhol UI'ni yangilaydi.
+  // Belgilash mutatsiyalari — har biri serverga yozadi va ro'yxatni yangilaydi.
   const mark = useMutation({
-    mutationFn: async (documentId: string) =>
-      (await api.post('/documents/accountant/mark', { documentId })).data,
+    mutationFn: async (vars: { documentId: string; kind: 'paid' | 'other' }) =>
+      (await api.post('/documents/accountant/mark', vars)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['edo-accountant-done'] }),
   });
   const unmark = useMutation({
@@ -104,53 +112,71 @@ export function EdoBuxgalterPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['edo-accountant-done'] }),
   });
 
-  const leftF = useFilter();
-  const rightF = useFilter();
+  const otherF = useFilter();
+  const midF = useFilter();
+  const paidF = useFilter();
   const [dragId, setDragId] = useState<string | null>(null);
-  const [overPane, setOverPane] = useState<'left' | 'right' | null>(null);
+  const [overPane, setOverPane] = useState<Pane | null>(null);
 
   const docs = data?.documents ?? [];
-  const marked = useMemo(() => new Set(data?.markedIds ?? []), [data?.markedIds]);
+  const paid = useMemo(() => new Set(data?.paidIds ?? data?.markedIds ?? []), [data?.paidIds, data?.markedIds]);
+  const other = useMemo(() => new Set(data?.otherIds ?? []), [data?.otherIds]);
 
-  const leftDocs = useMemo(() => leftF.apply(docs.filter((d) => !marked.has(d.id))), [docs, marked, leftF]);
-  const rightDocs = useMemo(() => rightF.apply(docs.filter((d) => marked.has(d.id))), [docs, marked, rightF]);
+  const otherDocs = useMemo(() => otherF.apply(docs.filter((d) => other.has(d.id))), [docs, other, otherF]);
+  const midDocs = useMemo(
+    () => midF.apply(docs.filter((d) => !paid.has(d.id) && !other.has(d.id))),
+    [docs, paid, other, midF],
+  );
+  const paidDocs = useMemo(() => paidF.apply(docs.filter((d) => paid.has(d.id))), [docs, paid, paidF]);
 
-  const onDrop = (pane: 'left' | 'right') => {
+  const onDrop = (pane: Pane) => {
     setOverPane(null);
     const id = dragId;
     setDragId(null);
     if (!id) return;
-    if (pane === 'right' && !marked.has(id)) mark.mutate(id);
-    if (pane === 'left' && marked.has(id)) unmark.mutate(id);
+    if (pane === 'paid') {
+      if (!paid.has(id)) mark.mutate({ documentId: id, kind: 'paid' });
+    } else if (pane === 'other') {
+      // Faqat buxgalter/admin "Boshqa bo'lim" oynasiga olib qo'ya oladi.
+      if (canMoveOther && !other.has(id)) mark.mutate({ documentId: id, kind: 'other' });
+    } else {
+      // O'rtaga qaytarish — har qanday belgini olib tashlaydi.
+      if (paid.has(id) || other.has(id)) unmark.mutate(id);
+    }
   };
 
-  const Pane = ({
+  const PaneBox = ({
     side,
     title,
     icon: Icon,
     docsList,
     filter,
     accent,
+    ring,
     emptyHint,
+    disabledDrop,
   }: {
-    side: 'left' | 'right';
+    side: Pane;
     title: string;
     icon: typeof Wallet;
     docsList: EdoDocument[];
     filter: ReturnType<typeof useFilter>;
     accent: string;
+    ring: string;
     emptyHint: string;
+    disabledDrop?: boolean;
   }) => (
     <div
       onDragOver={(e) => {
+        if (disabledDrop) return;
         e.preventDefault();
         setOverPane(side);
       }}
       onDragLeave={() => setOverPane((p) => (p === side ? null : p))}
-      onDrop={() => onDrop(side)}
+      onDrop={() => !disabledDrop && onDrop(side)}
       className={cn(
         'flex-1 min-w-0 flex flex-col rounded-2xl border bg-slate-50/60 p-3 md:p-4 transition',
-        overPane === side ? 'border-asaka-400 ring-2 ring-asaka-200 bg-asaka-50/40' : 'border-slate-200',
+        overPane === side ? ring : 'border-slate-200',
       )}
     >
       <div className={cn('flex items-center gap-2 mb-3 px-1 font-semibold text-sm', accent)}>
@@ -214,22 +240,38 @@ export function EdoBuxgalterPage() {
       <p className="text-xs text-slate-500 mb-4">{t('edo.buxgalter.hint')}</p>
 
       <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0">
-        <Pane
-          side="left"
+        {/* CHAP: Boshqa bo'lim hujjatlari (faqat buxgalter olib qo'ya oladi) */}
+        <PaneBox
+          side="other"
+          title={t('edo.buxgalter.pane_other')}
+          icon={Building2}
+          docsList={otherDocs}
+          filter={otherF}
+          accent="text-sky-700"
+          ring="border-sky-400 ring-2 ring-sky-200 bg-sky-50/40"
+          emptyHint={t('edo.buxgalter.empty_other')}
+          disabledDrop={!canMoveOther}
+        />
+        {/* O'RTA: Bajarilgan hujjatlar */}
+        <PaneBox
+          side="mid"
           title={t('edo.buxgalter.pane_done')}
           icon={FileText}
-          docsList={leftDocs}
-          filter={leftF}
+          docsList={midDocs}
+          filter={midF}
           accent="text-slate-700"
+          ring="border-asaka-400 ring-2 ring-asaka-200 bg-asaka-50/40"
           emptyHint={t('edo.buxgalter.empty_done')}
         />
-        <Pane
-          side="right"
+        {/* O'NG: To'langan */}
+        <PaneBox
+          side="paid"
           title={t('edo.buxgalter.pane_paid')}
           icon={Wallet}
-          docsList={rightDocs}
-          filter={rightF}
+          docsList={paidDocs}
+          filter={paidF}
           accent="text-emerald-700"
+          ring="border-emerald-400 ring-2 ring-emerald-200 bg-emerald-50/40"
           emptyHint={t('edo.buxgalter.empty_paid')}
         />
       </div>

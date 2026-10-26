@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api';
 import { getSocket } from '../lib/socket';
 import { playChatDing } from '../lib/chatSound';
+import { setChatBadge } from '../lib/appBadge';
 import { useAuth } from '../context/AuthContext';
 import { Avatar } from './Avatar';
 import { cn } from '../lib/utils';
@@ -27,6 +28,22 @@ import {
   Ticks,
   formatTime,
 } from './chat/shared';
+
+// Brauzer ogohlantirishi (chat). Ruxsat useLayoutData'da bir marta so'raladi.
+// Ilova ochiq bo'lsa ham "sizga chatdan yangi xabar bor" deb ko'rsatamiz.
+function showChatNotification(title: string, body: string) {
+  if (typeof window === 'undefined' || !('Notification' in window)) return;
+  if (Notification.permission !== 'granted') return;
+  try {
+    new Notification(title, {
+      body: body.slice(0, 120),
+      icon: '/asaka-logo.png',
+      tag: 'edo-chat',
+    });
+  } catch {
+    // e'tiborsiz qoldiramiz
+  }
+}
 
 // ─── Asosiy widget ────────────────────────────────────────────────────────────
 export function FloatingChatWidget() {
@@ -50,7 +67,14 @@ export function FloatingChatWidget() {
 
     const onChatMsg = (data: { payload: ChatMsg }) => {
       const msg = data.payload;
-      if (msg.fromUserId !== user.id) playChatDing();
+      if (msg.fromUserId !== user.id) {
+        playChatDing();
+        // Shu suhbatni aynan ochib turmagan bo'lsa — brauzer ogohlantirishi
+        const viewing = open && partnerId === msg.fromUserId;
+        if (!viewing) {
+          showChatNotification(t('edo.chat.new_message_notif'), msg.body || '📎 Fayl');
+        }
+      }
       setTypingFrom((cur) => (cur === msg.fromUserId ? null : cur));
       // Aktiv suhbatga kelsa — o'qildi deb belgilaymiz
       if (partnerId === msg.fromUserId && open) {
@@ -93,7 +117,16 @@ export function FloatingChatWidget() {
     };
     const onGroupMsg = (data: { payload: GroupMsg }) => {
       const msg = data.payload;
-      if (msg.fromUserId !== user.id) playChatDing();
+      if (msg.fromUserId !== user.id) {
+        playChatDing();
+        const viewing = open && groupId === msg.groupId;
+        if (!viewing) {
+          showChatNotification(
+            msg.fromName || t('edo.chat.new_message_notif'),
+            msg.body || '📎 Fayl',
+          );
+        }
+      }
       if (groupId === msg.groupId && open) {
         api.post(`/chat/groups/${msg.groupId}/read`).catch(() => {});
       }
@@ -249,6 +282,11 @@ export function FloatingChatWidget() {
   );
 
   const totalUnread = unreadData?.count ?? 0;
+
+  // Mobil ilova ikonkasidagi belgi (chat qismi)
+  useEffect(() => {
+    setChatBadge(totalUnread);
+  }, [totalUnread]);
 
   const filteredConversations = useMemo(() => {
     const q = search.trim().toLowerCase();

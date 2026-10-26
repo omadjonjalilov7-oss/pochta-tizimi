@@ -3041,17 +3041,29 @@ export class DocumentsService {
       }),
       this.prisma.accountantMark.findMany({
         where: { userId },
-        select: { documentId: true },
+        select: { documentId: true, kind: true },
       }),
     ]);
     return {
       documents: docs.map((d) => this.serialize(d)),
-      markedIds: marks.map((m) => m.documentId),
+      // To'langan (o'ng oyna) va boshqa bo'lim (chapdagi yangi oyna) belgilar.
+      paidIds: marks.filter((m) => m.kind !== 'other').map((m) => m.documentId),
+      otherIds: marks.filter((m) => m.kind === 'other').map((m) => m.documentId),
+      // Eski frontend bilan moslik uchun (to'langan = markedIds).
+      markedIds: marks.filter((m) => m.kind !== 'other').map((m) => m.documentId),
     };
   }
 
-  // Hujjatni shu buxgalter uchun "to'landi" deb belgilaydi (o'ngga oladi).
-  async markAccountantPaid(userId: string, documentId: string) {
+  // Hujjatni shu buxgalter uchun belgilaydi. kind:
+  //   "paid"  — to'landi (o'ng oyna)
+  //   "other" — boshqa bo'lim hujjati, buxgalteriyaga aloqasi yo'q (chap oyna)
+  // Belgi FAQAT shu foydalanuvchiga tegishli — hujjatning umumiy holatiga
+  // (done/paid) mutlaqo ta'sir qilmaydi.
+  async markAccountantPaid(
+    userId: string,
+    documentId: string,
+    kind: 'paid' | 'other' = 'paid',
+  ) {
     const doc = await this.prisma.document.findUnique({
       where: { id: documentId },
       select: { id: true },
@@ -3059,13 +3071,13 @@ export class DocumentsService {
     if (!doc) throw new NotFoundException('Hujjat topilmadi');
     await this.prisma.accountantMark.upsert({
       where: { userId_documentId: { userId, documentId } },
-      create: { userId, documentId },
-      update: {},
+      create: { userId, documentId, kind },
+      update: { kind },
     });
     return { ok: true };
   }
 
-  // "To'landi" belgisini olib tashlaydi (chapga qaytaradi).
+  // Belgini olib tashlaydi (hujjatni o'rtadagi "bajarildi" oynasiga qaytaradi).
   async unmarkAccountantPaid(userId: string, documentId: string) {
     await this.prisma.accountantMark.deleteMany({
       where: { userId, documentId },

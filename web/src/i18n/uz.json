@@ -517,11 +517,13 @@
     },
     "buxgalter": {
       "title": "Buxgalter oynasi",
-      "hint": "Bajarilgan hujjatlarni to'lov qilinganidan so'ng sichqoncha bilan o'ng tarafga tortib qo'ying. Bu amal faqat sizga ko'rinadi — hujjatga va boshqa foydalanuvchilarga ta'sir qilmaydi.",
+      "hint": "O'rtadagi bajarilgan hujjatlarni to'langach o'ng tarafga, buxgalteriyaga aloqasi yo'q (boshqa bo'lim) hujjatlarni chap tarafga sichqoncha bilan tortib qo'ying. Bu amal faqat sizga ko'rinadi — hujjat holatiga va boshqa foydalanuvchilarga ta'sir qilmaydi.",
       "pane_done": "Bajarilgan hujjatlar",
       "pane_paid": "To'langan (siz belgilagan)",
+      "pane_other": "Boshqa bo'lim hujjatlari",
       "empty_done": "Bajarilgan hujjatlar yo'q",
-      "empty_paid": "Hali bironta hujjat to'langan deb belgilanmagan"
+      "empty_paid": "Hali bironta hujjat to'langan deb belgilanmagan",
+      "empty_other": "Boshqa bo'lim hujjatlari yo'q"
     },
     "nav": {
       "compose": "Yangi hujjat",
@@ -1453,7 +1455,8 @@
       "attach_file": "Fayl biriktirish (max 50 MB)",
       "file_too_large": "Fayl 50 MB dan katta bo'lmasligi kerak",
       "message_placeholder": "Xabar yozing... (Enter — yuborish)",
-      "no_messages_dm": "Xabarlar yo'q. Birinchi xabarni yuboring!"
+      "no_messages_dm": "Xabarlar yo'q. Birinchi xabarni yuboring!",
+      "new_message_notif": "Sizga chatdan yangi xabar bor"
     }
   }
 }

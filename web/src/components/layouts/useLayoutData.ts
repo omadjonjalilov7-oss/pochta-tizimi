@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
 import type { MessageRecipientItem } from '../../lib/types';
 import { getSocket, disconnectSocket } from '../../lib/socket';
+import { setMailBadge } from '../../lib/appBadge';
 
 export function useLayoutData() {
   const { user, logout } = useAuth();
@@ -24,6 +25,8 @@ export function useLayoutData() {
   const unreadRef = useRef(0);
   useEffect(() => {
     unreadRef.current = unread ?? 0;
+    // Mobil ilova ikonkasidagi belgi (pochta qismi)
+    setMailBadge(unread ?? 0);
   }, [unread]);
 
   // Har 30 daqiqada bir marta, faqat soat 9:00–18:00 orasida va o'qilmagan

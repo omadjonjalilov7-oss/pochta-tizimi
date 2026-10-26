@@ -116,9 +116,17 @@ export class DocumentsController {
   markAccountantPaid(
     @CurrentUser() user: CurrentUserPayload,
     @Body('documentId', ParseUUIDPipe) documentId: string,
+    @Body('kind') kind?: string,
   ) {
     this.ensureStaff(user);
-    return this.docs.markAccountantPaid(user.id, documentId);
+    const markKind: 'paid' | 'other' = kind === 'other' ? 'other' : 'paid';
+    // "Boshqa bo'lim" (other) oynasiga olish FAQAT buxgalter yoki admin uchun.
+    if (markKind === 'other' && user.role !== 'buxgalter' && user.role !== 'admin') {
+      throw new ForbiddenException(
+        "Boshqa bo'lim oynasiga faqat buxgalter olib qo'ya oladi",
+      );
+    }
+    return this.docs.markAccountantPaid(user.id, documentId, markKind);
   }
 
   @Delete('accountant/mark/:id')

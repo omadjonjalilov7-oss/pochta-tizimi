@@ -27,6 +27,7 @@ import {
 } from 'class-validator';
 import { ChatGroupService } from './chat-group.service';
 import { ChatGateway } from './chat.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import {
   CurrentUser,
@@ -78,6 +79,7 @@ export class ChatGroupController {
   constructor(
     private readonly groups: ChatGroupService,
     private readonly gateway: ChatGateway,
+    private readonly notifications: NotificationsService,
   ) {}
 
   @Get()
@@ -123,11 +125,22 @@ export class ChatGroupController {
   ) {
     const msg = await this.groups.sendMessage(user.id, id, dto.body ?? '', file);
     const { memberIds } = await this.groups.memberIdsOf(id);
+    const targets = memberIds.filter((m) => m !== user.id);
     // Yuboruvchidan boshqa a'zolarga real-vaqt yuboramiz
-    this.gateway.emitGroupMessage(
-      memberIds.filter((m) => m !== user.id),
-      msg,
-    );
+    this.gateway.emitGroupMessage(targets, msg);
+    // Offline a'zolarga PWA/FCM push ("guruhda yangi xabar").
+    const preview =
+      (msg.attachments?.length ?? 0) > 0 && !msg.body ? '📎 Fayl' : msg.body || '';
+    const gName = await this.groups.groupName(id);
+    for (const uid of targets) {
+      if (!(await this.gateway.isOnline(uid))) {
+        void this.notifications.pushOnly(uid, {
+          title: gName,
+          body: `${msg.fromName}: ${preview || 'Yangi xabar'}`.slice(0, 240),
+          data: { url: '/edo/chat', tag: `group-${id}` },
+        });
+      }
+    }
     return msg;
   }
 

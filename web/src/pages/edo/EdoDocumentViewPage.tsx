@@ -543,13 +543,22 @@ export function EdoDocumentViewPage({
   // "Imzo uchun yuborish" — chiquvchi hujjatni bosh direktor (avazbek login) imzosiga
   // yuboradi. Login topilmasa tugma o'chiq bo'ladi.
   const signatoryUser = allUsers.find((u) => u.login === 'avazbek');
+  // Rahbar (avazbek) tasdiqlash zanjirida bormi? Agar bo'lsa — unga hujjat
+  // allaqachon yuborilgan (xabar ketgan), demak "imzoga/rahbarga yuborish"
+  // tugmalari qayta ko'rsatilmaydi.
+  const leaderInChainHdr = doc.participants.some(
+    (p) => p.role === 'approver' && p.user?.login === 'avazbek',
+  );
   // "Podpisat" — kiruvchi/chiquvchi hujjatni bosh direktor (avazbek) imzosiga
   // yuborish. Yuborilgach status "podpisana" bo'ladi (kanselyariya/bo'lim
   // oynasida maxsus bo'lim). Yakunlangan/qoralama/allaqachon yuborilgan bo'lsa
   // tugma ko'rinmaydi. Faqat kanselyariya/admin/yaratuvchi/joriy egasi yuboradi.
+  // MUHIM: rahbar (avazbek) allaqachon zanjirda bo'lsa — unga xabar ketgan,
+  // shuning uchun tugma yashiriladi.
   const canSendToSign =
     (doc.type === 'incoming' || doc.type === 'outgoing') &&
     !['draft', 'done', 'rejected', 'podpisana'].includes(doc.status) &&
+    !leaderInChainHdr &&
     (isStaff || isCreator || isLeaderHolder);
   const canAssignControl =
     isStaff &&
@@ -562,9 +571,6 @@ export function EdoDocumentViewPage({
   // "Raxbarga yuborish" — FAQAT admin/kanselyariya, FAQAT barcha tasdiqlovchilar
   // tasdiqlagach va zanjirda rahbar (avazbek) hali bo'lmasa. (ParticipantsPanel'dagi
   // shart bilan bir xil — bu yerda sarlavhadagi tugma uchun.)
-  const leaderInChainHdr = doc.participants.some(
-    (p) => p.role === 'approver' && p.user?.login === 'avazbek',
-  );
   const nonLeaderApproversHdr = doc.participants.filter(
     (p) => p.role === 'approver' && p.user?.login !== 'avazbek',
   );
