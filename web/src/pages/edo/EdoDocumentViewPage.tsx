@@ -2368,10 +2368,13 @@ function ParticipantsPanel({
     [doc.participants],
   );
 
-  // Admin/kanselyariya hali yakunlanmagan hujjat zanjiriga xodim qo'sha oladi
+  // Admin/kanselyariya hali yakunlanmagan hujjat zanjiriga xodim qo'sha oladi.
+  // "awaiting_leader" — barcha tasdiqlab bo'lgan, lekin raxbarga hali
+  // yuborilmagan holat; bu bosqichda ham yangi xodim qo'shsa bo'ladi.
   const isStaff = user?.role === 'admin' || user?.role === 'chancellery' || user?.role === 'buxgalter';
   const canAddApprovers =
-    isStaff && ['in_review', 'in_progress', 'overdue'].includes(doc.status);
+    isStaff &&
+    ['in_review', 'in_progress', 'overdue', 'awaiting_leader'].includes(doc.status);
 
   // "Raxbarga yuborish" — zanjirda rahbar (avazbek) hali bo'lmasa, uni oxirgi
   // tasdiqlovchi qilib qo'shish. FAQAT admin/kanselyariya yubora oladi va FAQAT

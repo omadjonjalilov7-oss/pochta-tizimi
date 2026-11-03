@@ -1121,7 +1121,15 @@ export class DocumentsService {
     }
     const doc = await this.prisma.document.findUnique({ where: { id } });
     if (!doc) throw new NotFoundException('Hujjat topilmadi');
-    if (!['in_review', 'in_progress', 'overdue'].includes(doc.status)) {
+    // "awaiting_leader" — barcha tasdiqlovchilar tasdiqlagan, lekin bosh direktor
+    // (avazbek) hali tasdiqlamagan holat. Bu bosqichda ham admin/kanselyariya
+    // zanjirga yangi xodim qo'sha oladi — bunda hujjat yana tasdiqlash bosqichiga
+    // (in_review) qaytadi va yangi xodimga navbat beriladi (pastda).
+    if (
+      !['in_review', 'in_progress', 'overdue', 'awaiting_leader'].includes(
+        doc.status,
+      )
+    ) {
       throw new BadRequestException(
         "Faqat tasdiqlash bosqichidagi (yakunlanmagan) hujjatga tasdiqlovchi qo'shiladi",
       );
@@ -1168,6 +1176,19 @@ export class DocumentsService {
             status: ParticipantStatus.pending,
             actedAt: null,
             rejectReason: null,
+          },
+        });
+      }
+      // Zanjir allaqachon tugagan (awaiting_leader) bo'lsa — yangi xodim
+      // qo'shilgach hujjatni qayta tasdiqlash bosqichiga qaytaramiz va yangi
+      // xodimni joriy tasdiqlovchi qilamiz (aks holda unga navbat ko'rinmaydi).
+      if (doc.status === DocumentStatus.awaiting_leader) {
+        await tx.document.update({
+          where: { id },
+          data: {
+            status: DocumentStatus.in_review,
+            currentHolderId: addIds[0],
+            closedAt: null,
           },
         });
       }
