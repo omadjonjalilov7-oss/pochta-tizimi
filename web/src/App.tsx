@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import { ZoomControl } from './components/ZoomControl';
 import { LoginPage } from './pages/LoginPage';
 import { Layout } from './components/Layout';
 import { LayoutEdo } from './components/layouts/LayoutEdo';
@@ -45,7 +46,7 @@ import { EdoScanPage } from './pages/edo/EdoScanPage';
 import { EdoKanselyariyaPage } from './pages/edo/EdoKanselyariyaPage';
 
 export function App() {
-  const { loading } = useAuth();
+  const { loading, user } = useAuth();
 
   if (loading) {
     return (
@@ -56,6 +57,7 @@ export function App() {
   }
 
   return (
+    <>
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<Navigate to="/login" replace />} />
@@ -117,5 +119,7 @@ export function App() {
       </Route>
       <Route path="*" element={<Navigate to="/inbox" replace />} />
     </Routes>
+    {user && <ZoomControl />}
+    </>
   );
 }

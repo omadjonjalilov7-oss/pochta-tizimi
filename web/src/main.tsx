@@ -6,11 +6,13 @@ import { App } from './App';
 import { AuthProvider } from './context/AuthContext';
 import { applyTheme, getStoredTheme } from './lib/theme';
 import { applyDesign, getStoredDesign } from './lib/design';
+import { initZoom } from './lib/uiZoom';
 import './i18n';
 import './index.css';
 
 applyTheme(getStoredTheme());
 applyDesign(getStoredDesign());
+initZoom();
 
 const queryClient = new QueryClient({
   defaultOptions: {

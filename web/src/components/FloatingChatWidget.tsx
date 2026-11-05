@@ -28,21 +28,16 @@ import {
   Ticks,
   formatTime,
 } from './chat/shared';
+import { showLocalNotification } from '../lib/localNotify';
 
 // Brauzer ogohlantirishi (chat). Ruxsat useLayoutData'da bir marta so'raladi.
 // Ilova ochiq bo'lsa ham "sizga chatdan yangi xabar bor" deb ko'rsatamiz.
+// Service worker orqali ko'rsatiladi — Android'da ham ishlaydi (localNotify).
 function showChatNotification(title: string, body: string) {
-  if (typeof window === 'undefined' || !('Notification' in window)) return;
-  if (Notification.permission !== 'granted') return;
-  try {
-    new Notification(title, {
-      body: body.slice(0, 120),
-      icon: '/asaka-logo.png',
-      tag: 'edo-chat',
-    });
-  } catch {
-    // e'tiborsiz qoldiramiz
-  }
+  void showLocalNotification(title, {
+    body: body.slice(0, 120),
+    tag: 'edo-chat',
+  });
 }
 
 // ─── Asosiy widget ────────────────────────────────────────────────────────────

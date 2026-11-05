@@ -6,6 +6,7 @@ import { api } from '../../lib/api';
 import type { MessageRecipientItem } from '../../lib/types';
 import { getSocket, disconnectSocket } from '../../lib/socket';
 import { setMailBadge } from '../../lib/appBadge';
+import { showLocalNotification } from '../../lib/localNotify';
 
 export function useLayoutData() {
   const { user, logout } = useAuth();
@@ -43,7 +44,7 @@ export function useLayoutData() {
         'Notification' in window &&
         Notification.permission === 'granted'
       ) {
-        new Notification('Pochta', {
+        void showLocalNotification('Pochta', {
           body: `${unreadRef.current} ta o'qilmagan xabar bor`,
         });
       }
@@ -70,7 +71,9 @@ export function useLayoutData() {
       setNotification(`${from}: ${subject}`);
       setTimeout(() => setNotification(null), 5000);
       if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('Pochta — yangi xabar', { body: `${from}\n${subject}` });
+        void showLocalNotification('Pochta — yangi xabar', {
+          body: `${from}\n${subject}`,
+        });
       }
       queryClient.invalidateQueries({ queryKey: ['unread-count'] });
       queryClient.invalidateQueries({ queryKey: ['messages'] });
