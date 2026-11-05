@@ -36,4 +36,5 @@ echo "==> [9/9] Frontend qayta ishga tushirish"
 pm2 restart pochta-frontend --update-env
 
 echo ""
-echo "✅ TAYYOR! Endi admin paneldan kerakli xodimga 'Buxgalter' rolini bering."
+echo "✅ TAYYOR! Yangilanishlar o'rnatildi va xizmatlar qayta ishga tushirildi."
+echo "   (Agar eski sahifa ko'rinsa — telefonда/brauzerда 1 marta yangilang.)"
