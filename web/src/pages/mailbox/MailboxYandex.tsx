@@ -4,6 +4,7 @@ import { Star, Paperclip, AlertCircle, AlertTriangle, Inbox } from 'lucide-react
 import { formatDateShort, cn, senderDisplayName, stripHtmlForPreview } from '../../lib/utils';
 import type { MessageFolder } from '../../lib/types';
 import { useMailboxData } from './useMailboxData';
+import { MailboxBulkBar, MailCheckbox } from './MailboxBulkBar';
 
 interface Props {
   folder: MessageFolder;
@@ -13,17 +14,27 @@ interface Props {
 
 export function MailboxYandex({ folder, starredOnly, external }: Props) {
   const { t } = useTranslation();
-  const { search, setSearch, isSearching, isLoading, filtered, groupedItems, toggleStar, title } = useMailboxData(
-    folder,
-    starredOnly,
-    external,
-  );
+  const {
+    search, setSearch, isSearching, isLoading, filtered, groupedItems, toggleStar, title,
+    selectedCount, isSelected, toggleSelect, clearSelection, selectAll,
+    markAllRead, deleteSelected, busy, unreadCount,
+  } = useMailboxData(folder, starredOnly, external);
 
   return (
     <div className="h-full flex flex-col">
-      <div className="px-3 py-1.5 flex items-center gap-3 border-b border-slate-200 bg-slate-50">
+      <div className="px-3 py-1.5 flex items-center gap-3 border-b border-slate-200 bg-slate-50 flex-wrap">
         <h1 className="text-sm font-bold text-slate-900">{title}</h1>
         <span className="text-xs text-slate-500">{filtered.length}</span>
+        <MailboxBulkBar
+          folder={folder}
+          unreadCount={unreadCount}
+          selectedCount={selectedCount}
+          busy={busy}
+          onMarkAllRead={markAllRead}
+          onSelectAll={selectAll}
+          onDeleteSelected={deleteSelected}
+          onClear={clearSelection}
+        />
         <input
           type="search"
           placeholder={t('common.search')}
@@ -83,8 +94,12 @@ export function MailboxYandex({ folder, starredOnly, external }: Props) {
                           className={cn(
                             'border-b border-slate-100 hover:bg-yellow-50 transition-colors',
                             unread && 'bg-blue-50/30 font-semibold',
+                            isSelected(item) && 'bg-brand-50',
                           )}
                         >
+                          <td className="px-2 py-1.5 w-7">
+                            <MailCheckbox checked={isSelected(item)} onToggle={(e) => toggleSelect(e, item)} />
+                          </td>
                           <td className="px-2 py-1.5 w-8">
                             <button
                               onClick={(e) => toggleStar(e, item)}
@@ -170,8 +185,12 @@ export function MailboxYandex({ folder, starredOnly, external }: Props) {
                     className={cn(
                       'border-b border-slate-100 hover:bg-yellow-50 transition-colors',
                       unread && 'bg-blue-50/30 font-semibold',
+                      isSelected(item) && 'bg-brand-50',
                     )}
                   >
+                    <td className="px-2 py-1.5 w-7">
+                      <MailCheckbox checked={isSelected(item)} onToggle={(e) => toggleSelect(e, item)} />
+                    </td>
                     <td className="px-2 py-1.5 w-8">
                       <button
                         onClick={(e) => toggleStar(e, item)}

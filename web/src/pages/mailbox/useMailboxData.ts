@@ -173,6 +173,66 @@ export function useMailboxData(
     queryClient.invalidateQueries({ queryKey: ['messages'] });
   };
 
+  // ── Ko'p xabar ustida amallar (belgilab o'chirish / hammasini o'qildi) ──────
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+
+  // Papka yoki qidiruv o'zgarsa — tanlovni tozalaymiz (eski ID'lar aralashmasin).
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [folder, debouncedSearch, external]);
+
+  const toggleSelect = useCallback((e: React.MouseEvent, item: MessageRecipientItem) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(item.messageId)) next.delete(item.messageId);
+      else next.add(item.messageId);
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  const selectAll = useCallback(() => {
+    setSelectedIds(new Set(filtered.map((it) => it.messageId)));
+  }, [filtered]);
+
+  const isSelected = useCallback(
+    (item: MessageRecipientItem) => selectedIds.has(item.messageId),
+    [selectedIds],
+  );
+
+  // Hammasini o'qilgan deb belgilash (faqat inbox'da ma'noli).
+  const markAllRead = useCallback(async () => {
+    setBusy(true);
+    try {
+      await api.post('/messages/read-all');
+      await queryClient.invalidateQueries({ queryKey: ['messages'] });
+      await queryClient.invalidateQueries({ queryKey: ['unread-count'] });
+    } finally {
+      setBusy(false);
+    }
+  }, [queryClient]);
+
+  // Belgilangan xabarlarni o'chirish (chiqindiga ko'chirish — qaytarib olish mumkin).
+  const deleteSelected = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    setBusy(true);
+    try {
+      await api.post('/messages/bulk-move/trash', { ids: Array.from(selectedIds) });
+      setSelectedIds(new Set());
+      await queryClient.invalidateQueries({ queryKey: ['messages'] });
+      await queryClient.invalidateQueries({ queryKey: ['unread-count'] });
+    } finally {
+      setBusy(false);
+    }
+  }, [selectedIds, queryClient]);
+
+  // "Hammasini o'qildi" tugmasi faqat o'qilmagan xabar bo'lsa ma'noli.
+  const unreadCount = filtered.reduce((n, it) => (it.isRead ? n : n + 1), 0);
+
   const title = external
     ? t(folder === 'sent' ? 'external_mail.title_sent' : 'external_mail.title_inbox')
     : t(starredOnly ? FOLDER_TITLE_KEYS.starred : FOLDER_TITLE_KEYS[folder]);
@@ -186,5 +246,16 @@ export function useMailboxData(
     groupedItems,
     toggleStar,
     title,
+    // Ko'p xabar amallari
+    folder,
+    selectedCount: selectedIds.size,
+    isSelected,
+    toggleSelect,
+    clearSelection,
+    selectAll,
+    markAllRead,
+    deleteSelected,
+    busy,
+    unreadCount,
   };
 }

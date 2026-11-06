@@ -6,6 +6,7 @@ import { Avatar } from '../../components/Avatar';
 import { formatDateShort, cn, senderDisplayName, stripHtmlForPreview } from '../../lib/utils';
 import type { MessageFolder } from '../../lib/types';
 import { useMailboxData } from './useMailboxData';
+import { MailboxBulkBar, MailCheckbox } from './MailboxBulkBar';
 
 interface Props {
   folder: MessageFolder;
@@ -16,10 +17,11 @@ interface Props {
 
 export function MailboxOutlook({ folder, starredOnly, width, className }: Props) {
   const { t } = useTranslation();
-  const { search, isSearching, isLoading, filtered, groupedItems, toggleStar, title } = useMailboxData(
-    folder,
-    starredOnly,
-  );
+  const {
+    search, isSearching, isLoading, filtered, groupedItems, toggleStar, title,
+    selectedCount, isSelected, toggleSelect, clearSelection, selectAll,
+    markAllRead, deleteSelected, busy, unreadCount,
+  } = useMailboxData(folder, starredOnly);
   const location = useLocation();
   const activeId = location.pathname.startsWith('/messages/')
     ? location.pathname.split('/').pop()
@@ -45,8 +47,18 @@ export function MailboxOutlook({ folder, starredOnly, width, className }: Props)
         style={width ? { width } : undefined}
         className={cn('flex flex-col border-r border-slate-200 bg-white flex-shrink-0', !width && 'w-96', className)}
       >
-        <div className="px-3 py-2 border-b border-slate-200">
+        <div className="px-3 py-2 border-b border-slate-200 flex items-center gap-2 flex-wrap">
           <div className="text-sm font-semibold text-slate-800">{title}</div>
+          <MailboxBulkBar
+            folder={folder}
+            unreadCount={unreadCount}
+            selectedCount={selectedCount}
+            busy={busy}
+            onMarkAllRead={markAllRead}
+            onSelectAll={selectAll}
+            onDeleteSelected={deleteSelected}
+            onClear={clearSelection}
+          />
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -117,9 +129,11 @@ export function MailboxOutlook({ folder, starredOnly, width, className }: Props)
                                 ? 'bg-brand-50 border-l-4 border-l-brand-600 -ml-px'
                                 : 'hover:bg-slate-50',
                               unread && !isActive && 'border-l-4 border-l-brand-500 -ml-px',
+                              isSelected(item) && 'bg-brand-50',
                             )}
                           >
                             <div className="flex items-start gap-2">
+                              <MailCheckbox checked={isSelected(item)} onToggle={(e) => toggleSelect(e, item)} />
                               <Avatar
                                 fullName={senderDisplayName(item.message) || '??'}
                                 avatarPath={item.message.fromUser?.avatarPath}
@@ -211,9 +225,11 @@ export function MailboxOutlook({ folder, starredOnly, width, className }: Props)
                           ? 'bg-brand-50 border-l-4 border-l-brand-600 -ml-px'
                           : 'hover:bg-slate-50',
                         unread && !isActive && 'border-l-4 border-l-brand-500 -ml-px',
+                        isSelected(item) && 'bg-brand-50',
                       )}
                     >
                       <div className="flex items-start gap-2">
+                        <MailCheckbox checked={isSelected(item)} onToggle={(e) => toggleSelect(e, item)} />
                         <Avatar
                           fullName={senderDisplayName(item.message) || '??'}
                           avatarPath={item.message.fromUser?.avatarPath}

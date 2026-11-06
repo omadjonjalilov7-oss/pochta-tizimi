@@ -140,7 +140,13 @@
     "message_count": "{{count}} ta xabar",
     "search_short": "Mavzu, matn yoki yuboruvchi...",
     "me": "Men",
-    "recalled_short": "↶ Qaytarib olingan"
+    "recalled_short": "↶ Qaytarib olingan",
+    "mark_all_read": "Hammasini o'qildi",
+    "select_all": "Barchasini belgilash",
+    "selected_count": "{{count}} ta tanlandi",
+    "delete_selected": "O'chirish",
+    "clear_selection": "Bekor qilish",
+    "delete_confirm": "{{count}} ta xabar chiqindiga ko'chiriladi. Davom etasizmi?"
   },
   "compose": {
     "title": "Yangi xabar",

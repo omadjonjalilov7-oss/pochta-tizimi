@@ -4,6 +4,7 @@ import { Star, Paperclip, AlertCircle, AlertTriangle, Inbox } from 'lucide-react
 import { formatDateShort, cn, senderDisplayName, stripHtmlForPreview } from '../../lib/utils';
 import type { MessageFolder } from '../../lib/types';
 import { useMailboxData } from './useMailboxData';
+import { MailboxBulkBar, MailCheckbox } from './MailboxBulkBar';
 
 interface Props {
   folder: MessageFolder;
@@ -13,17 +14,27 @@ interface Props {
 
 export function MailboxGmail({ folder, starredOnly, external }: Props) {
   const { t } = useTranslation();
-  const { search, isSearching, isLoading, filtered, groupedItems, toggleStar, title } = useMailboxData(
-    folder,
-    starredOnly,
-    external,
-  );
+  const {
+    search, isSearching, isLoading, filtered, groupedItems, toggleStar, title,
+    selectedCount, isSelected, toggleSelect, clearSelection, selectAll,
+    markAllRead, deleteSelected, busy, unreadCount,
+  } = useMailboxData(folder, starredOnly, external);
 
   return (
     <div className="h-full flex flex-col">
-      <div className="px-4 py-2 flex items-center gap-3 border-b border-slate-100">
+      <div className="px-4 py-2 flex items-center gap-3 border-b border-slate-100 flex-wrap">
         <h2 className="text-sm font-semibold text-slate-700 px-2">{title}</h2>
         <span className="text-xs text-slate-400">{filtered.length}</span>
+        <MailboxBulkBar
+          folder={folder}
+          unreadCount={unreadCount}
+          selectedCount={selectedCount}
+          busy={busy}
+          onMarkAllRead={markAllRead}
+          onSelectAll={selectAll}
+          onDeleteSelected={deleteSelected}
+          onClear={clearSelection}
+        />
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -76,8 +87,10 @@ export function MailboxGmail({ folder, starredOnly, external }: Props) {
                           className={cn(
                             'flex items-center gap-3 px-4 py-2 border-b border-slate-100 hover:shadow-md hover:z-10 relative transition-shadow',
                             unread ? 'bg-white font-bold' : 'bg-slate-50 text-slate-700',
+                            isSelected(item) && 'bg-brand-50',
                           )}
                         >
+                          <MailCheckbox checked={isSelected(item)} onToggle={(e) => toggleSelect(e, item)} />
                           <button
                             onClick={(e) => toggleStar(e, item)}
                             className="flex-shrink-0 text-slate-300 hover:text-yellow-500"
@@ -148,8 +161,10 @@ export function MailboxGmail({ folder, starredOnly, external }: Props) {
                     className={cn(
                       'flex items-center gap-3 px-4 py-2 border-b border-slate-100 hover:shadow-md hover:z-10 relative transition-shadow',
                       unread ? 'bg-white font-bold' : 'bg-slate-50 text-slate-700',
+                      isSelected(item) && 'bg-brand-50',
                     )}
                   >
+                    <MailCheckbox checked={isSelected(item)} onToggle={(e) => toggleSelect(e, item)} />
                     <button
                       onClick={(e) => toggleStar(e, item)}
                       className="flex-shrink-0 text-slate-300 hover:text-yellow-500"

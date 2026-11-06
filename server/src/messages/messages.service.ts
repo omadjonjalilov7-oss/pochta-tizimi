@@ -337,6 +337,38 @@ export class MessagesService {
     });
   }
 
+  // "Hammasini o'qildi" — foydalanuvchining kiruvchi (inbox) papkasidagi barcha
+  // o'qilmagan xabarlarini bir vaqtda o'qilgan deb belgilaydi.
+  async markAllRead(userId: string): Promise<{ count: number }> {
+    const now = new Date();
+    const res = await this.prisma.messageRecipient.updateMany({
+      where: { userId, folder: MessageFolder.inbox, isRead: false },
+      data: { isRead: true, readAt: now },
+    });
+    return { count: res.count };
+  }
+
+  // Bir nechta xabarni bitta amal bilan papkaga ko'chirish — "belgilab o'chirish"
+  // uchun folder=trash yuboriladi (chiqindiga tushadi, deletedAt belgilanadi).
+  async bulkMove(
+    userId: string,
+    messageIds: string[],
+    folder: MessageFolder,
+  ): Promise<{ count: number }> {
+    const ids = (messageIds ?? []).filter(Boolean);
+    if (ids.length === 0) return { count: 0 };
+    if (folder === MessageFolder.sent) {
+      throw new ForbiddenException(
+        'Xabarlarni "Yuborilgan" papkasiga ko\'chirib bo\'lmaydi',
+      );
+    }
+    const res = await this.prisma.messageRecipient.updateMany({
+      where: { userId, messageId: { in: ids } },
+      data: { folder, deletedAt: folder === MessageFolder.trash ? new Date() : null },
+    });
+    return { count: res.count };
+  }
+
   async recall(userId: string, messageId: string) {
     const message = await this.prisma.message.findUnique({
       where: { id: messageId },

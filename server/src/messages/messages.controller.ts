@@ -15,6 +15,7 @@ import { MessageFolder } from '@prisma/client';
 import { MessagesService } from './messages.service';
 import { MessagesGateway } from './messages.gateway';
 import { SendMessageDto } from './dto/send-message.dto';
+import { BulkIdsDto } from './dto/bulk-ids.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserPayload } from '../auth/decorators/current-user.decorator';
 
@@ -59,6 +60,22 @@ export class MessagesController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.messages.findOne(user.id, id);
+  }
+
+  // "Hammasini o'qildi" — inbox'dagi barcha o'qilmaganlarni bir bosishda.
+  @Post('read-all')
+  readAll(@CurrentUser() user: CurrentUserPayload) {
+    return this.messages.markAllRead(user.id);
+  }
+
+  // Belgilangan bir nechta xabarni papkaga ko'chirish (o'chirish = trash).
+  @Post('bulk-move/:folder')
+  bulkMove(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('folder', new ParseEnumPipe(MessageFolder)) folder: MessageFolder,
+    @Body() dto: BulkIdsDto,
+  ) {
+    return this.messages.bulkMove(user.id, dto.ids, folder);
   }
 
   @Patch(':id/read')

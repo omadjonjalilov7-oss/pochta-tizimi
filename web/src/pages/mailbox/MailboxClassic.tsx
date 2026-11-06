@@ -5,6 +5,7 @@ import { Avatar } from '../../components/Avatar';
 import { formatDateShort, cn, senderDisplayName } from '../../lib/utils';
 import type { MessageFolder } from '../../lib/types';
 import { useMailboxData } from './useMailboxData';
+import { MailboxBulkBar, MailCheckbox } from './MailboxBulkBar';
 
 interface Props {
   folder: MessageFolder;
@@ -14,17 +15,27 @@ interface Props {
 
 export function MailboxClassic({ folder, starredOnly, external }: Props) {
   const { t } = useTranslation();
-  const { search, setSearch, isSearching, isLoading, filtered, groupedItems, toggleStar, title } = useMailboxData(
-    folder,
-    starredOnly,
-    external,
-  );
+  const {
+    search, setSearch, isSearching, isLoading, filtered, groupedItems, toggleStar, title,
+    selectedCount, isSelected, toggleSelect, clearSelection, selectAll,
+    markAllRead, deleteSelected, busy, unreadCount,
+  } = useMailboxData(folder, starredOnly, external);
 
   return (
     <div className="h-full flex flex-col">
-      <div className="bg-white border-b border-slate-200 px-3 md:px-6 py-4 flex items-center gap-2 md:gap-4">
+      <div className="bg-white border-b border-slate-200 px-3 md:px-6 py-4 flex items-center gap-2 md:gap-4 flex-wrap">
         <h1 className="text-lg md:text-xl font-semibold text-slate-900">{title}</h1>
         <span className="hidden sm:inline text-sm text-slate-400">{t('mailbox.message_count', { count: filtered.length })}</span>
+        <MailboxBulkBar
+          folder={folder}
+          unreadCount={unreadCount}
+          selectedCount={selectedCount}
+          busy={busy}
+          onMarkAllRead={markAllRead}
+          onSelectAll={selectAll}
+          onDeleteSelected={deleteSelected}
+          onClear={clearSelection}
+        />
         <div className="ml-auto relative w-40 sm:w-72">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -84,8 +95,10 @@ export function MailboxClassic({ folder, starredOnly, external }: Props) {
                         className={cn(
                           'flex items-center gap-3 px-3 md:px-6 py-3 hover:bg-brand-50 transition-colors',
                           !item.isRead && folder === 'inbox' && 'bg-blue-50/40 font-medium',
+                          isSelected(item) && 'bg-brand-50',
                         )}
                       >
+                        <MailCheckbox checked={isSelected(item)} onToggle={(e) => toggleSelect(e, item)} />
                         <button
                           onClick={(e) => toggleStar(e, item)}
                           className="flex-shrink-0 text-slate-300 hover:text-yellow-500"
@@ -160,8 +173,10 @@ export function MailboxClassic({ folder, starredOnly, external }: Props) {
                   className={cn(
                     'flex items-center gap-3 px-6 py-3 hover:bg-brand-50 transition-colors',
                     !item.isRead && folder === 'inbox' && 'bg-blue-50/40 font-medium',
+                    isSelected(item) && 'bg-brand-50',
                   )}
                 >
+                  <MailCheckbox checked={isSelected(item)} onToggle={(e) => toggleSelect(e, item)} />
                   <button
                     onClick={(e) => toggleStar(e, item)}
                     className="flex-shrink-0 text-slate-300 hover:text-yellow-500"

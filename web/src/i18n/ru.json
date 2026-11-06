@@ -139,7 +139,13 @@
     "message_count": "{{count}} сообщений",
     "search_short": "Тема, текст или отправитель...",
     "me": "Я",
-    "recalled_short": "↶ Отозвано"
+    "recalled_short": "↶ Отозвано",
+    "mark_all_read": "Прочитать все",
+    "select_all": "Выбрать все",
+    "selected_count": "Выбрано: {{count}}",
+    "delete_selected": "Удалить",
+    "clear_selection": "Отмена",
+    "delete_confirm": "{{count}} сообщений будет перемещено в корзину. Продолжить?"
   },
   "compose": {
     "title": "Новое сообщение",
