@@ -4409,17 +4409,10 @@ export class DocumentsService {
     if (!mine) return true;
     // Allaqachon qaror qilgan (tasdiqlagan/rad etgan) — tarix uchun ko'rinadi
     if (mine.status !== ParticipantStatus.pending) return true;
-    // Kutayotgan tasdiqlovchi — faqat o'z navbati kelganda ko'rinadi
-    const pendingOrders = (doc.participants ?? [])
-      .filter(
-        (p: any) =>
-          p.role === ParticipantRole.approver &&
-          p.status === ParticipantStatus.pending,
-      )
-      .map((p: any) => p.order as number);
-    if (pendingOrders.length === 0) return true;
-    const minOrder = Math.min(...pendingOrders);
-    return mine.order === minOrder;
+    // Kutayotgan tasdiqlovchi — endi o'z navbatini kutmasdan ko'rinadi.
+    // (Rank ustuvorligidagi taqiq olib tashlandi: zanjirdagi istalgan kutayotgan
+    // tasdiqlovchi hujjatni o'z ro'yxatida ko'radi va tasdiqlay oladi.)
+    return true;
   }
 
   // Faqat hozir tasdiqlash navbatida turgan (eng kichik tartibli guruhdagi)
@@ -4450,26 +4443,12 @@ export class DocumentsService {
     });
     const isLeader = actor?.login === 'avazbek';
 
-    // ── RAHBAR (avazbek) uchun maxsus qoida ──────────────────────────────
+    // ── RAHBAR (avazbek) uchun qoida ─────────────────────────────────────
     if (isLeader) {
-      // "Zudlik bilan tasdiqlash" — quyi xodimlar tasdiqlagan yoki yo'qligidan
-      // qat'iy nazar cheklovsiz tasdiqlaydi.
-      if (urgent) return doc;
-      // Oddiy "Tasdiqlash" tugmasi — avval barcha quyi (rahbar bo'lmagan)
-      // tasdiqlovchilar tasdiqlagan bo'lishi SHART. Aks holda bloklaymiz.
-      const pendingLower = await this.prisma.documentParticipant.count({
-        where: {
-          documentId: id,
-          role: ParticipantRole.approver,
-          status: ParticipantStatus.pending,
-          user: { login: { not: 'avazbek' } },
-        },
-      });
-      if (pendingLower > 0) {
-        throw new BadRequestException(
-          "Quyi xodimlar hujjatni hali tasdiqlamagan. Avval ular tasdiqlashi kerak yoki \"Zudlik bilan tasdiqlash\" tugmasidan foydalaning.",
-        );
-      }
+      // Rank ustuvorligidagi taqiq olib tashlandi: rahbar (avazbek) istalgan
+      // vaqtda tasdiqlay oladi — quyi xodimlar tasdiqlashini kutishi SHART emas.
+      // "Zudlik bilan tasdiqlash" (urgent) tugmasi esa qolgan tasdiqlovchilarni
+      // umuman kutmasdan hujjatni darhol YAKUNLAYDI (approve ichidagi finalizeNow).
       return doc;
     }
 
@@ -4480,58 +4459,33 @@ export class DocumentsService {
       );
     }
 
+    // RANK USTUVORLIGIDAGI NAVBAT TAQIQI OLIB TASHLANDI (buyurtmachi talabi):
+    // zanjirdagi istalgan kutayotgan (pending) tasdiqlovchi o'z navbatini
+    // kutmasdan tasdiqlay oladi. Darajasi baland xodim darajasi past xodimni
+    // kutishi shart emas.
     if (doc.currentHolderId === userId) return doc;
-    // QAT'IY RANK TARTIBI (buyurtmachi talabi): faqat hozirgi eng past navbat
-    // (eng kichik tartibli) guruhdagi kutuvchi tasdiqlovchi amal qila oladi.
-    // Katta rank soni (kichik vakolat) birinchi tasdiqlaydi, keyin navbat
-    // kichikroq rank songa (kattaroq vakolat) o'tadi, oxirida avazbek (rahbar).
-    // Parallel (alohida-alohida) yuborishda barcha tasdiqlovchilar bir xil eng
-    // kichik tartibda bo'ladi — shu sabab ularning hammasi tasdiqlay oladi.
-    // Bir xil RANKdagilar ham bitta guruh — order (tartib) raqamlari har xil bo'lsa
-    // ham, navbat kutmasdan tasdiqlay oladi (isPendingApproverAtMinOrder ichida).
-    if (await this.isPendingApproverAtMinOrder(userId, id)) return doc;
-    throw new ForbiddenException("Hujjat hozir sizning navbatingizda emas");
+    if (await this.isPendingApprover(userId, id)) return doc;
+    throw new ForbiddenException(
+      "Siz bu hujjatning kutayotgan tasdiqlovchisi emassiz (yoki allaqachon tasdiqlagansiz)",
+    );
   }
 
-  // Foydalanuvchi shu hujjatda navbatdagi (eng kichik tartibli) kutilayotgan
-  // tasdiqlovchimi? Zanjirda — faqat joriy navbat egasi; parallelда — barcha
-  // tanlangan tasdiqlovchilar (bir xil tartib).
-  private async isPendingApproverAtMinOrder(
+  // Foydalanuvchi shu hujjatda hali kutayotgan (pending) tasdiqlovchimi?
+  // Rank/navbat tartibidan qat'i nazar — istalgan kutayotgan tasdiqlovchi
+  // tasdiqlay oladi.
+  private async isPendingApprover(
     userId: string,
     docId: string,
   ): Promise<boolean> {
-    // Barcha kutilayotgan (pending) tasdiqlovchilarni lavozim RANKi bilan olamiz.
-    const pending = await this.prisma.documentParticipant.findMany({
+    const count = await this.prisma.documentParticipant.count({
       where: {
         documentId: docId,
+        userId,
         role: ParticipantRole.approver,
         status: ParticipantStatus.pending,
       },
-      orderBy: { order: 'asc' },
-      select: {
-        userId: true,
-        order: true,
-        user: {
-          select: { login: true, position: { select: { rank: true } } },
-        },
-      },
     });
-    if (pending.length === 0) return false;
-    const mine = pending.find((p) => p.userId === userId);
-    if (!mine) return false;
-    // Hozirgi faol guruh — eng kichik tartibli (order) kutuvchilar.
-    const minOrder = pending[0].order;
-    if (mine.order === minOrder) return true;
-    // BUYURTMACHI TALABI: bir xil RANK raqamli xodimlar bitta guruh hisoblanadi.
-    // Agar faol guruhda men bilan BIR XIL rankdagi xodim bo'lsa — men ham o'z
-    // navbatimni kutmasdan tasdiqlay olaman (order raqamim kattaroq bo'lsa ham).
-    const activeRanks = new Set(
-      pending
-        .filter((p) => p.order === minOrder)
-        .map((p) => p.user?.position?.rank ?? 100),
-    );
-    const myRank = mine.user?.position?.rank ?? 100;
-    return activeRanks.has(myRank);
+    return count > 0;
   }
 
   private async shouldNotify(userId: string): Promise<boolean> {
