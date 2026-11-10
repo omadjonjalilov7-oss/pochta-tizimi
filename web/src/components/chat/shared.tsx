@@ -31,6 +31,7 @@ import { latinToCyrillic } from '../../i18n/translit';
 import { Avatar } from '../Avatar';
 import { cn } from '../../lib/utils';
 import { api } from '../../lib/api';
+import { VoiceRecorder, VoiceMessagePlayer, voiceRecordingSupported } from './voice';
 
 // Chat faylini yuklab olish. Plain <a href> ishlatib bo'lmaydi — u Bearer
 // tokenni yubormaydi (401 bo'ladi). Shu sabab hujjatlar kabi axios orqali
@@ -376,6 +377,20 @@ export function ConversationView({
     }
   };
 
+  // Ovozli xabar — yozib bo'lingach darhol fayl sifatida yuboriladi.
+  const sendVoice = async (voiceFile: File) => {
+    setSending(true);
+    setError(null);
+    try {
+      await onSend('', voiceFile);
+    } catch (e: any) {
+      const msg = e?.response?.data?.message;
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || e?.message || t('common.error'));
+    } finally {
+      setSending(false);
+    }
+  };
+
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -512,7 +527,7 @@ export function ConversationView({
       )}
 
       {/* Input */}
-      <div className="flex items-end gap-2 px-3 py-2.5 border-t border-slate-200 bg-white shrink-0">
+      <div className="relative flex items-end gap-2 px-3 py-2.5 border-t border-slate-200 bg-white shrink-0">
         {!editingId && (
           <button
             type="button"
@@ -549,6 +564,9 @@ export function ConversationView({
           className="flex-1 text-sm resize-none outline-none bg-transparent py-1 max-h-24 overflow-y-auto"
           style={{ lineHeight: '1.4' }}
         />
+        {!editingId && voiceRecordingSupported() && (
+          <VoiceRecorder onRecorded={sendVoice} disabled={sending} />
+        )}
         <button
           type="button"
           onClick={handleSend}
@@ -655,22 +673,32 @@ export function MessageBubble({
             {/* Biriktirilgan fayllar */}
             {msg.attachments.length > 0 && (
               <div className="mb-1 space-y-1">
-                {msg.attachments.map((a) => (
-                  <button
-                    key={a.id}
-                    type="button"
-                    onClick={() =>
-                      downloadChatAttachment(`/chat/attachments/${a.id}/download`, a.filename)
-                    }
-                    className={`flex items-center gap-1.5 text-xs underline ${
-                      isMine ? 'text-brand-100 hover:text-white' : 'text-brand-600 hover:text-brand-800'
-                    }`}
-                  >
-                    <Download size={11} />
-                    <span className="truncate max-w-[180px]">{a.filename}</span>
-                    <span className="opacity-70 shrink-0">({formatBytes(a.sizeBytes)})</span>
-                  </button>
-                ))}
+                {msg.attachments.map((a) =>
+                  a.mimeType?.startsWith('audio/') ? (
+                    <VoiceMessagePlayer
+                      key={a.id}
+                      apiPath={`/chat/attachments/${a.id}/download`}
+                      filename={a.filename}
+                      mimeType={a.mimeType}
+                      mine={isMine}
+                    />
+                  ) : (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() =>
+                        downloadChatAttachment(`/chat/attachments/${a.id}/download`, a.filename)
+                      }
+                      className={`flex items-center gap-1.5 text-xs underline ${
+                        isMine ? 'text-brand-100 hover:text-white' : 'text-brand-600 hover:text-brand-800'
+                      }`}
+                    >
+                      <Download size={11} />
+                      <span className="truncate max-w-[180px]">{a.filename}</span>
+                      <span className="opacity-70 shrink-0">({formatBytes(a.sizeBytes)})</span>
+                    </button>
+                  ),
+                )}
               </div>
             )}
 
@@ -1007,6 +1035,20 @@ export function GroupConversationView({
     }
   };
 
+  // Ovozli xabar — yozib bo'lingach darhol fayl sifatida yuboriladi.
+  const sendVoice = async (voiceFile: File) => {
+    setSending(true);
+    setError(null);
+    try {
+      await onSend('', voiceFile);
+    } catch (e: any) {
+      const msg = e?.response?.data?.message;
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || e?.message || t('common.error'));
+    } finally {
+      setSending(false);
+    }
+  };
+
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -1120,7 +1162,7 @@ export function GroupConversationView({
       )}
 
       {/* Input */}
-      <div className="flex items-end gap-2 px-3 py-2.5 border-t border-slate-200 bg-white shrink-0">
+      <div className="relative flex items-end gap-2 px-3 py-2.5 border-t border-slate-200 bg-white shrink-0">
         {!editingId && (
           <button
             type="button"
@@ -1148,6 +1190,9 @@ export function GroupConversationView({
           className="flex-1 text-sm resize-none outline-none bg-transparent py-1 max-h-24 overflow-y-auto"
           style={{ lineHeight: '1.4' }}
         />
+        {!editingId && voiceRecordingSupported() && (
+          <VoiceRecorder onRecorded={sendVoice} disabled={sending} />
+        )}
         <button
           type="button"
           onClick={handleSend}
@@ -1255,22 +1300,32 @@ export function GroupMessageBubble({
           <>
             {msg.attachments.length > 0 && (
               <div className="mb-1 space-y-1">
-                {msg.attachments.map((a) => (
-                  <button
-                    key={a.id}
-                    type="button"
-                    onClick={() =>
-                      downloadChatAttachment(`/chat/groups/attachments/${a.id}/download`, a.filename)
-                    }
-                    className={`flex items-center gap-1.5 text-xs underline ${
-                      isMine ? 'text-brand-100 hover:text-white' : 'text-brand-600 hover:text-brand-800'
-                    }`}
-                  >
-                    <Download size={11} />
-                    <span className="truncate max-w-[180px]">{a.filename}</span>
-                    <span className="opacity-70 shrink-0">({formatBytes(a.sizeBytes)})</span>
-                  </button>
-                ))}
+                {msg.attachments.map((a) =>
+                  a.mimeType?.startsWith('audio/') ? (
+                    <VoiceMessagePlayer
+                      key={a.id}
+                      apiPath={`/chat/groups/attachments/${a.id}/download`}
+                      filename={a.filename}
+                      mimeType={a.mimeType}
+                      mine={isMine}
+                    />
+                  ) : (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() =>
+                        downloadChatAttachment(`/chat/groups/attachments/${a.id}/download`, a.filename)
+                      }
+                      className={`flex items-center gap-1.5 text-xs underline ${
+                        isMine ? 'text-brand-100 hover:text-white' : 'text-brand-600 hover:text-brand-800'
+                      }`}
+                    >
+                      <Download size={11} />
+                      <span className="truncate max-w-[180px]">{a.filename}</span>
+                      <span className="opacity-70 shrink-0">({formatBytes(a.sizeBytes)})</span>
+                    </button>
+                  ),
+                )}
               </div>
             )}
             {msg.body && <p className="leading-snug whitespace-pre-wrap break-words">{msg.body}</p>}

@@ -1462,7 +1462,14 @@
       "file_too_large": "Fayl 50 MB dan katta bo'lmasligi kerak",
       "message_placeholder": "Xabar yozing... (Enter — yuborish)",
       "no_messages_dm": "Xabarlar yo'q. Birinchi xabarni yuboring!",
-      "new_message_notif": "Sizga chatdan yangi xabar bor"
+      "new_message_notif": "Sizga chatdan yangi xabar bor",
+      "voice_record": "Ovozli xabar yozish",
+      "voice_recording": "Yozilyapti...",
+      "voice_send": "Yuborish",
+      "voice_cancel": "Bekor qilish",
+      "voice_no_mic": "Mikrofonga ruxsat berilmadi",
+      "voice_label": "Ovozli xabar",
+      "voice_download": "Yuklab olish"
     }
   }
 }

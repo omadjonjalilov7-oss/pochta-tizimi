@@ -1463,7 +1463,14 @@
       "file_too_large": "Файл не должен превышать 50 МБ",
       "message_placeholder": "Напишите сообщение... (Enter — отправить)",
       "no_messages_dm": "Сообщений нет. Отправьте первое сообщение!",
-      "new_message_notif": "У вас новое сообщение в чате"
+      "new_message_notif": "У вас новое сообщение в чате",
+      "voice_record": "Записать голосовое сообщение",
+      "voice_recording": "Идёт запись...",
+      "voice_send": "Отправить",
+      "voice_cancel": "Отмена",
+      "voice_no_mic": "Нет доступа к микрофону",
+      "voice_label": "Голосовое сообщение",
+      "voice_download": "Скачать"
     }
   }
 }
