@@ -9,6 +9,10 @@ import { ConfigService } from '@nestjs/config';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import { decodeMulterFilename } from '../common/filename';
+import {
+  isTranscodableAudio,
+  transcodeAudioToM4a,
+} from '../common/audio-transcode';
 import { v4 as uuid } from 'uuid';
 
 const CHAT_MAX_BYTES = 50 * 1024 * 1024; // 50 MB
@@ -190,37 +194,22 @@ export class ChatGroupService {
       throw new BadRequestException("Xabar matni yoki fayl bo'lishi kerak");
     }
 
+    // Faylni tranzaksiyadan OLDIN tayyorlaymiz (ovozli xabar m4a'ga o'girilishi
+    // bir necha soniya olishi mumkin — tranzaksiyani ushlab turmaymiz).
+    const prepared = file ? await this.prepareAttachment(file) : null;
+
     const created = await this.prisma.$transaction(async (tx) => {
       const msg = await tx.chatGroupMessage.create({
         data: { groupId, fromUserId: userId, body: body?.trim() || '' },
       });
-      if (file) {
-        if (file.size > CHAT_MAX_BYTES) {
-          throw new BadRequestException("Fayl 50 MB dan katta bo'lmasligi kerak");
-        }
-        const grpOriginalName = decodeMulterFilename(file.originalname);
-        const ext = path.extname(grpOriginalName).toLowerCase();
-        if (FORBIDDEN_EXTS.includes(ext)) {
-          throw new BadRequestException(`'${ext}' kengaytmali fayllar taqiqlangan`);
-        }
-        const now = new Date();
-        const subDir = path.join(
-          'chat-groups',
-          String(now.getFullYear()),
-          String(now.getMonth() + 1).padStart(2, '0'),
-        );
-        const fullDir = path.join(this.attDir, subDir);
-        await fs.mkdir(fullDir, { recursive: true });
-        const attId = uuid();
-        const storedFilename = `${attId}${ext}`;
-        await fs.writeFile(path.join(fullDir, storedFilename), file.buffer);
+      if (prepared) {
         await tx.chatGroupAttachment.create({
           data: {
             messageId: msg.id,
-            filename: grpOriginalName,
-            storedPath: path.join(subDir, storedFilename),
-            sizeBytes: BigInt(file.size),
-            mimeType: file.mimetype,
+            filename: prepared.filename,
+            storedPath: prepared.storedPath,
+            sizeBytes: BigInt(prepared.sizeBytes),
+            mimeType: prepared.mimeType,
           },
         });
       }
@@ -239,6 +228,58 @@ export class ChatGroupService {
     });
 
     return this.serializeMsg(created);
+  }
+
+  // Yuklangan faylni diskka saqlashga tayyorlaydi. Ovozli xabar (webm/opus)
+  // bo'lsa — ffmpeg bilan m4a'ga o'giradi (iPhone ham o'ynasin). ffmpeg
+  // bo'lmasa/xato bersa — asl fayl saqlanadi.
+  private async prepareAttachment(file: Express.Multer.File): Promise<{
+    filename: string;
+    storedPath: string;
+    sizeBytes: number;
+    mimeType: string;
+  }> {
+    if (file.size > CHAT_MAX_BYTES) {
+      throw new BadRequestException("Fayl 50 MB dan katta bo'lmasligi kerak");
+    }
+    const originalName = decodeMulterFilename(file.originalname);
+    let ext = path.extname(originalName).toLowerCase();
+    if (FORBIDDEN_EXTS.includes(ext)) {
+      throw new BadRequestException(`'${ext}' kengaytmali fayllar taqiqlangan`);
+    }
+
+    let buffer = file.buffer;
+    let mimeType = file.mimetype;
+    let filename = originalName;
+
+    if (isTranscodableAudio(mimeType, ext)) {
+      const m4a = await transcodeAudioToM4a(file.buffer, ext || '.webm');
+      if (m4a) {
+        buffer = m4a;
+        ext = '.m4a';
+        mimeType = 'audio/mp4';
+        filename = originalName.replace(/\.[^.]+$/, '') + '.m4a';
+      }
+    }
+
+    const now = new Date();
+    const subDir = path.join(
+      'chat-groups',
+      String(now.getFullYear()),
+      String(now.getMonth() + 1).padStart(2, '0'),
+    );
+    const fullDir = path.join(this.attDir, subDir);
+    await fs.mkdir(fullDir, { recursive: true });
+    const attId = uuid();
+    const storedFilename = `${attId}${ext}`;
+    await fs.writeFile(path.join(fullDir, storedFilename), buffer);
+
+    return {
+      filename,
+      storedPath: path.join(subDir, storedFilename),
+      sizeBytes: buffer.length,
+      mimeType,
+    };
   }
 
   // ── O'qilgan deb belgilash ─────────────────────────────────────────────
