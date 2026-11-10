@@ -242,10 +242,21 @@ export function EdoChatPage() {
 
   const filteredContacts = useMemo(() => {
     const q = newConvSearch.trim().toLowerCase();
-    const existing = new Set(conversations.map((c) => c.partner.id));
-    const base = contacts.filter((c) => !existing.has(c.id));
-    if (!q) return base.slice(0, 30);
-    return base.filter((c) => c.fullName.toLowerCase().includes(q)).slice(0, 30);
+    if (!q) {
+      // Qidiruvsiz — hali suhbat boshlanmagan kontaktlar (birinchi 30 ta).
+      const existing = new Set(conversations.map((c) => c.partner.id));
+      return contacts.filter((c) => !existing.has(c.id)).slice(0, 30);
+    }
+    // Qidiruvda — BARCHA kontaktlar ichidan: ism, login, lavozim yoki bo'lim
+    // bo'yicha (allaqachon suhbatlashganlar ham chiqadi).
+    return contacts
+      .filter((c) => {
+        const hay = `${c.fullName} ${c.login} ${c.position?.name ?? ''} ${
+          c.department?.name ?? ''
+        }`.toLowerCase();
+        return hay.includes(q);
+      })
+      .slice(0, 50);
   }, [contacts, newConvSearch, conversations]);
 
   const activePartner = useMemo(

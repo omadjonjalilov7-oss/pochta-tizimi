@@ -184,6 +184,7 @@ export function CallProvider({
     }
     localStreamRef.current?.getTracks().forEach((tr) => tr.stop());
     localStreamRef.current = null;
+    if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null;
     sessionRef.current = null;
     setStatus('idle');
     setPeer(null);
@@ -217,8 +218,14 @@ export function CallProvider({
       pc.ontrack = (e) => {
         const [stream] = e.streams;
         if (!stream) return;
+        // Video elementga tasvir; ovoz esa ALOHIDA audio element orqali chiqadi
+        // (video element muted — ikki marta ovoz/eko bo'lmasligi uchun).
         if (remoteVideoRef.current) remoteVideoRef.current.srcObject = stream;
-        if (remoteAudioRef.current) remoteAudioRef.current.srcObject = stream;
+        if (remoteAudioRef.current) {
+          remoteAudioRef.current.srcObject = stream;
+          // autoPlay ba'zi brauzerlarda bloklanadi — ochiq play() chaqiramiz.
+          remoteAudioRef.current.play().catch(() => undefined);
+        }
       };
       pc.onconnectionstatechange = () => {
         const st = pc.connectionState;

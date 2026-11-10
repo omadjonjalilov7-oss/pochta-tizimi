@@ -87,6 +87,7 @@ export function CallOverlay({
             ref={remoteVideoRef}
             autoPlay
             playsInline
+            muted
             className="absolute inset-0 w-full h-full object-cover"
           />
           <video
