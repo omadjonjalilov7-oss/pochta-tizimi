@@ -1470,7 +1470,10 @@
       "voice_cancel": "Отмена",
       "voice_no_mic": "Нет доступа к микрофону",
       "voice_label": "Голосовое сообщение",
-      "voice_download": "Скачать"
+      "voice_download": "Скачать",
+      "voice_hold_hint": "Нажмите и держите для записи",
+      "voice_release_hint": "Отпустите, чтобы отправить",
+      "voice_too_short": "Слишком коротко — держите кнопку"
     }
   }
 }

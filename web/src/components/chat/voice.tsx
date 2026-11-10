@@ -1,22 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
-import { Mic, Trash2, Send, Play, Pause, Loader2, Download } from 'lucide-react';
+import { Mic, Play, Pause, Loader2, Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../lib/api';
 
 // ─── Ovozli xabar: yozib olish va o'ynatish (Telegramdek) ──────────────────────
 //
-// Yozib olish: brauzerning MediaRecorder API'si mikrofondan audio oladi va
-// uni oddiy fayl (audio/webm yoki audio/mp4) sifatida mavjud chat yuborish
-// endpointiga jo'natadi. Server tomonida o'zgarish shart emas — audio ham
-// biriktirilgan fayl (attachment) bo'lib boradi.
+// Yozish: brauzerning MediaRecorder API'si mikrofondan audio oladi va uni oddiy
+// fayl sifatida mavjud chat endpointiga jo'natadi. Server (ffmpeg) uni m4a'ga
+// o'giradi — iPhone/Android/desktop hammasida o'ynaydi.
 //
-// Eslatma (platformalararo): Android/Chrome webm/opus yozadi; iPhone (Safari)
-// webm'ni O'YNATA olmaydi. Shu sabab yozishda imkon bo'lsa mp4 (Safari),
-// aks holda webm tanlanadi; o'ynatishda xato bo'lsa — "yuklab olish" tugmasi
-// ko'rsatiladi. To'liq iPhone mosligi uchun keyinchalik serverda ffmpeg orqali
-// mp4'ga o'girish qo'shiladi.
+// Yozish uslubi: mikrofonni BOSIB TURGANDA yoziladi, QO'YIB YUBORILGANDA
+// avtomatik yuboriladi (juda qisqa bo'lsa — bekor qilinadi).
 
-const MAX_SECONDS = 300; // 5 daqiqa — juda katta fayl bo'lmasligi uchun
+const MAX_SECONDS = 300; // 5 daqiqa cheklov
+const MIN_MS = 600; // bundan qisqa bosilsa — tasodifiy deb bekor qilamiz
 
 function pickMime(): string {
   const candidates = [
@@ -49,7 +46,6 @@ function mmss(total: number): string {
   return `${m}:${String(r).padStart(2, '0')}`;
 }
 
-// Brauzer ovoz yozishni umuman qo'llab-quvvatlaydimi?
 export function voiceRecordingSupported(): boolean {
   return (
     typeof navigator !== 'undefined' &&
@@ -60,7 +56,7 @@ export function voiceRecordingSupported(): boolean {
   );
 }
 
-// ─── Yozib olish tugmasi + yozilish paneli ─────────────────────────────────────
+// ─── Yozib olish tugmasi (bosib turib yozish) ──────────────────────────────────
 export function VoiceRecorder({
   onRecorded,
   disabled,
@@ -77,7 +73,9 @@ export function VoiceRecorder({
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<number | null>(null);
+  const startedAtRef = useRef(0);
   const cancelledRef = useRef(false);
+  const startingRef = useRef(false);
 
   const stopStream = () => {
     streamRef.current?.getTracks().forEach((tr) => tr.stop());
@@ -88,16 +86,23 @@ export function VoiceRecorder({
     }
   };
 
-  // Komponent yo'qolsa — mikrofonni albatta bo'shatamiz.
   useEffect(() => () => stopStream(), []);
 
-  const start = async () => {
+  const begin = async () => {
+    if (startingRef.current || recording) return;
+    startingRef.current = true;
     setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Agar foydalanuvchi ruxsat so'ralgan vaqtda allaqachon qo'yib yuborgan
+      // bo'lsa — darhol to'xtatamiz (yozmaymiz).
+      if (cancelledRef.current) {
+        stream.getTracks().forEach((tr) => tr.stop());
+        startingRef.current = false;
+        return;
+      }
       streamRef.current = stream;
       chunksRef.current = [];
-      cancelledRef.current = false;
       const mime = pickMime();
       const mr = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
       mr.ondataavailable = (e) => {
@@ -107,16 +112,22 @@ export function VoiceRecorder({
         stopStream();
         const type = mr.mimeType || mime || 'audio/webm';
         const blob = new Blob(chunksRef.current, { type });
+        const elapsed = Date.now() - startedAtRef.current;
         setRecording(false);
         setSeconds(0);
-        if (!cancelledRef.current && blob.size > 0) {
+        startingRef.current = false;
+        if (!cancelledRef.current && blob.size > 0 && elapsed >= MIN_MS) {
           const file = new File([blob], `voice-${Date.now()}.${extFor(type)}`, {
             type,
           });
           onRecorded(file);
+        } else if (!cancelledRef.current && elapsed < MIN_MS) {
+          setError(t('edo.chat.voice_too_short'));
+          window.setTimeout(() => setError(null), 1500);
         }
       };
       mediaRef.current = mr;
+      startedAtRef.current = Date.now();
       mr.start();
       setRecording(true);
       setSeconds(0);
@@ -124,7 +135,6 @@ export function VoiceRecorder({
         setSeconds((s) => {
           const next = s + 1;
           if (next >= MAX_SECONDS) {
-            // Avtomatik to'xtatib yuboramiz (juda uzun bo'lmasin)
             cancelledRef.current = false;
             mediaRef.current?.stop();
           }
@@ -133,59 +143,84 @@ export function VoiceRecorder({
       }, 1000);
     } catch {
       setError(t('edo.chat.voice_no_mic'));
+      startingRef.current = false;
+      window.setTimeout(() => setError(null), 2000);
     }
   };
 
-  const stopAndSend = () => {
+  const finish = () => {
     cancelledRef.current = false;
-    mediaRef.current?.stop();
-  };
-  const cancel = () => {
-    cancelledRef.current = true;
-    mediaRef.current?.stop();
+    if (mediaRef.current && mediaRef.current.state !== 'inactive') {
+      mediaRef.current.stop();
+    } else {
+      // Hali boshlanmagan bo'lsa (ruxsat kutilyapti) — boshlanmasin.
+      startingRef.current = false;
+      setRecording(false);
+    }
   };
 
-  if (recording) {
-    // Yozilish paneli — composer qatorini ustidan yopadi (absolute inset-0).
-    return (
-      <div className="absolute inset-0 z-10 flex items-center gap-3 px-3 bg-white">
-        <button
-          type="button"
-          onClick={cancel}
-          className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"
-          title={t('edo.chat.voice_cancel')}
-        >
-          <Trash2 size={18} />
-        </button>
-        <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
-        <span className="text-sm font-medium text-slate-700 tabular-nums w-12">
-          {mmss(seconds)}
-        </span>
-        <span className="flex-1 text-sm text-slate-400 truncate">
-          {t('edo.chat.voice_recording')}
-        </span>
-        <button
-          type="button"
-          onClick={stopAndSend}
-          className="p-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg"
-          title={t('edo.chat.voice_send')}
-        >
-          <Send size={16} />
-        </button>
-      </div>
-    );
-  }
+  // Bosganda yozishni boshlaymiz.
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (disabled) return;
+    e.preventDefault();
+    cancelledRef.current = false;
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      // pointer capture qo'llab-quvvatlanmasa — e'tiborsiz
+    }
+    void begin();
+  };
+  // Qo'yib yuborganda yakunlab yuboramiz.
+  const onPointerUp = (e: React.PointerEvent) => {
+    e.preventDefault();
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      // e'tiborsiz
+    }
+    finish();
+  };
 
   return (
-    <button
-      type="button"
-      onClick={start}
-      disabled={disabled}
-      className="p-1.5 text-slate-400 hover:text-brand-600 rounded-lg hover:bg-brand-50 disabled:opacity-40"
-      title={error ?? t('edo.chat.voice_record')}
-    >
-      <Mic size={18} />
-    </button>
+    <>
+      {recording && (
+        <div className="absolute inset-0 z-10 flex items-center gap-3 px-3 bg-white pointer-events-none">
+          <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
+          <span className="text-sm font-medium text-slate-700 tabular-nums w-12">
+            {mmss(seconds)}
+          </span>
+          <span className="flex-1 text-sm text-slate-400 truncate">
+            {t('edo.chat.voice_release_hint')}
+          </span>
+          <Mic size={18} className="text-red-500" />
+        </div>
+      )}
+      {error && !recording && (
+        <div className="absolute inset-x-0 -top-7 z-10 flex justify-center">
+          <span className="text-xs bg-slate-800 text-white px-2 py-1 rounded-md shadow">
+            {error}
+          </span>
+        </div>
+      )}
+      <button
+        type="button"
+        disabled={disabled}
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
+        onPointerCancel={() => finish()}
+        onContextMenu={(e) => e.preventDefault()}
+        style={{ touchAction: 'none' }}
+        className={`p-1.5 rounded-lg select-none ${
+          recording
+            ? 'text-red-600 bg-red-50'
+            : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
+        } disabled:opacity-40`}
+        title={t('edo.chat.voice_hold_hint')}
+      >
+        <Mic size={18} />
+      </button>
+    </>
   );
 }
 
@@ -210,6 +245,8 @@ export function VoiceMessagePlayer({
   const [dur, setDur] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const urlRef = useRef<string | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const loadingRef = useRef(false);
 
   useEffect(
     () => () => {
@@ -220,11 +257,12 @@ export function VoiceMessagePlayer({
 
   const ensureUrl = async (): Promise<string | null> => {
     if (urlRef.current) return urlRef.current;
+    if (loadingRef.current) return null;
+    loadingRef.current = true;
     setLoading(true);
     try {
       const res = await api.get(apiPath, { responseType: 'blob' });
-      // Content-Type to'g'ri bo'lishi uchun mimeType bilan qayta o'raymiz.
-      const blob = new Blob([res.data as Blob], { type: mimeType || 'audio/webm' });
+      const blob = new Blob([res.data as Blob], { type: mimeType || 'audio/mp4' });
       const u = URL.createObjectURL(blob);
       urlRef.current = u;
       setUrl(u);
@@ -233,25 +271,51 @@ export function VoiceMessagePlayer({
       setFailed(true);
       return null;
     } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
   };
 
-  const toggle = async () => {
+  // Xabar ekranga ko'ringanda OLDINDAN yuklab qo'yamiz — shunda bosilganda
+  // (iOS'da ham) to'g'ridan-to'g'ri, darhol o'ynaydi va davomiyligi ko'rinadi.
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      void ensureUrl();
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          io.disconnect();
+          void ensureUrl();
+        }
+      },
+      { rootMargin: '300px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const toggle = () => {
     const a = audioRef.current;
-    if (playing && a) {
+    if (!a) return;
+    if (playing) {
       a.pause();
       return;
     }
-    const u = await ensureUrl();
-    if (!u) return;
-    // src yangi o'rnatilgan bo'lsa — DOM yangilanishini kutib keyin play qilamiz.
-    setTimeout(() => {
-      audioRef.current?.play().catch(() => setFailed(true));
-    }, 0);
+    if (!urlRef.current) {
+      // Hali yuklanmagan bo'lsa — yuklaymiz (keyingi bosishda o'ynaydi).
+      void ensureUrl();
+      return;
+    }
+    // Gesture ichida to'g'ridan-to'g'ri o'ynatamiz (iOS talabi).
+    a.play().catch(() => setFailed(true));
   };
 
-  // MediaRecorder webm'da duration ba'zan Infinity bo'ladi — majburan hisoblatamiz.
+  // m4a'da duration odatda to'g'ri keladi; webm (fallback) da Infinity bo'lsa —
+  // majburan hisoblatamiz.
   const onLoadedMetadata = () => {
     const a = audioRef.current;
     if (!a) return;
@@ -269,14 +333,13 @@ export function VoiceMessagePlayer({
   };
 
   if (failed) {
-    // O'ynab bo'lmasa (masalan iPhone + webm) — yuklab olish imkoni qoladi.
     return (
       <button
         type="button"
         onClick={() => {
-          const link = document.createElement('a');
-          link.href = urlRef.current || '#';
           if (urlRef.current) {
+            const link = document.createElement('a');
+            link.href = urlRef.current;
             link.download = filename;
             document.body.appendChild(link);
             link.click();
@@ -285,7 +348,9 @@ export function VoiceMessagePlayer({
             void ensureUrl();
           }
         }}
-        className={cnPlayer(mine)}
+        className={`flex items-center gap-1.5 text-xs underline ${
+          mine ? 'text-brand-100 hover:text-white' : 'text-brand-600 hover:text-brand-800'
+        }`}
         title={t('edo.chat.voice_download')}
       >
         <Download size={14} />
@@ -295,10 +360,15 @@ export function VoiceMessagePlayer({
   }
 
   const progress = dur > 0 ? Math.min(100, (cur / dur) * 100) : 0;
-  const shownTime = playing || cur > 0 ? mmss(cur) : dur > 0 ? mmss(dur) : '--:--';
+  // Davomiylik: o'ynayotganda — joriy vaqt; aks holda — umumiy davomiylik.
+  const shownTime =
+    playing || cur > 0 ? mmss(cur) : dur > 0 ? mmss(dur) : loading ? '' : '--:--';
 
   return (
-    <div className={`flex items-center gap-2 min-w-[180px] ${mine ? 'text-white' : 'text-slate-700'}`}>
+    <div
+      ref={rootRef}
+      className={`flex items-center gap-2 min-w-[180px] ${mine ? 'text-white' : 'text-slate-700'}`}
+    >
       <button
         type="button"
         onClick={toggle}
@@ -307,7 +377,7 @@ export function VoiceMessagePlayer({
         }`}
         title={t('edo.chat.voice_label')}
       >
-        {loading ? (
+        {loading && !urlRef.current ? (
           <Loader2 size={16} className="animate-spin" />
         ) : playing ? (
           <Pause size={16} />
@@ -323,13 +393,17 @@ export function VoiceMessagePlayer({
           />
         </div>
       </div>
-      <span className={`text-[10px] tabular-nums shrink-0 ${mine ? 'text-brand-100' : 'text-slate-400'}`}>
+      <span
+        className={`text-[10px] tabular-nums shrink-0 w-9 text-right ${
+          mine ? 'text-brand-100' : 'text-slate-400'
+        }`}
+      >
         {shownTime}
       </span>
       <audio
         ref={audioRef}
         src={url ?? undefined}
-        preload="none"
+        preload="metadata"
         onLoadedMetadata={onLoadedMetadata}
         onTimeUpdate={() => setCur(audioRef.current?.currentTime ?? 0)}
         onPlay={() => setPlaying(true)}
@@ -343,10 +417,4 @@ export function VoiceMessagePlayer({
       />
     </div>
   );
-}
-
-function cnPlayer(mine: boolean): string {
-  return `flex items-center gap-1.5 text-xs underline ${
-    mine ? 'text-brand-100 hover:text-white' : 'text-brand-600 hover:text-brand-800'
-  }`;
 }

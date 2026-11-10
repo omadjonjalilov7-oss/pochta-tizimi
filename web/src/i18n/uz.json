@@ -1469,7 +1469,10 @@
       "voice_cancel": "Bekor qilish",
       "voice_no_mic": "Mikrofonga ruxsat berilmadi",
       "voice_label": "Ovozli xabar",
-      "voice_download": "Yuklab olish"
+      "voice_download": "Yuklab olish",
+      "voice_hold_hint": "Yozish uchun bosib turing",
+      "voice_release_hint": "Yuborish uchun qo'yib yuboring",
+      "voice_too_short": "Juda qisqa — bosib turing"
     }
   }
 }
