@@ -665,40 +665,22 @@ export function MessageBubble({
     await onDelete?.(msg.id, scope);
   };
 
-  // Qo'ng'iroq yozuvi bo'lsa — maxsus (markaziy) ko'rinishda chizamiz.
+  // Qo'ng'iroq yozuvi bo'lsa — oddiy xabar bubbleси ichida (ikonka + matn +
+  // davomiylik), vaqt va galichkalar bilan (matn xabardek). Pastда chiziladi.
   const call = msg.deleted ? null : parseCallBody(msg.body);
-  if (call) {
-    const danger = call.outcome !== 'answered';
-    const durTxt =
-      call.outcome === 'answered' && call.duration > 0
-        ? ` · ${Math.floor(call.duration / 60)}:${String(call.duration % 60).padStart(2, '0')}`
-        : '';
-    const label =
-      call.outcome === 'answered'
-        ? t('edo.call.log_answered')
-        : call.outcome === 'declined'
-          ? t('edo.call.log_declined')
-          : isMine
-            ? t('edo.call.log_no_answer')
-            : t('edo.call.log_missed');
-    return (
-      <div className="flex justify-center my-1.5">
-        <div
-          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs ${
-            danger ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-600'
-          }`}
-        >
-          {call.kind === 'video' ? <Video size={14} /> : <Phone size={14} />}
-          <span>
-            {isMine ? '↗ ' : '↙ '}
-            {label}
-            {durTxt}
-          </span>
-          <span className="opacity-60">{formatTime(msg.sentAt)}</span>
-        </div>
-      </div>
-    );
-  }
+  const callLabel = call
+    ? call.outcome === 'answered'
+      ? t('edo.call.log_answered')
+      : call.outcome === 'declined'
+        ? t('edo.call.log_declined')
+        : isMine
+          ? t('edo.call.log_no_answer')
+          : t('edo.call.log_missed')
+    : '';
+  const callDur =
+    call && call.outcome === 'answered' && call.duration > 0
+      ? `${Math.floor(call.duration / 60)}:${String(call.duration % 60).padStart(2, '0')}`
+      : '';
 
   return (
     <div className={`group flex mb-1 items-center gap-1 ${isMine ? 'justify-end' : 'justify-start'}`}>
@@ -710,7 +692,7 @@ export function MessageBubble({
           menuRef={menuRef}
           side="right"
         >
-          {onStartEdit && (
+          {onStartEdit && !call && (
             <button
               onClick={() => {
                 setMenuOpen(false);
@@ -786,7 +768,29 @@ export function MessageBubble({
               </div>
             )}
 
-            {msg.body && <p className="leading-snug whitespace-pre-wrap break-words">{msg.body}</p>}
+            {call ? (
+              <div className="flex items-center gap-2 leading-snug">
+                <span
+                  className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${
+                    isMine ? 'bg-white/20' : 'bg-brand-50 text-brand-600'
+                  }`}
+                >
+                  {call.kind === 'video' ? <Video size={15} /> : <Phone size={15} />}
+                </span>
+                <span className="flex flex-col">
+                  <span className="font-medium">{callLabel}</span>
+                  <span className={`text-[11px] ${isMine ? 'text-brand-100' : 'text-slate-400'}`}>
+                    {callDur
+                      ? callDur
+                      : call.kind === 'video'
+                        ? t('edo.call.video_call')
+                        : t('edo.call.voice_call')}
+                  </span>
+                </span>
+              </div>
+            ) : (
+              msg.body && <p className="leading-snug whitespace-pre-wrap break-words">{msg.body}</p>
+            )}
           </>
         )}
 
