@@ -51,6 +51,31 @@ async function downloadChatAttachment(apiPath: string, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+// Qo'ng'iroq yozuvi (call log) — body'da maxsus belgi bilan saqlanadi.
+// (Backend chat.service.ts dagi CALL_PREFIX bilan bir xil bo'lishi SHART.)
+export const CALL_PREFIX = '#__edocall__#';
+interface CallInfo {
+  kind: 'voice' | 'video';
+  outcome: 'answered' | 'missed' | 'declined';
+  duration: number;
+}
+export function parseCallBody(body: string): CallInfo | null {
+  if (!body || !body.startsWith(CALL_PREFIX)) return null;
+  try {
+    const obj = JSON.parse(body.slice(CALL_PREFIX.length));
+    if (obj && obj.call) {
+      return {
+        kind: obj.kind === 'video' ? 'video' : 'voice',
+        outcome: obj.outcome === 'answered' || obj.outcome === 'declined' ? obj.outcome : 'missed',
+        duration: Number(obj.duration) || 0,
+      };
+    }
+  } catch {
+    // noto'g'ri format — oddiy xabar sifatida ko'rsatiladi
+  }
+  return null;
+}
+
 // Sana/vaqt lokalizatsiyasi. Rus tili → ru-RU; o'zbek (lotin/krill) → uz-UZ.
 // Krill uchun natijani translit qilamiz (brauzer uz-Cyrl'ni bilmasligi mumkin).
 function dateLocale() {
@@ -639,6 +664,41 @@ export function MessageBubble({
     if (scope === 'all' && !window.confirm(t('edo.chat.delete_all_confirm'))) return;
     await onDelete?.(msg.id, scope);
   };
+
+  // Qo'ng'iroq yozuvi bo'lsa — maxsus (markaziy) ko'rinishda chizamiz.
+  const call = msg.deleted ? null : parseCallBody(msg.body);
+  if (call) {
+    const danger = call.outcome !== 'answered';
+    const durTxt =
+      call.outcome === 'answered' && call.duration > 0
+        ? ` · ${Math.floor(call.duration / 60)}:${String(call.duration % 60).padStart(2, '0')}`
+        : '';
+    const label =
+      call.outcome === 'answered'
+        ? t('edo.call.log_answered')
+        : call.outcome === 'declined'
+          ? t('edo.call.log_declined')
+          : isMine
+            ? t('edo.call.log_no_answer')
+            : t('edo.call.log_missed');
+    return (
+      <div className="flex justify-center my-1.5">
+        <div
+          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs ${
+            danger ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-600'
+          }`}
+        >
+          {call.kind === 'video' ? <Video size={14} /> : <Phone size={14} />}
+          <span>
+            {isMine ? '↗ ' : '↙ '}
+            {label}
+            {durTxt}
+          </span>
+          <span className="opacity-60">{formatTime(msg.sentAt)}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`group flex mb-1 items-center gap-1 ${isMine ? 'justify-end' : 'justify-start'}`}>

@@ -20,6 +20,7 @@ import {
   GroupAvatar,
   Ticks,
   formatTime,
+  parseCallBody,
 } from '../../components/chat/shared';
 
 export function EdoChatPage() {
@@ -501,9 +502,14 @@ export function EdoChatPage() {
                                   c.unread > 0 ? 'font-semibold text-slate-800' : 'text-slate-500',
                                 )}
                               >
-                                {c.lastMessage.attachments.length > 0 && !c.lastMessage.body
-                                  ? `📎 ${c.lastMessage.attachments[0].filename}`
-                                  : c.lastMessage.body || '—'}
+                                {(() => {
+                                  const call = parseCallBody(c.lastMessage.body);
+                                  if (call)
+                                    return `${call.kind === 'video' ? '📹' : '📞'} ${t('edo.call.log_short')}`;
+                                  if (c.lastMessage.attachments.length > 0 && !c.lastMessage.body)
+                                    return `📎 ${c.lastMessage.attachments[0].filename}`;
+                                  return c.lastMessage.body || '—';
+                                })()}
                               </span>
                             </>
                           )}

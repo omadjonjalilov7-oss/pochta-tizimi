@@ -1487,7 +1487,12 @@
       "mute": "Mikrofonni o'chirish",
       "unmute": "Mikrofonni yoqish",
       "cam_off": "Kamerani o'chirish",
-      "cam_on": "Kamerani yoqish"
+      "cam_on": "Kamerani yoqish",
+      "log_short": "Qo'ng'iroq",
+      "log_answered": "Qo'ng'iroq",
+      "log_missed": "O'tkazib yuborilgan qo'ng'iroq",
+      "log_no_answer": "Javob bermadi",
+      "log_declined": "Rad etilgan qo'ng'iroq"
     }
   }
 }

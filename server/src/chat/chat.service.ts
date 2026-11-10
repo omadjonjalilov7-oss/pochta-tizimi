@@ -17,6 +17,10 @@ import { v4 as uuid } from 'uuid';
 
 const CHAT_MAX_BYTES = 50 * 1024 * 1024; // 50 MB
 const FORBIDDEN_EXTS = ['.exe', '.bat', '.cmd', '.ps1', '.vbs', '.scr', '.msi'];
+// Qo'ng'iroq yozuvi (call log) — oddiy chat xabari body'sida maxsus belgi bilan
+// saqlanadi. Frontend shu belgini ko'rib, xabarni "📞 Qo'ng'iroq" ko'rinishida
+// chizadi. (Null bayt Postgres'da yo'q — shu sabab bosiladigan belgi ishlatamiz.)
+export const CALL_PREFIX = '#__edocall__#';
 
 @Injectable()
 export class ChatService {
@@ -238,6 +242,39 @@ export class ChatService {
       select: { fullName: true },
     });
     return u?.fullName || 'Yangi xabar';
+  }
+
+  // ── Qo'ng'iroq yozuvi (call log) ──────────────────────────────────────
+  // Qo'ng'iroq tugagach chaqiruvchi tomonidan chaqiriladi. Chat xabari sifatida
+  // saqlanadi (ikki tomon ro'yxatida ko'rinadi). outcome: answered|missed|declined.
+  async logCall(
+    fromUserId: string,
+    toUserId: string,
+    kind: 'voice' | 'video',
+    outcome: 'answered' | 'missed' | 'declined',
+    durationSec = 0,
+  ) {
+    if (fromUserId === toUserId) return null;
+    const recipient = await this.prisma.user.findUnique({
+      where: { id: toUserId },
+      select: { isActive: true },
+    });
+    if (!recipient?.isActive) return null;
+    const payload = {
+      call: true,
+      kind: kind === 'video' ? 'video' : 'voice',
+      outcome,
+      duration: Math.max(0, Math.round(durationSec || 0)),
+    };
+    const created = await this.prisma.chatMessage.create({
+      data: {
+        fromUserId,
+        toUserId,
+        body: CALL_PREFIX + JSON.stringify(payload),
+      },
+      include: { attachments: true },
+    });
+    return this.serializeMsg(created);
   }
 
   // ── O'qilgan deb belgilash ─────────────────────────────────────────────

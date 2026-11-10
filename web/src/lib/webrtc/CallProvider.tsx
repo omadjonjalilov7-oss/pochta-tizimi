@@ -60,6 +60,9 @@ interface Session {
   pc: RTCPeerConnection | null;
   remoteDescSet: boolean;
   pendingIce: RTCIceCandidateInit[];
+  invited: boolean; // chaqiruvchi call:invite yubordimi (log qilish uchun)
+  answeredAt: number | null; // ulanish o'rnatilgan vaqt (answered duration uchun)
+  logged: boolean; // call-log yuborildimi (ikki marta bo'lmasin)
 }
 
 let iceCache: RTCIceServer[] | null = null;
@@ -169,10 +172,30 @@ export function CallProvider({
   };
 
   // ─── Tozalash ──────────────────────────────────────────────────────────────
-  const cleanup = useCallback((note: string | null) => {
-    stopRing();
-    const s = sessionRef.current;
-    if (s?.pc) {
+  // reason: javobsiz tugashda qanday yozilsin — 'missed' (javob yo'q/bekor) yoki
+  // 'declined' (rad etildi). Ulangan bo'lsa (answeredAt) — baribir 'answered'.
+  const cleanup = useCallback(
+    (note: string | null, reason: 'missed' | 'declined' = 'missed') => {
+      stopRing();
+      const s = sessionRef.current;
+      // Qo'ng'iroq yozuvi — FAQAT chaqiruvchi va FAQAT taklif yuborilgan bo'lsa.
+      if (s && s.isCaller && s.invited && !s.logged) {
+        s.logged = true;
+        const answered = !!s.answeredAt;
+        const outcome = answered ? 'answered' : reason;
+        const duration = answered
+          ? Math.round((Date.now() - (s.answeredAt as number)) / 1000)
+          : 0;
+        api
+          .post('/chat/call-log', {
+            toUserId: s.peerId,
+            kind: s.video ? 'video' : 'voice',
+            outcome,
+            duration,
+          })
+          .catch(() => undefined);
+      }
+      if (s?.pc) {
       try {
         s.pc.ontrack = null;
         s.pc.onicecandidate = null;
@@ -230,6 +253,9 @@ export function CallProvider({
       pc.onconnectionstatechange = () => {
         const st = pc.connectionState;
         if (st === 'connected') {
+          if (sessionRef.current && !sessionRef.current.answeredAt) {
+            sessionRef.current.answeredAt = Date.now();
+          }
           setStatus('active');
           setStartedAt((prev) => prev ?? Date.now());
           stopRing();
@@ -269,6 +295,9 @@ export function CallProvider({
         pc: null,
         remoteDescSet: false,
         pendingIce: [],
+        invited: false,
+        answeredAt: null,
+        logged: false,
       };
       setPeer(p);
       setIsVideo(video);
@@ -281,6 +310,7 @@ export function CallProvider({
           const pc = await createPeer(video);
           if (!sessionRef.current || sessionRef.current.callId !== callId) return;
           sessionRef.current.pc = pc;
+          sessionRef.current.invited = true;
           emit('call:invite', {
             toUserId: p.id,
             callId,
@@ -372,6 +402,9 @@ export function CallProvider({
         pc: null,
         remoteDescSet: false,
         pendingIce: [],
+        invited: false,
+        answeredAt: null,
+        logged: false,
       };
       setPeer({ id: d.fromUserId, fullName: d.fromName || 'Foydalanuvchi' });
       setIsVideo(!!d.video);
@@ -449,7 +482,7 @@ export function CallProvider({
     const onReject = (d: any) => {
       const s = sessionRef.current;
       if (!s || s.callId !== d.callId) return;
-      cleanup('Qo‘ng‘iroq rad etildi');
+      cleanup('Qo‘ng‘iroq rad etildi', 'declined');
     };
     const onHangup = (d: any) => {
       const s = sessionRef.current;

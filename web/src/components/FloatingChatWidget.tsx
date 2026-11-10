@@ -27,6 +27,7 @@ import {
   GroupAvatar,
   Ticks,
   formatTime,
+  parseCallBody,
 } from './chat/shared';
 import { showLocalNotification } from '../lib/localNotify';
 
@@ -62,7 +63,10 @@ export function FloatingChatWidget() {
 
     const onChatMsg = (data: { payload: ChatMsg }) => {
       const msg = data.payload;
-      if (msg.fromUserId !== user.id) {
+      // Qo'ng'iroq yozuvi — foydalanuvchi qo'ng'iroqni allaqachon ko'rgan,
+      // shuning uchun ding/ogohlantirish chiqarmaymiz (faqat ro'yxat yangilanadi).
+      const isCall = !!parseCallBody(msg.body);
+      if (msg.fromUserId !== user.id && !isCall) {
         playChatDing();
         // Shu suhbatni aynan ochib turmagan bo'lsa — brauzer ogohlantirishi
         const viewing = open && partnerId === msg.fromUserId;
@@ -711,9 +715,14 @@ function ConversationList({
                       <span
                         className={`text-xs truncate ${c.unread > 0 ? 'font-semibold text-slate-800' : 'text-slate-500'}`}
                       >
-                        {c.lastMessage.attachments.length > 0 && !c.lastMessage.body
-                          ? `📎 ${c.lastMessage.attachments[0].filename}`
-                          : c.lastMessage.body || '—'}
+                        {(() => {
+                          const call = parseCallBody(c.lastMessage.body);
+                          if (call)
+                            return `${call.kind === 'video' ? '📹' : '📞'} ${t('edo.call.log_short')}`;
+                          if (c.lastMessage.attachments.length > 0 && !c.lastMessage.body)
+                            return `📎 ${c.lastMessage.attachments[0].filename}`;
+                          return c.lastMessage.body || '—';
+                        })()}
                       </span>
                     </>
                   )}

@@ -26,7 +26,15 @@ import {
 } from '../auth/decorators/current-user.decorator';
 import { ChatGateway } from './chat.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
-import { IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import {
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 class SendChatDto {
   @IsUUID()
@@ -42,6 +50,22 @@ class EditChatDto {
   @IsString()
   @MaxLength(10000)
   body: string;
+}
+
+class CallLogDto {
+  @IsUUID()
+  toUserId: string;
+
+  @IsIn(['voice', 'video'])
+  kind: 'voice' | 'video';
+
+  @IsIn(['answered', 'missed', 'declined'])
+  outcome: 'answered' | 'missed' | 'declined';
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  duration?: number;
 }
 
 @Controller('chat')
@@ -86,6 +110,29 @@ export class ChatController {
       });
     }
     return { iceServers: servers };
+  }
+
+  // Qo'ng'iroq yozuvi — chaqiruvchi qo'ng'iroq tugagach yuboradi. Chatда
+  // "📞 Qo'ng'iroq" yozuvi bo'lib ko'rinadi va ikki tomonning suhbatlar
+  // ro'yxatiga tushadi.
+  @Post('call-log')
+  async callLog(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() body: CallLogDto,
+  ) {
+    const msg = await this.chat.logCall(
+      user.id,
+      body.toUserId,
+      body.kind,
+      body.outcome,
+      body.duration ?? 0,
+    );
+    if (msg) {
+      // Ikkala tomonga ham real-vaqt (chaqiruvchining ochiq chatига ham tushsin).
+      this.gateway.emitChatMessage(body.toUserId, msg);
+      this.gateway.emitChatMessage(user.id, msg);
+    }
+    return msg;
   }
 
   @Get('conversations')
