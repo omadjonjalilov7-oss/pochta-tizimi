@@ -74,6 +74,81 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
     });
   }
 
+  // ─── Qo'ng'iroq (WebRTC) signalizatsiyasi ────────────────────────────────
+  // Barcha qo'ng'iroq eventlari shu yerda faqat UZATILADI (relay) — ovoz/video
+  // oqimi serverdan o'tmaydi, u to'g'ridan-to'g'ri ikki brauzer orasida yuriladi.
+
+  // Umumiy uzatuvchi: suhbatdoshga (toUserId) eventni yuboradi, fromUserId qo'shadi.
+  private relayCall(client: Socket, event: string, data: any) {
+    const fromUserId = client.data.userId as string | undefined;
+    if (!fromUserId || !data?.toUserId) return;
+    this.server.to(`user:${data.toUserId}`).emit(event, {
+      ...data,
+      fromUserId,
+    });
+  }
+
+  // Qo'ng'iroq taklifi (jiringlash). Suhbatdosh online bo'lmasa — chaqiruvchiga
+  // "band emas/ulanmagan" signalini qaytaramiz.
+  @SubscribeMessage('call:invite')
+  async onCallInvite(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    data: { toUserId?: string; callId?: string; video?: boolean; fromName?: string },
+  ) {
+    const fromUserId = client.data.userId as string | undefined;
+    if (!fromUserId || !data?.toUserId || !data?.callId) return;
+    const sockets = await this.server
+      .in(`user:${data.toUserId}`)
+      .fetchSockets()
+      .catch(() => []);
+    if (!sockets || sockets.length === 0) {
+      client.emit('call:peer_unavailable', { callId: data.callId });
+      return;
+    }
+    this.server.to(`user:${data.toUserId}`).emit('call:incoming', {
+      fromUserId,
+      callId: data.callId,
+      video: !!data.video,
+      fromName: data.fromName || '',
+    });
+  }
+
+  @SubscribeMessage('call:offer')
+  onCallOffer(@ConnectedSocket() c: Socket, @MessageBody() d: any) {
+    this.relayCall(c, 'call:offer', d);
+  }
+
+  @SubscribeMessage('call:answer')
+  onCallAnswer(@ConnectedSocket() c: Socket, @MessageBody() d: any) {
+    this.relayCall(c, 'call:answer', d);
+  }
+
+  @SubscribeMessage('call:ice')
+  onCallIce(@ConnectedSocket() c: Socket, @MessageBody() d: any) {
+    this.relayCall(c, 'call:ice', d);
+  }
+
+  @SubscribeMessage('call:accept')
+  onCallAccept(@ConnectedSocket() c: Socket, @MessageBody() d: any) {
+    this.relayCall(c, 'call:accept', d);
+  }
+
+  @SubscribeMessage('call:reject')
+  onCallReject(@ConnectedSocket() c: Socket, @MessageBody() d: any) {
+    this.relayCall(c, 'call:reject', d);
+  }
+
+  @SubscribeMessage('call:hangup')
+  onCallHangup(@ConnectedSocket() c: Socket, @MessageBody() d: any) {
+    this.relayCall(c, 'call:hangup', d);
+  }
+
+  @SubscribeMessage('call:busy')
+  onCallBusy(@ConnectedSocket() c: Socket, @MessageBody() d: any) {
+    this.relayCall(c, 'call:busy', d);
+  }
+
   notifyNewMessage(recipientIds: string[], message: any) {
     for (const userId of recipientIds) {
       this.server.to(`user:${userId}`).emit('new_message', {

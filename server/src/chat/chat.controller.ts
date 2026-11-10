@@ -59,6 +59,35 @@ export class ChatController {
     return this.chat.getContacts(user.id);
   }
 
+  // Qo'ng'iroq uchun ICE serverlari (STUN/TURN). TURN — har xil tarmoqdagilar
+  // (uy/mobil internet) uchun zarur; .env dan olinadi:
+  //   TURN_URL (masalan turn:turn.asaka-motors.uz:3478), TURN_USERNAME,
+  //   TURN_PASSWORD. STUN_URLS — vergul bilan (standart: Google STUN).
+  @Get('ice-servers')
+  iceServers() {
+    const stunRaw =
+      process.env.STUN_URLS || 'stun:stun.l.google.com:19302';
+    const stunUrls = stunRaw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const servers: Array<{
+      urls: string | string[];
+      username?: string;
+      credential?: string;
+    }> = [];
+    if (stunUrls.length) servers.push({ urls: stunUrls });
+    const turnUrl = (process.env.TURN_URL || '').trim();
+    if (turnUrl) {
+      servers.push({
+        urls: turnUrl.split(',').map((s) => s.trim()).filter(Boolean),
+        username: process.env.TURN_USERNAME || undefined,
+        credential: process.env.TURN_PASSWORD || undefined,
+      });
+    }
+    return { iceServers: servers };
+  }
+
   @Get('conversations')
   conversations(@CurrentUser() user: CurrentUserPayload) {
     return this.chat.getConversations(user.id);

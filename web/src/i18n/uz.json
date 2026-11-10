@@ -1473,6 +1473,21 @@
       "voice_hold_hint": "Yozish uchun bosib turing",
       "voice_release_hint": "Yuborish uchun qo'yib yuboring",
       "voice_too_short": "Juda qisqa — bosib turing"
+    },
+    "call": {
+      "voice_call": "Ovozli qo'ng'iroq",
+      "video_call": "Video qo'ng'iroq",
+      "incoming_voice": "Kiruvchi ovozli qo'ng'iroq",
+      "incoming_video": "Kiruvchi video qo'ng'iroq",
+      "calling": "Chaqirilyapti...",
+      "connecting": "Ulanmoqda...",
+      "accept": "Qabul qilish",
+      "decline": "Rad etish",
+      "hangup": "Tugatish",
+      "mute": "Mikrofonni o'chirish",
+      "unmute": "Mikrofonni yoqish",
+      "cam_off": "Kamerani o'chirish",
+      "cam_on": "Kamerani yoqish"
     }
   }
 }

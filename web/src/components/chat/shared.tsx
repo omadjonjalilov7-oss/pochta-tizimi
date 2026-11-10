@@ -24,6 +24,8 @@ import {
   Search,
   Check as CheckIcon,
   Smile,
+  Phone,
+  Video,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import i18n, { getLanguage } from '../../i18n';
@@ -32,6 +34,7 @@ import { Avatar } from '../Avatar';
 import { cn } from '../../lib/utils';
 import { api } from '../../lib/api';
 import { VoiceRecorder, VoiceMessagePlayer, voiceRecordingSupported } from './voice';
+import { useCall } from '../../lib/webrtc/CallProvider';
 
 // Chat faylini yuklab olish. Plain <a href> ishlatib bo'lmaydi — u Bearer
 // tokenni yubormaydi (401 bo'ladi). Shu sabab hujjatlar kabi axios orqali
@@ -282,6 +285,7 @@ export function ConversationView({
   onTyping?: (typing: boolean) => void;
 }) {
   const { t } = useTranslation();
+  const { startCall, callAvailable } = useCall();
   const [text, setText] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
@@ -462,6 +466,26 @@ export function ConversationView({
             })()
           )}
         </div>
+        {callAvailable && (
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => startCall({ id: partner.id, fullName: partner.fullName, avatarPath: partner.avatarPath }, false)}
+              className="p-2 rounded-full hover:bg-brand-500"
+              title={t('edo.call.voice_call')}
+            >
+              <Phone size={18} />
+            </button>
+            <button
+              type="button"
+              onClick={() => startCall({ id: partner.id, fullName: partner.fullName, avatarPath: partner.avatarPath }, true)}
+              className="p-2 rounded-full hover:bg-brand-500"
+              title={t('edo.call.video_call')}
+            >
+              <Video size={18} />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Xabarlar */}

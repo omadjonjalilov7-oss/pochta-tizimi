@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { ZoomControl } from './components/ZoomControl';
+import { CallProvider } from './lib/webrtc/CallProvider';
 import { LoginPage } from './pages/LoginPage';
 import { Layout } from './components/Layout';
 import { LayoutEdo } from './components/layouts/LayoutEdo';
@@ -58,6 +59,7 @@ export function App() {
 
   return (
     <>
+    <CallProvider enabled={!!user}>
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<Navigate to="/login" replace />} />
@@ -119,6 +121,7 @@ export function App() {
       </Route>
       <Route path="*" element={<Navigate to="/inbox" replace />} />
     </Routes>
+    </CallProvider>
     {user && <ZoomControl />}
     </>
   );
