@@ -5,6 +5,7 @@ import { MessagesController } from './messages.controller';
 import { MessagesService } from './messages.service';
 import { MessagesGateway } from './messages.gateway';
 import { ExternalMailModule } from '../external-mail/external-mail.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { ExternalMailModule } from '../external-mail/external-mail.module';
       }),
     }),
     forwardRef(() => ExternalMailModule),
+    NotificationsModule,
   ],
   controllers: [MessagesController],
   providers: [MessagesService, MessagesGateway],

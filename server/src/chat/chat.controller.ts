@@ -180,10 +180,11 @@ export class ChatController {
         (msg.attachments?.length ?? 0) > 0 && !msg.body
           ? '📎 Fayl'
           : msg.body || 'Yangi xabar';
+      const { count } = await this.chat.unreadCount(body.toUserId);
       void this.notifications.pushOnly(body.toUserId, {
         title: name,
         body: preview.slice(0, 240),
-        data: { url: '/edo/chat', tag: `chat-${user.id}` },
+        data: { url: '/edo/chat', tag: `chat-${user.id}`, badge: String(count) },
       });
     }
     return msg;

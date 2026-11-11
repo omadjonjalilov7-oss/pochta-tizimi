@@ -11,6 +11,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SendMessageDto } from './dto/send-message.dto';
 import { ImapPollService } from '../external-mail/imap-poll.service';
 import { SmtpSendService } from '../external-mail/smtp-send.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { MessagesGateway } from './messages.gateway';
 
 @Injectable()
 export class MessagesService {
@@ -20,6 +22,8 @@ export class MessagesService {
     private readonly imapPoll: ImapPollService,
     @Inject(forwardRef(() => SmtpSendService))
     private readonly smtpSend: SmtpSendService,
+    private readonly notifications: NotificationsService,
+    private readonly gateway: MessagesGateway,
   ) {}
 
   async send(fromUserId: string, dto: SendMessageDto) {
@@ -156,7 +160,45 @@ export class MessagesService {
         });
     }
 
+    // PWA/telefon uchun web-push — ilova yopiq (offline) qabul qiluvchilarga.
+    // (Online bo'lsa socket banner chiqadi — ikki marta chiqmasligi uchun.)
+    void this.pushNewMail(fromUserId, [...activeTo, ...activeCc], dto.subject, dto.body);
+
     return this.findOne(fromUserId, message.id);
+  }
+
+  // Yangi ichki xabar kelganda offline qabul qiluvchilarga web-push + ilova
+  // ikonkasidagi o'qilmaganlar soni (badge).
+  private async pushNewMail(
+    fromUserId: string,
+    recipientIds: string[],
+    subject: string,
+    body: string,
+  ) {
+    try {
+      const ids = Array.from(new Set(recipientIds)).filter((id) => id !== fromUserId);
+      if (ids.length === 0) return;
+      const sender = await this.prisma.user.findUnique({
+        where: { id: fromUserId },
+        select: { fullName: true },
+      });
+      const title = sender?.fullName || 'Yangi xabar';
+      const preview = (subject || body || 'Yangi xabar').slice(0, 200);
+      await Promise.all(
+        ids.map(async (uid) => {
+          if (await this.gateway.isOnline(uid)) return;
+          const { count } = await this.unreadCount(uid);
+          await this.notifications.pushOnly(uid, {
+            title,
+            body: preview,
+            data: { url: '/inbox', tag: 'mail', badge: String(count) },
+          });
+        }),
+      );
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('[MAIL] push failed:', e);
+    }
   }
 
   private bodyToHtml(plain: string): string {

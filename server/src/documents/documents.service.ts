@@ -1459,7 +1459,59 @@ export class DocumentsService {
       data: { documentId: id, actorId: userId, action: 'commented' },
     });
 
+    // Hujjat ishtirokchilari (yaratuvchi + zanjirdagilar)ni izoh haqida xabardor
+    // qilamiz (izoh yozgan o'zidan tashqari).
+    await this.notifyComment(userId, id, doc.number, doc.subject, dto.text);
+
     return this.findOne(userId, id);
+  }
+
+  // Hujjatga izoh yozilganda — yaratuvchi va barcha ishtirokchilarni (izoh
+  // muallifidan tashqari) ichki pochta orqali xabardor qiladi.
+  private async notifyComment(
+    actorId: string,
+    docId: string,
+    number: string,
+    subject: string,
+    text: string,
+  ) {
+    try {
+      const doc = await this.prisma.document.findUnique({
+        where: { id: docId },
+        select: {
+          createdById: true,
+          participants: { select: { userId: true } },
+        },
+      });
+      if (!doc) return;
+      const ids = new Set<string>();
+      ids.add(doc.createdById);
+      for (const p of doc.participants) ids.add(p.userId);
+      ids.delete(actorId);
+      const recipientIds = [...ids];
+      if (recipientIds.length === 0) return;
+
+      const author = await this.prisma.user.findUnique({
+        where: { id: actorId },
+        select: { fullName: true },
+      });
+      const preview = text.length > 300 ? `${text.slice(0, 300)}…` : text;
+      const link = `/edo/documents/${docId}`;
+      const result = await this.messages.send(actorId, {
+        recipientIds,
+        subject: `[EDO ${number}] Yangi izoh: ${subject}`,
+        body:
+          `${author?.fullName || 'Xodim'} hujjatga izoh yozdi:\n\n` +
+          `"${preview}"\n\n` +
+          `Mavzu: ${subject}\nRaqam: ${number}\n\n` +
+          `Hujjat sahifasi: ${link}`,
+        importance: 'normal',
+      });
+      this.gateway.notifyNewMessage(recipientIds, result);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('[EDO] comment notify failed:', e);
+    }
   }
 
   // Izohni tahrirlash — faqat izoh muallifi yoki admin.

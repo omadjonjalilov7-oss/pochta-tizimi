@@ -149,6 +149,17 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
     this.relayCall(c, 'call:busy', d);
   }
 
+  // Foydalanuvchi hozir ulangan (online)mi — push yubormaslik/ikki marta
+  // bo'lmasligi uchun (ilova ochiq bo'lsa socket banner chiqadi).
+  async isOnline(userId: string): Promise<boolean> {
+    try {
+      const sockets = await this.server.in(`user:${userId}`).fetchSockets();
+      return sockets.length > 0;
+    } catch {
+      return false;
+    }
+  }
+
   notifyNewMessage(recipientIds: string[], message: any) {
     for (const userId of recipientIds) {
       this.server.to(`user:${userId}`).emit('new_message', {

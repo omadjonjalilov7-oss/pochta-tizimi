@@ -34,7 +34,30 @@ self.addEventListener('push', (event) => {
     renotify: !!(payload.data && payload.data.tag),
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  // Ilova ikonkasidagi o'qilmaganlar soni (Badging API) — push ichidagi
+  // data.badge dan olinadi (ilova yopiq bo'lganда ham yangilanadi).
+  const rawBadge = payload.data && payload.data.badge;
+  const badgeCount =
+    rawBadge !== undefined && rawBadge !== null && rawBadge !== ''
+      ? parseInt(rawBadge, 10)
+      : null;
+
+  event.waitUntil(
+    (async () => {
+      await self.registration.showNotification(title, options);
+      try {
+        if (badgeCount !== null && !isNaN(badgeCount) && self.navigator) {
+          if (badgeCount > 0 && self.navigator.setAppBadge) {
+            await self.navigator.setAppBadge(badgeCount);
+          } else if (badgeCount <= 0 && self.navigator.clearAppBadge) {
+            await self.navigator.clearAppBadge();
+          }
+        }
+      } catch (e) {
+        // Badging qo'llab-quvvatlanmasa — e'tiborsiz
+      }
+    })(),
+  );
 });
 
 self.addEventListener('notificationclick', (event) => {
