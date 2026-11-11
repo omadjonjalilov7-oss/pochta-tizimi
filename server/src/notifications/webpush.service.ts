@@ -100,6 +100,8 @@ export class WebPushService implements OnModuleInit {
     });
 
     const stale: string[] = [];
+    let okCount = 0;
+    const errCodes: number[] = [];
     await Promise.all(
       subs.map(async (s) => {
         try {
@@ -108,14 +110,23 @@ export class WebPushService implements OnModuleInit {
             body,
             { TTL: 3600 },
           );
+          okCount += 1;
         } catch (e: unknown) {
-          const code = (e as { statusCode?: number })?.statusCode;
-          // 404/410 — obuna o'chgan/eskirgan, tozalaymiz.
-          if (code === 404 || code === 410) {
+          const code = (e as { statusCode?: number })?.statusCode ?? 0;
+          errCodes.push(code);
+          // 404/410 — obuna o'chgan/eskirgan; 401/403 — kalit mos emas (eski
+          // VAPID). Bularning hammasini tozalaymiz (qayta obuna bo'ladi).
+          if (code === 404 || code === 410 || code === 401 || code === 403) {
             stale.push(s.endpoint);
           }
         }
       }),
+    );
+
+    // Diagnostika — nechta yetdi, qaysi xatolar bo'ldi.
+    this.logger.log(
+      `web-push user=${userId}: ${okCount} ok, ${errCodes.length} xato` +
+        (errCodes.length ? ` (kodlar: ${errCodes.join(',')})` : ''),
     );
 
     if (stale.length) {
