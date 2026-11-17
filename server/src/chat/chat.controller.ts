@@ -101,12 +101,23 @@ export class ChatController {
       credential?: string;
     }> = [];
     if (stunUrls.length) servers.push({ urls: stunUrls });
+    // Ichki (ofis LAN) TURN — bir xil tarmoqdagilar uchun.
     const turnUrl = (process.env.TURN_URL || '').trim();
     if (turnUrl) {
       servers.push({
         urls: turnUrl.split(',').map((s) => s.trim()).filter(Boolean),
         username: process.env.TURN_USERNAME || undefined,
         credential: process.env.TURN_PASSWORD || undefined,
+      });
+    }
+    // Ommaviy (public) TURN — har xil tarmoqdagilar (4G/uy) uchun; ikkala
+    // tomon ham ko'ra oladi. .env: TURN_PUBLIC_URL / _USERNAME / _PASSWORD.
+    const pubUrl = (process.env.TURN_PUBLIC_URL || '').trim();
+    if (pubUrl) {
+      servers.push({
+        urls: pubUrl.split(',').map((s) => s.trim()).filter(Boolean),
+        username: process.env.TURN_PUBLIC_USERNAME || undefined,
+        credential: process.env.TURN_PUBLIC_PASSWORD || undefined,
       });
     }
     return { iceServers: servers };
