@@ -100,12 +100,32 @@ export function CallProvider({
 
   const sessionRef = useRef<Session | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const remoteStreamRef = useRef<MediaStream | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const ringRef = useRef<{ stop: () => void } | null>(null);
   const statusRef = useRef<CallStatus>('idle');
   statusRef.current = status;
+
+  // Video sahna (overlay) render bo'lgach lokal va remot oqimlarni video
+  // elementlariga ulaymiz. getMedia/ontrack element hali DOM'da yo'q paytда
+  // chaqirilgan bo'lishi mumkin — shuning uchun bu yerda kafolatlaymiz
+  // (aks holda o'z videong kulrang bo'lib qoladi).
+  useEffect(() => {
+    if (!isVideo || (status !== 'active' && status !== 'connecting')) return;
+    const id = window.setTimeout(() => {
+      if (localVideoRef.current && localStreamRef.current) {
+        localVideoRef.current.srcObject = localStreamRef.current;
+        localVideoRef.current.play?.().catch(() => undefined);
+      }
+      if (remoteVideoRef.current && remoteStreamRef.current) {
+        remoteVideoRef.current.srcObject = remoteStreamRef.current;
+        remoteVideoRef.current.play?.().catch(() => undefined);
+      }
+    }, 60);
+    return () => window.clearTimeout(id);
+  }, [status, isVideo]);
 
   const emit = (event: string, data: Record<string, unknown>) => {
     try {
@@ -207,6 +227,7 @@ export function CallProvider({
     }
     localStreamRef.current?.getTracks().forEach((tr) => tr.stop());
     localStreamRef.current = null;
+    remoteStreamRef.current = null;
     if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null;
     sessionRef.current = null;
     setStatus('idle');
@@ -241,6 +262,7 @@ export function CallProvider({
       pc.ontrack = (e) => {
         const [stream] = e.streams;
         if (!stream) return;
+        remoteStreamRef.current = stream;
         // Video elementga tasvir; ovoz esa ALOHIDA audio element orqali chiqadi
         // (video element muted — ikki marta ovoz/eko bo'lmasligi uchun).
         if (remoteVideoRef.current) remoteVideoRef.current.srcObject = stream;
