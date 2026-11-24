@@ -249,8 +249,11 @@ export function EdoDocumentViewPage({
   const queryClient = useQueryClient();
 
   const { data: doc, isLoading, error } = useQuery({
-    queryKey: ['edo-doc', id],
-    queryFn: async () => (await api.get<EdoDocument>(`/documents/${id}`)).data,
+    // Til o'zgarsa hujjat matnidagi yorliq (Xizmat xati / Служебное письмо)
+    // qayta hisoblanishi uchun til ham queryKey'da.
+    queryKey: ['edo-doc', id, i18n.language],
+    queryFn: async () =>
+      (await api.get<EdoDocument>(`/documents/${id}`, { params: { lang: i18n.language } })).data,
     enabled: !!id,
   });
 

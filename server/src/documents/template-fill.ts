@@ -327,18 +327,22 @@ export interface IchkiYangiInput {
   sanaFinal?: Date | null; // topshiriq/ijro sanasi
 }
 
-// internal_kind bo'yicha ko'rsatiladigan (krill) tur nomi.
+// internal_kind bo'yicha ko'rsatiladigan tur nomi. Foydalanuvchi rus tilida
+// ishlаётган bo'lsa (lang='ru') — ruscha, aks holda o'zbekcha (krill).
 export function internalKindLabel(
   internalKind: string | null | undefined,
   fallbackName?: string | null,
+  lang?: string,
 ): string {
+  const ru = (lang ?? '').toLowerCase().startsWith('ru');
   switch ((internalKind ?? '').trim().toLowerCase()) {
     case 'service_letter':
-      return 'Хизмат хати';
+      return ru ? 'Служебное письмо' : 'Хизмат хати';
     case 'order':
-      return 'Буйруқ';
+      return ru ? 'Приказ' : 'Буйруқ';
     default:
-      return toCyrillic(fallbackName ?? '');
+      // Maxsus nom — ruscha ko'rinишда xomligicha, o'zbekчада krillга o'giriladi.
+      return ru ? (fallbackName ?? '') : toCyrillic(fallbackName ?? '');
   }
 }
 
@@ -368,7 +372,10 @@ export function renderIchkiYangi(
   let html = bodyTemplate
     // {{ichki_nom}} ham, {{ichki_nomi}} ham (ikkala imlo) qo'llab-quvvatlanadi.
     .replace(/\{\{\s*ichki_nomi?\s*\}\}/g, escapeHtml(input.ichkiNom))
-    .replace(/\{\{\s*mavzu\s*\}\}/g, escapeHtml(toCyrillic(input.mavzu)))
+    // Mavzu — foydalanuvchi QANDAY kiritган bo'lsa, SHUNDAY ko'rsatiladi (lotin
+    // bo'lsa lotin, krill bo'lsa krill). Avval krillга majburan o'girilib,
+    // "Geely" kabi brend nomlari buzilardi (Геелй) — endi o'girilmaydi.
+    .replace(/\{\{\s*mavzu\s*\}\}/g, escapeHtml(input.mavzu))
     .replace(/\{\{\s*xujjat_matni\s*\}\}/g, input.body ?? '')
     .replace(/\{\{\s*matn\s*\}\}/g, input.body ?? '')
     // "Для исполнения" — ijrochi va sana.

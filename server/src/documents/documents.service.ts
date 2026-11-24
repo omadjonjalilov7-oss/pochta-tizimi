@@ -2610,23 +2610,23 @@ export class DocumentsService {
 
   // ── SO'ROVLAR ─────────────────────────────────────────────────────────
 
-  async findOne(userId: string, id: string) {
+  async findOne(userId: string, id: string, lang?: string) {
     const doc = await this.prisma.document.findUnique({
       where: { id },
       include: FULL_INCLUDE,
     });
     if (!doc) throw new NotFoundException('Hujjat topilmadi');
     await this.requireAccess(userId, doc);
-    await this.attachRenderedBody(doc);
+    await this.attachRenderedBody(doc, lang);
     return this.serialize(doc);
   }
 
   // "ichki" shabloniga avtomat solingan hujjat uchun to'ldirilgan matnni
   // jonli hisoblaydi (asl matn saqlanadi; sana tokenlari tasdiqlash bo'yicha
   // to'ladi, shu bois o'qishda hisoblaymiz).
-  private async attachRenderedBody(doc: any): Promise<void> {
+  private async attachRenderedBody(doc: any, lang?: string): Promise<void> {
     // Shablon (ichki avto yoki foydalanuvchi blankasi) bo'lsa — to'liq render.
-    const rendered = await this.renderTemplateHtml(doc);
+    const rendered = await this.renderTemplateHtml(doc, lang);
     if (rendered != null) {
       doc.renderedBody = rendered;
       return;
@@ -2657,7 +2657,7 @@ export class DocumentsService {
       const firstRes = (doc.resolutions ?? [])[0];
       const firstTarget = firstRes?.targets?.[0];
       doc.renderedBody = renderInternalDefault({
-        ichkiNom: internalKindLabel(doc.internalKind, doc.docName),
+        ichkiNom: internalKindLabel(doc.internalKind, doc.docName, lang),
         mavzu: doc.subject ?? '',
         body: doc.body ?? '',
         approvers: defApprovers,
@@ -2713,7 +2713,7 @@ export class DocumentsService {
   // FULL_INCLUDE bilan yuklangan doc kutiladi (participants, createdBy, dept...).
   // Shablon yo'q bo'lsa null qaytaradi. Bu metod HTML ko'rinishi, PDF/Word
   // eksporti va ommaviy QR skaneri uchun YAGONA manba — barchasi bir xil holat.
-  private async renderTemplateHtml(doc: any): Promise<string | null> {
+  private async renderTemplateHtml(doc: any, lang?: string): Promise<string | null> {
     if (!doc?.templateId) return null;
     const tpl = await this.prisma.documentTemplate.findUnique({
       where: { id: doc.templateId },
@@ -2756,7 +2756,7 @@ export class DocumentsService {
       const yangiFirstRes = (doc.resolutions ?? [])[0];
       const yangiFirstTarget = yangiFirstRes?.targets?.[0];
       const out = renderIchkiYangi(tpl.bodyTemplate, {
-        ichkiNom: internalKindLabel(doc.internalKind, doc.docName),
+        ichkiNom: internalKindLabel(doc.internalKind, doc.docName, lang),
         mavzu: doc.subject ?? '',
         body: doc.body ?? '',
         approvers: yangiApprovers,

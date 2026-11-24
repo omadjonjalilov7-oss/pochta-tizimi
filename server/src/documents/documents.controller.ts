@@ -366,8 +366,9 @@ export class DocumentsController {
   findOne(
     @CurrentUser() user: CurrentUserPayload,
     @Param('id', new ParseUUIDPipe()) id: string,
+    @Query('lang') lang?: string,
   ) {
-    return this.docs.findOne(user.id, id);
+    return this.docs.findOne(user.id, id, lang);
   }
 
   // Hujjat uchun QR kod (PNG data URL) + ommaviy skaner linki
