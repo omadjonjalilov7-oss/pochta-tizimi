@@ -3,6 +3,7 @@ import * as nodemailer from 'nodemailer';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { decryptSecret } from './crypto.util';
+import { externalMailEnabled } from './enabled';
 
 interface SendExternalArgs {
   fromUserId: string;
@@ -35,6 +36,10 @@ export class SmtpSendService {
    * SMTP bilan xabar yuboradi. Har bir tashqi email uchun unique tracking pixel qo'shadi.
    */
   async sendExternal(args: SendExternalArgs): Promise<{ ok: boolean; error?: string }> {
+    // Tashqi pochta butunlay o'chiq bo'lsa — SMTP yuborilmaydi.
+    if (!externalMailEnabled()) {
+      return { ok: false, error: 'Tashqi pochta vaqtincha o‘chirilgan' };
+    }
     const u = await this.prisma.user.findUnique({
       where: { id: args.fromUserId },
       select: {

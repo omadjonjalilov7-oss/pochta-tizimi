@@ -5,6 +5,7 @@ import { MessageFolder, RecipientKind } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MessagesGateway } from '../messages/messages.gateway';
 import { decryptSecret } from './crypto.util';
+import { externalMailEnabled } from './enabled';
 
 /**
  * IMAP polling — har 15 sekundda ulangan foydalanuvchilarning
@@ -29,6 +30,14 @@ export class ImapPollService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
+    // Tashqi pochta O'CHIRIQ bo'lsa — polling umuman ishga tushmaydi
+    // (billur/asaka-motors.uz ga hech qanday so'rov yuborilmaydi).
+    if (!externalMailEnabled()) {
+      this.logger.warn(
+        "Tashqi pochta O'CHIRILGAN — IMAP polling ishga tushmaydi. Yoqish uchun .env: EXTERNAL_MAIL_ENABLED=true",
+      );
+      return;
+    }
     const seconds = Number(process.env.EXTERNAL_MAIL_POLL_SECONDS || 15);
     const ms = Math.max(5, seconds) * 1000;
     this.logger.log(`IMAP polling har ${ms / 1000} sekundda boshlanadi`);
@@ -85,6 +94,8 @@ export class ImapPollService implements OnModuleInit {
    * (15 sekundlik tsiklni kutmasdan). Mutex bilan himoyalangan.
    */
   async syncNow(userId: string): Promise<{ ok: boolean }> {
+    // Tashqi pochta o'chiq bo'lsa — hech narsa qilmaymiz.
+    if (!externalMailEnabled()) return { ok: false };
     await this.pollUserSafely(userId);
     return { ok: true };
   }

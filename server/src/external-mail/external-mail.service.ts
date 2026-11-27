@@ -3,6 +3,7 @@ import { ImapFlow } from 'imapflow';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConnectExternalMailDto } from './dto/connect-external-mail.dto';
 import { decryptSecret, encryptSecret } from './crypto.util';
+import { externalMailEnabled } from './enabled';
 
 const ALLOWED_DOMAIN = 'asaka-motors.uz';
 
@@ -23,6 +24,9 @@ export class ExternalMailService {
    * IMAP serverga sinov ulanishi. Login muvaffaqiyatli bo'lsa true qaytaradi.
    */
   async testConnection(email: string, password: string): Promise<{ ok: boolean; error?: string }> {
+    if (!externalMailEnabled()) {
+      return { ok: false, error: 'Tashqi pochta vaqtincha o‘chirilgan' };
+    }
     const client = new ImapFlow({
       host: this.getImapHost(),
       port: this.getImapPort(),
@@ -71,6 +75,9 @@ export class ExternalMailService {
    * Admin foydalanuvchi yaratish/tahrirlashda ham, profil "connect"da ham ishlatiladi.
    */
   async prepareConnectionData(email: string, password: string) {
+    if (!externalMailEnabled()) {
+      throw new BadRequestException('Tashqi pochta vaqtincha o‘chirilgan');
+    }
     const em = email.trim().toLowerCase();
     if (!em.endsWith('@' + ALLOWED_DOMAIN)) {
       throw new ForbiddenException(`Faqat @${ALLOWED_DOMAIN} pochta manzili qo\'shilishi mumkin`);
